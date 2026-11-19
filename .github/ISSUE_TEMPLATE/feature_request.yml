@@ -1,0 +1,20 @@
+name: Feature request
+description: A metric, data source or app feature you want.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you want to do
+      description: The question you want answered or the task you want to do, rather than the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: For a metric, include its definition and a source (paper, book, or a well-known tool's documentation).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered

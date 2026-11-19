@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Parse sports-watch activity files and compute running metrics."
 readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
 keywords = ["running", "fit", "gpx", "tcx", "garmin", "training-load", "telemetry"]
 classifiers = [
@@ -20,6 +21,12 @@ dependencies = [
     "polars>=2.1",
     "typer>=0.29",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tanhtruong/pacelab"
+Documentation = "https://github.com/tanhtruong/pacelab#readme"
+Issues = "https://github.com/tanhtruong/pacelab/issues"
+Source = "https://github.com/tanhtruong/pacelab"
 
 [project.scripts]
 pacelab = "pacelab.cli:app"

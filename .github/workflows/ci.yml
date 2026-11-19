@@ -21,3 +21,17 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: uv sync --locked
       - run: make check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker build -t pacelab-server:ci .
+      - run: docker run -d --name pacelab -p 8000:8000 pacelab-server:ci
+      - run: |
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/api/activities && exit 0
+            sleep 1
+          done
+          docker logs pacelab
+          exit 1
