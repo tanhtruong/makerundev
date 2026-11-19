@@ -9,6 +9,7 @@ Open source running analytics: a Python library and CLI (`packages/pacelab`) tha
 - `make format` - apply ruff formatting and fixes
 - `make serve` - run the app on http://127.0.0.1:8000 (`PACELAB_DATA_DIR`, `PACELAB_HOST`, `PACELAB_PORT`)
 - `uv run pacelab --help` - the CLI
+- Releases: publishing a GitHub release `v<version>` ships PyPI and the GHCR image, see `docs/releasing.md`
 
 ## Architecture (decided - see ADRs before revisiting)
 
