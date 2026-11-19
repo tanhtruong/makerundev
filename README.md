@@ -84,6 +84,7 @@ The record stream always has the same columns and units, whatever the source fil
 - [v1 spec](docs/v1-spec.md) - scope, metrics definitions, data sources and build order
 - [Glossary](GLOSSARY.md) - the terms the code and docs use
 - [Architecture decisions](docs/adr) - why things are the way they are
+- [Changelog](CHANGELOG.md) - what changed in each release
 - [Contributing](CONTRIBUTING.md)
 
 ## License
