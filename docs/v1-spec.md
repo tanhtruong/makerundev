@@ -32,9 +32,10 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - Time in heart-rate zones.
 - TRIMP (Banister, with male and female coefficients).
 - Aerobic decoupling.
+- Grade-adjusted pace (Minetti cost model).
 - Training load: fitness, fatigue, form.
 
-Next in line: grade-adjusted pace, running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed, splits and laps, running dynamics (ground contact time, vertical oscillation, stride length) where the FIT file has them.
+Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed, splits and laps, running dynamics (ground contact time, vertical oscillation, stride length) where the FIT file has them.
 
 ### Self-hosted app
 

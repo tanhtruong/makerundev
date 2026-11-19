@@ -13,6 +13,9 @@ FloatArray = np.ndarray[Any, np.dtype[np.float64]]
 MAX_GAP_S = 30.0
 MOVING_SPEED_MPS = 0.5
 ELEVATION_THRESHOLD_M = 3.0
+GRADE_WINDOW_M = 60.0
+MAX_RUNNING_GRADE = 0.45
+MINETTI_COST = (155.4, -30.4, -43.3, 46.3, 19.5, 3.6)
 FITNESS_DAYS = 42
 FATIGUE_DAYS = 7
 BANISTER_MALE = (0.64, 1.92)
@@ -26,6 +29,7 @@ class Summary:
     elapsed_s: float
     moving_s: float
     pace_s_per_km: float | None
+    grade_adjusted_pace_s_per_km: float | None
     avg_heart_rate: float | None
     max_heart_rate: float | None
     avg_cadence: float | None
@@ -75,12 +79,14 @@ def summarize(activity: Activity) -> Summary:
     distance = float(np.nansum(steps.meters))
     moving_s = float(moving_weights.sum())
     heart_rate = _column(activity, "heart_rate")
-    gain, loss = elevation_change(_column(activity, "altitude"))
+    altitude = _column(activity, "altitude")
+    gain, loss = elevation_change(altitude)
     return Summary(
         distance_m=distance,
         elapsed_s=float(_elapsed(activity)[-1]),
         moving_s=moving_s,
         pace_s_per_km=moving_s / (distance / 1000) if distance > 0 else None,
+        grade_adjusted_pace_s_per_km=_grade_adjusted_pace(activity, steps, altitude),
         avg_heart_rate=_weighted_mean(heart_rate[:-1], moving_weights),
         max_heart_rate=float(np.nanmax(heart_rate)) if not np.isnan(heart_rate).all() else None,
         avg_cadence=_weighted_mean(_column(activity, "cadence")[:-1], moving_weights),
@@ -88,6 +94,41 @@ def summarize(activity: Activity) -> Summary:
         elevation_gain_m=gain,
         elevation_loss_m=loss,
     )
+
+
+def grade_adjusted_pace(activity: Activity) -> float | None:
+    return _grade_adjusted_pace(activity, _intervals(activity), _column(activity, "altitude"))
+
+
+def _grade_adjusted_pace(
+    activity: Activity, steps: _Intervals, altitude: FloatArray
+) -> float | None:
+    if not activity.sport.is_running:
+        return None
+    moving = np.flatnonzero(steps.moving)
+    if moving.size == 0:
+        return None
+    if not (np.isfinite(altitude[moving]) & np.isfinite(altitude[moving + 1])).all():
+        return None
+    equivalent_m = 0.0
+    for block in np.split(moving, np.flatnonzero(np.diff(moving) > 1) + 1):
+        meters = steps.meters[block]
+        distance = np.concatenate(([0.0], np.cumsum(meters)))
+        heights = altitude[np.append(block, block[-1] + 1)]
+        grade = np.clip(_window_grade(distance, heights), -MAX_RUNNING_GRADE, MAX_RUNNING_GRADE)
+        cost = np.polyval(MINETTI_COST, grade)
+        equivalent_m += float(np.sum(meters * cost)) / MINETTI_COST[-1]
+    return float(steps.seconds[moving].sum()) * 1000 / equivalent_m
+
+
+def _window_grade(distance: FloatArray, heights: FloatArray) -> FloatArray:
+    total = distance[-1]
+    centres = (distance[:-1] + distance[1:]) / 2
+    left = np.clip(centres - GRADE_WINDOW_M / 2, 0.0, max(0.0, total - GRADE_WINDOW_M))
+    right = np.minimum(left + GRADE_WINDOW_M, total)
+    rise = np.interp(right, distance, heights) - np.interp(left, distance, heights)
+    grade: FloatArray = rise / (right - left)
+    return grade
 
 
 def elevation_change(
