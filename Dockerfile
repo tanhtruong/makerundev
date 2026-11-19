@@ -3,8 +3,8 @@ FROM ghcr.io/astral-sh/uv:0.12-python3.13-trixie-slim
 WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
-COPY pyproject.toml uv.lock ./
-COPY packages/pacelab/pyproject.toml packages/pacelab/README.md packages/pacelab/
+COPY pyproject.toml uv.lock LICENSE ./
+COPY packages/pacelab/pyproject.toml packages/pacelab/README.md packages/pacelab/LICENSE packages/pacelab/
 COPY apps/server/pyproject.toml apps/server/
 RUN mkdir -p packages/pacelab/src/pacelab apps/server/src/pacelab_server \
     && uv sync --locked --no-dev --no-install-workspace --package pacelab-server
