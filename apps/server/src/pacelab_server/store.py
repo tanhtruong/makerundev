@@ -1,15 +1,21 @@
 import hashlib
+import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 import polars as pl
-from pacelab import load
-from pacelab.metrics import summarize
-from sqlalchemy import select
+from pacelab import Activity, Sport, load
+from pacelab.metrics import summarize, trimp
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from pacelab_server.db import ActivityRow
+from pacelab_server.db import ActivityRow, AthleteSettingsRow
+from pacelab_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
+
+SETTINGS_ID = 1
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,9 +24,16 @@ class ImportResult:
     created: bool
 
 
+@dataclass(frozen=True, slots=True)
+class SaveResult:
+    recomputed: int
+    unreadable: int
+
+
 class Store:
     def __init__(self, data_dir: Path, engine: Engine) -> None:
         self.engine = engine
+        self.writing = threading.Lock()
         self.originals = data_dir / "originals"
         self.streams = data_dir / "streams"
         self.originals.mkdir(parents=True, exist_ok=True)
@@ -28,12 +41,13 @@ class Store:
 
     def import_file(self, filename: str, data: bytes) -> ImportResult:
         digest = hashlib.sha256(data).hexdigest()
-        with Session(self.engine) as session:
+        with self.writing, Session(self.engine) as session:
             existing = session.scalar(select(ActivityRow.id).where(ActivityRow.sha256 == digest))
             if existing is not None:
                 return ImportResult(existing, created=False)
             activity = load(data)
             summary = summarize(activity)
+            settings = _settings(session)
             row = ActivityRow(
                 sha256=digest,
                 filename=Path(filename).name[:255] or "upload",
@@ -48,6 +62,7 @@ class Store:
                 avg_heart_rate=summary.avg_heart_rate,
                 max_heart_rate=summary.max_heart_rate,
                 elevation_gain_m=summary.elevation_gain_m,
+                trimp=_trimp(activity, settings) if settings else None,
             )
             session.add(row)
             session.flush()
@@ -68,3 +83,66 @@ class Store:
 
     def records(self, row: ActivityRow) -> pl.DataFrame:
         return pl.read_parquet(self.streams / f"{row.sha256}.parquet")
+
+    def activity(self, row: ActivityRow) -> Activity:
+        return Activity(
+            sport=Sport(row.sport), start_time=row.start_time, records=self.records(row)
+        )
+
+    def highest_heart_rate(self) -> float | None:
+        with Session(self.engine) as session:
+            return session.scalar(select(func.max(ActivityRow.max_heart_rate)))
+
+    def athlete_settings(self) -> AthleteSettings | None:
+        with Session(self.engine) as session:
+            return _settings(session)
+
+    def save_athlete_settings(self, settings: AthleteSettings) -> SaveResult:
+        with self.writing, Session(self.engine) as session:
+            previous = _settings(session)
+            recomputed = unreadable = 0
+            if previous is None or previous.trimp_inputs() != settings.trimp_inputs():
+                for row in session.scalars(select(ActivityRow)):
+                    try:
+                        activity = self.activity(row)
+                    except (OSError, pl.exceptions.PolarsError) as error:
+                        log.warning("cannot read the stream of activity %s: %s", row.id, error)
+                        row.trimp = None
+                        unreadable += 1
+                        continue
+                    row.trimp = _trimp(activity, settings)
+                    recomputed += 1
+            session.merge(
+                AthleteSettingsRow(
+                    id=SETTINGS_ID,
+                    max_hr=settings.max_hr,
+                    resting_hr=settings.resting_hr,
+                    trimp_coefficients=settings.trimp_coefficients.value,
+                    timezone=settings.timezone,
+                    zone_model=settings.zone_model.value,
+                    zone_thresholds=list(settings.zone_thresholds),
+                )
+            )
+            session.commit()
+            return SaveResult(recomputed=recomputed, unreadable=unreadable)
+
+
+def _settings(session: Session) -> AthleteSettings | None:
+    row = session.get(AthleteSettingsRow, SETTINGS_ID)
+    if row is None:
+        return None
+    return AthleteSettings(
+        max_hr=row.max_hr,
+        resting_hr=row.resting_hr,
+        trimp_coefficients=TrimpCoefficients(row.trimp_coefficients),
+        timezone=row.timezone,
+        zone_model=ZoneModel(row.zone_model),
+        zone_thresholds=tuple(row.zone_thresholds),
+    )
+
+
+def _trimp(activity: Activity, settings: AthleteSettings) -> float | None:
+    heart_rate = activity.records["heart_rate"]
+    if heart_rate.is_nan().fill_null(True).all():
+        return None
+    return trimp(activity, settings.resting_hr, settings.max_hr, settings.coefficients)

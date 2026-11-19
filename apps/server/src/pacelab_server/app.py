@@ -3,14 +3,16 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from pacelab import Activity, ActivityFileError, Sport, format
+from pacelab import ActivityFileError, format
 from pacelab.metrics import best_efforts
 
 from pacelab_server import charts
 from pacelab_server.db import ActivityRow, connect
+from pacelab_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
 from pacelab_server.store import Store
 
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
@@ -72,8 +74,8 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
     @app.get("/activities/{activity_id}", response_class=HTMLResponse)
     def detail(request: Request, activity_id: int) -> HTMLResponse:
         row = _row(store, activity_id)
-        records = store.records(row)
-        activity = Activity(sport=Sport(row.sport), start_time=row.start_time, records=records)
+        activity = store.activity(row)
+        records = activity.records
         return templates.TemplateResponse(
             request,
             "activity.html",
@@ -87,6 +89,47 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             },
         )
 
+    def settings_page(
+        request: Request,
+        values: dict[str, str],
+        errors: dict[str, str],
+        notice: str | None = None,
+        status_code: int = 200,
+    ) -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "settings.html",
+            {
+                "values": values,
+                "errors": errors,
+                "notice": notice,
+                "zone_fields": ZONE_FIELDS,
+                "timezones": sorted(timezones()),
+                "highest_heart_rate": store.highest_heart_rate(),
+            },
+            status_code=status_code,
+        )
+
+    @app.get("/settings", response_class=HTMLResponse)
+    def settings(request: Request, recomputed: str = "", unreadable: str = "") -> HTMLResponse:
+        notice = None
+        if recomputed.isdigit():
+            notice = "Settings saved." + _count(" TRIMP recomputed for {}.", int(recomputed))
+            if unreadable.isdigit():
+                notice += _count(" {} could not be read; see the server log.", int(unreadable))
+        return settings_page(request, form_values(store.athlete_settings()), {}, notice)
+
+    @app.post("/settings", response_class=HTMLResponse, response_model=None)
+    async def save_settings(request: Request) -> Response:
+        form = await request.form()
+        values = {name: str(form.get(name, "")) for name in FORM_FIELDS}
+        parsed, errors = parse_form(values)
+        if parsed is None:
+            return settings_page(request, values, errors, status_code=422)
+        result = await run_in_threadpool(store.save_athlete_settings, parsed)
+        query = f"recomputed={result.recomputed}&unreadable={result.unreadable}"
+        return RedirectResponse(f"/settings?{query}", status_code=303)
+
     @app.get("/api/activities")
     def api_activities() -> list[dict[str, Any]]:
         return [_as_dict(row) for row in store.list()]
@@ -96,6 +139,12 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return store.records(_row(store, activity_id)).to_dicts()
 
     return app
+
+
+def _count(template: str, count: int) -> str:
+    if not count:
+        return ""
+    return template.format(f"{count} {'activity' if count == 1 else 'activities'}")
 
 
 def _row(store: Store, activity_id: int) -> ActivityRow:
