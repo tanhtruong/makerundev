@@ -18,6 +18,17 @@
 
 **Pace** - Moving time per kilometre.
 
+**Grade-adjusted pace** (GAP) - The flat-ground pace with the same energy cost as a run's moving pace. It uses the running cost model from Minetti et al. (2002), [Energy cost of walking and running at extreme uphill and downhill slopes](https://doi.org/10.1152/japplphysiol.01177.2001):
+
+```text
+C(g) = 155.4 g^5 - 30.4 g^4 - 43.3 g^3 + 46.3 g^2 + 19.5 g + 3.6   (J/kg/m)
+grade-adjusted pace = moving time / (sum of interval distance * C(g) / C(0)), per kilometre
+```
+
+`g` is a moving interval's grade as a ratio, uphill positive: the altitude change across a 60 m window of distance centred on the interval, divided by the window's length, with altitude interpolated between records. Near either end of a stretch of consecutive moving intervals the window shifts to stay inside the stretch, and a stretch shorter than 60 m uses its overall slope, so a window never spans a pause or a recording gap. Grades are clamped to the -45% to +45% range Minetti measured. The window trades noise against detail: a wider one damps GPS altitude noise more but flattens short steep hills.
+
+Defined for running sports only. Unavailable when an activity has no moving intervals or any moving interval lacks altitude at either end.
+
 **Cadence** - Steps per minute, both feet. FIT, GPX and TCX files store running cadence per foot; the parsers double it.
 
 **Climb** (elevation gain) - Ascent with altitude noise filtered out: a rise or fall counts only once it reaches 3 m from the last turning point.

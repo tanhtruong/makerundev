@@ -63,11 +63,12 @@ The container keeps its data in the `pacelab-data` volume. Back it up with `dock
 
 ```python
 from pacelab import load
-from pacelab.metrics import best_efforts, summarize
+from pacelab.metrics import best_efforts, grade_adjusted_pace, summarize
 
 activity = load("morning.fit")
 activity.records  # polars DataFrame, one row per sample, canonical units
 summarize(activity)  # distance, moving time, pace, heart rate, climb
+grade_adjusted_pace(activity)  # flat-ground equivalent pace in s/km, or None
 best_efforts(activity)  # {400.0: 116.0, 1000.0: 290.5, 5000.0: 1533.0, ...}
 ```
 
