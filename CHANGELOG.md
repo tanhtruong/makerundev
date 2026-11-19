@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-19
+
 ### Added
 
 - Parse FIT, GPX and TCX files, plain or gzipped, into one per-second record stream in canonical units (UTC, metres, m/s, bpm, steps/min, watts, °C).
@@ -15,4 +17,5 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/pacelab/commits/main
+[Unreleased]: https://github.com/tanhtruong/pacelab/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/tanhtruong/pacelab/releases/tag/v0.1.0
