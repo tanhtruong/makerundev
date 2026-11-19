@@ -1,8 +1,17 @@
 # pacelab
 
+[![CI](https://github.com/tanhtruong/pacelab/actions/workflows/ci.yml/badge.svg)](https://github.com/tanhtruong/pacelab/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
+
 Open source running analytics for the data your sports watch already records.
 
 pacelab reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo watches produce (FIT, GPX, TCX), turns them into one clean per-second record stream, and computes the metrics runners care about: moving time and pace, climb, best efforts, heart-rate zones, TRIMP, aerobic decoupling and fitness/fatigue/form.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/activity-dark.jpg">
+  <img alt="pacelab activity page for an interval session: distance, moving time, pace, heart rate and climb, with pace, heart-rate and elevation charts" src="docs/images/activity-light.jpg">
+</picture>
 
 It comes in two parts:
 
