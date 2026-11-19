@@ -23,4 +23,4 @@ Open source running analytics: a Python library and CLI (`packages/pacelab`) tha
 ## Tests
 
 - FIT fixtures are generated in tests with `fit-tool` (`conftest.py` at the root), not checked in as binaries.
-- `packages/pacelab/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `apps/server/tests/test_upload.py` the import-to-page path.
+- `packages/pacelab/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `apps/server/tests/test_upload.py` the import-to-page path, `apps/server/tests/test_migrations.py` that migrations match the models and that a 0.1.0 database still upgrades.
