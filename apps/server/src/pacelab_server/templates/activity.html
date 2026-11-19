@@ -2,7 +2,7 @@
 {% block title %}{{ activity.filename }} - pacelab{% endblock %}
 {% block content %}
 <p class="crumb"><a href="/">All activities</a></p>
-<h1>{{ activity.sport.replace("_", " ") | capitalize }} on {{ activity.start_time.strftime("%Y-%m-%d %H:%M") }} UTC</h1>
+<h1>{{ activity.sport.replace("_", " ") | capitalize }} on {{ activity.start_time | local(timezone, "%Y-%m-%d %H:%M %Z") }}</h1>
 <p class="meta">{{ activity.filename }}{% if activity.device %} · {{ activity.device }}{% endif %}</p>
 
 <dl class="stats">
@@ -12,6 +12,7 @@
   <div><dt>Avg heart rate</dt><dd>{{ "%.0f bpm" | format(activity.avg_heart_rate) if activity.avg_heart_rate else "-" }}</dd></div>
   <div><dt>Climb</dt><dd>{{ "%.0f m" | format(activity.elevation_gain_m) }}</dd></div>
   <div><dt>Elapsed</dt><dd>{{ activity.elapsed_s | duration }}</dd></div>
+  {% if settings_set %}<div><dt>TRIMP</dt><dd>{{ "%.0f" | format(activity.trimp) if activity.trimp is not none else "-" }}</dd></div>{% endif %}
 </dl>
 
 {% macro line(title, s, label) %}
@@ -28,6 +29,24 @@
 {{ line("Pace", pace, format_pace) }}
 {{ line("Heart rate", heart_rate, format_bpm) }}
 {{ line("Elevation", elevation, format_metres) }}
+
+{% if zones %}
+<h2>Time in zones</h2>
+<table class="zones">
+  <tbody>
+    {% for zone in zones %}
+    <tr>
+      <th scope="row">{{ zone.name }} <span>{{ zone.bpm }}</span></th>
+      <td class="zone-bar"><span style="width: {{ "%.1f" | format(zone.share * 100) }}%"></span></td>
+      <td class="num">{{ zone.seconds | duration }}</td>
+      <td class="num">{{ "%.0f%%" | format(zone.share * 100) }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% elif not settings_set and activity.avg_heart_rate %}
+<p class="notice">Set your max and resting heart rate in <a href="/settings">Settings</a> to see time in zones and TRIMP.</p>
+{% endif %}
 
 {% if efforts %}
 <h2>Best efforts</h2>

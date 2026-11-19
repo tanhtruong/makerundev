@@ -1,6 +1,6 @@
 # pacelab-server
 
-A self-hosted web app for your running data, built on the [`pacelab`](../../packages/pacelab) library. Import FIT, GPX and TCX files, browse your activities and see pace, heart-rate and elevation charts. Everything stays on your machine: there are no accounts, no external services and no CDN assets.
+A self-hosted web app for your running data, built on the [`pacelab`](../../packages/pacelab) library. Import FIT, GPX and TCX files, browse your activities and see pace, heart-rate and elevation charts, time in heart-rate zones and training load. Everything stays on your machine: there are no accounts, no external services and no CDN assets.
 
 ## Run it
 
@@ -47,10 +47,11 @@ Importing the same file twice is detected by its hash and skipped. Uploads are c
 | --- | --- |
 | `GET /` | Activity list and import form |
 | `POST /activities` | Import one or more files (multipart field `files`) |
-| `GET /activities/{id}` | Activity page with charts and best efforts |
+| `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP |
+| `GET /load?days=90\|180\|365\|all` | Fitness, fatigue and form from daily TRIMP (default 180 days) |
 | `GET /settings` | Athlete settings form |
 | `POST /settings` | Save athlete settings and recompute TRIMP if needed |
-| `GET /api/activities` | All activities with their summaries, as JSON |
+| `GET /api/activities` | All activities with their summaries and TRIMP, as JSON |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
 
 ## Development
