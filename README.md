@@ -48,6 +48,8 @@ Or with Docker:
 docker compose up
 ```
 
+The container keeps its data in the `pacelab-data` volume. Back it up with `docker compose cp pacelab:/data ./pacelab-backup`.
+
 ## Using the library
 
 ```python
