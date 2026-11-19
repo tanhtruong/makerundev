@@ -35,7 +35,7 @@ There is no login. Keep the app on `127.0.0.1` or behind a reverse proxy that ad
 
 The data directory holds:
 
-- `pacelab.db` - a SQLite database with one row per activity and its summary. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
+- `pacelab.db` - a SQLite database with one row per activity and its summary, and your athlete settings. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
 - `originals/` - each imported file as uploaded, named by its SHA-256
 - `streams/` - the normalised record stream of each activity as Parquet
 
@@ -48,6 +48,8 @@ Importing the same file twice is detected by its hash and skipped. Uploads are c
 | `GET /` | Activity list and import form |
 | `POST /activities` | Import one or more files (multipart field `files`) |
 | `GET /activities/{id}` | Activity page with charts and best efforts |
+| `GET /settings` | Athlete settings form |
+| `POST /settings` | Save athlete settings and recompute TRIMP if needed |
 | `GET /api/activities` | All activities with their summaries, as JSON |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
 

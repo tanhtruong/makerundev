@@ -41,10 +41,11 @@ Next in line: running power from pace and grade when no power meter is present, 
 
 - Import one or many files; duplicates (same bytes) are skipped.
 - Activity list and activity page with pace, heart rate and elevation charts and best efforts.
+- Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
 - JSON API: `GET /api/activities`, `GET /api/activities/{id}/records`.
 - One process, SQLite, files on local disk. Runs with `uv run pacelab-server` or Docker.
 
-Next: athlete settings (max and resting heart rate, zones), fitness/fatigue/form chart, map view, Strava sync page, search and filters, multi-user with login.
+Next: time in zones and TRIMP on the activity page, fitness/fatigue/form chart, map view, Strava sync page, search and filters, multi-user with login.
 
 ## Non-goals
 

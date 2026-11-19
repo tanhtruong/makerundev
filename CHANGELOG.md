@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `pacelab-server`: a Settings page for max and resting heart rate, TRIMP coefficients, heart-rate zones (as % of max heart rate) and timezone. TRIMP is stored for each activity once heart rate is set, and recomputed when max heart rate, resting heart rate or the coefficients change.
+
 ### Changed
 
 - `pacelab-server` manages its database schema with Alembic migrations and upgrades the database on startup. A data directory from 0.1.0 is upgraded in place with its activities kept; back it up before upgrading, as usual.

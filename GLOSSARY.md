@@ -35,7 +35,11 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Best effort** - The fastest time over a fixed distance anywhere within an activity, interpolated between samples.
 
-**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone.
+**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app, thresholds are percentages of max heart rate by default (zones 2 to 5 start at 60, 70, 80 and 90 %).
+
+**Zone model** - How zone thresholds are expressed and turned into heart rates. The app supports `max_hr_percent` (five zones, thresholds as % of max heart rate); others, such as % of heart-rate reserve, may follow.
+
+**Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, and timezone, kept by the app. The timezone decides which local day an activity counts toward in training load.
 
 **TRIMP** - Banister's training impulse: minutes weighted by heart-rate reserve, a single number for how hard a session was.
 

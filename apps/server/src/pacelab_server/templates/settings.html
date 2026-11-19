@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Settings - pacelab{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<p class="meta">Your heart-rate numbers. Time in zones and TRIMP are computed from them.</p>
+
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+{% if errors %}<p class="notice error" role="alert">Some values need fixing. Nothing was saved.</p>{% endif %}
+
+{% macro field(name, label, hint=None, suffix=None, mode="numeric") %}
+<div class="field{% if errors[name] %} invalid{% endif %}">
+  <label for="{{ name }}">{{ label }}</label>
+  <span class="input">
+    <input id="{{ name }}" name="{{ name }}" value="{{ values[name] }}" inputmode="{{ mode }}" required
+      {% if errors[name] or hint %}aria-describedby="{{ name }}-note"{% endif %}>
+    {% if suffix %}<span class="suffix">{{ suffix }}</span>{% endif %}
+  </span>
+  {% if errors[name] %}<span class="note" id="{{ name }}-note">{{ errors[name] }}</span>
+  {% elif hint %}<span class="note" id="{{ name }}-note">{{ hint }}</span>{% endif %}
+</div>
+{% endmacro %}
+
+<form class="settings" action="/settings" method="post">
+  <fieldset>
+    <legend>Heart rate</legend>
+    {{ field("max_hr", "Max heart rate", ("Highest recorded in your activities: %.0f bpm" | format(highest_heart_rate)) if highest_heart_rate else None, "bpm") }}
+    {{ field("resting_hr", "Resting heart rate", None, "bpm") }}
+    <div class="field{% if errors.trimp_coefficients %} invalid{% endif %}">
+      <label for="trimp_coefficients">TRIMP coefficients</label>
+      <select id="trimp_coefficients" name="trimp_coefficients">
+        {% for option in ["male", "female"] %}
+        <option value="{{ option }}"{% if values.trimp_coefficients == option %} selected{% endif %}>{{ option | capitalize }}</option>
+        {% endfor %}
+      </select>
+      <span class="note">{{ errors.trimp_coefficients or "Banister's weighting of heart-rate reserve." }}</span>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Zones</legend>
+    <p class="meta">Where each zone starts, as a percentage of max heart rate. Zone 1 is everything below zone 2.</p>
+    {% for name in zone_fields %}
+    {{ field(name, "Zone %s starts at" | format(loop.index + 1), None, "% of max", "decimal") }}
+    {% endfor %}
+  </fieldset>
+
+  <fieldset>
+    <legend>Days</legend>
+    <div class="field{% if errors.timezone %} invalid{% endif %}">
+      <label for="timezone">Timezone</label>
+      <input id="timezone" name="timezone" value="{{ values.timezone }}" list="timezones" required autocomplete="off" aria-describedby="timezone-note">
+      <datalist id="timezones">{% for name in timezones %}<option value="{{ name }}">{% endfor %}</datalist>
+      <span class="note" id="timezone-note">{{ errors.timezone or "Decides which day an activity counts toward in daily training load." }}</span>
+    </div>
+  </fieldset>
+
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

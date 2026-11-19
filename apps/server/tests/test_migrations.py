@@ -1,5 +1,6 @@
 import sqlite3
 
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -63,3 +64,14 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
         ("old.fit", "2026-02-01T06:30:00+00:00")
     ]
     assert_at_head_and_matches_models(connect(tmp_path))
+
+
+def test_athlete_settings_hold_at_most_one_row(tmp_path):
+    connect(tmp_path)
+    insert = (
+        "INSERT INTO athlete_settings VALUES "
+        "(2, 190, 50, 'male', 'UTC', 'max_hr_percent', '[60, 70, 80, 90]')"
+    )
+
+    with sqlite3.connect(tmp_path / "pacelab.db") as db, pytest.raises(sqlite3.IntegrityError):
+        db.execute(insert)
