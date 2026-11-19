@@ -1,6 +1,8 @@
+import datetime as dt
 import os
 from pathlib import Path
 from typing import Annotated, Any
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
@@ -8,12 +10,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pacelab import ActivityFileError, format
-from pacelab.metrics import best_efforts
+from pacelab.metrics import best_efforts, time_in_zones
 
 from pacelab_server import charts
 from pacelab_server.db import ActivityRow, connect
 from pacelab_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
 from pacelab_server.store import Store
+from pacelab_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 HERE = Path(__file__).parent
@@ -29,12 +32,18 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         duration=format.duration,
         pace=format.pace,
         distance_name=format.distance_name,
+        signed=_signed,
+        local=_local,
     )
     templates.env.globals.update(
         format_pace=format.pace,
         format_bpm=lambda value: f"{value:.0f} bpm",
         format_metres=lambda value: f"{value:.0f} m",
     )
+
+    def timezone() -> str:
+        settings = store.athlete_settings()
+        return settings.timezone if settings else "UTC"
 
     app = FastAPI(title="pacelab")
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
@@ -43,7 +52,7 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return templates.TemplateResponse(
             request,
             "index.html",
-            {"activities": store.list(), "notices": notices},
+            {"activities": store.list(), "notices": notices, "timezone": timezone()},
             status_code=status_code,
         )
 
@@ -76,12 +85,20 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         row = _row(store, activity_id)
         activity = store.activity(row)
         records = activity.records
+        settings = store.athlete_settings()
+        zones = []
+        if settings is not None:
+            boundaries = settings.zone_boundaries_bpm()
+            zones = charts.zone_bars(time_in_zones(activity, boundaries), boundaries)
         return templates.TemplateResponse(
             request,
             "activity.html",
             {
                 "activity": row,
                 "efforts": best_efforts(activity),
+                "settings_set": settings is not None,
+                "zones": zones,
+                "timezone": settings.timezone if settings else "UTC",
                 "pace": charts.series(records, "pace", invert=True),
                 "heart_rate": charts.series(records, "heart_rate"),
                 "elevation": charts.series(records, "altitude"),
@@ -130,6 +147,27 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         query = f"recomputed={result.recomputed}&unreadable={result.unreadable}"
         return RedirectResponse(f"/settings?{query}", status_code=303)
 
+    @app.get("/load", response_class=HTMLResponse)
+    def load(request: Request, days: str = DEFAULT_RANGE) -> HTMLResponse:
+        selected = days if days in RANGES else DEFAULT_RANGE
+        settings = store.athlete_settings()
+        view = None
+        if settings is not None:
+            today = today_in(settings.timezone)
+            view = load_view(store.list(), settings.timezone, today, RANGES[selected])
+        return templates.TemplateResponse(
+            request,
+            "load.html",
+            {
+                "settings_set": settings is not None,
+                "view": view,
+                "plot": charts.load_chart(view.days) if view else None,
+                "ranges": RANGES,
+                "selected": selected,
+                "chart": {"width": charts.WIDTH, "height": charts.HEIGHT},
+            },
+        )
+
     @app.get("/api/activities")
     def api_activities() -> list[dict[str, Any]]:
         return [_as_dict(row) for row in store.list()]
@@ -139,6 +177,15 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
         return store.records(_row(store, activity_id)).to_dicts()
 
     return app
+
+
+def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") -> str:
+    return moment.astimezone(ZoneInfo(timezone)).strftime(pattern)
+
+
+def _signed(value: float) -> str:
+    rounded = round(value)
+    return f"{rounded:+d}" if rounded else "0"
 
 
 def _count(template: str, count: int) -> str:
@@ -169,4 +216,5 @@ def _as_dict(row: ActivityRow) -> dict[str, Any]:
         "avg_heart_rate": row.avg_heart_rate,
         "max_heart_rate": row.max_heart_rate,
         "elevation_gain_m": row.elevation_gain_m,
+        "trimp": row.trimp,
     }

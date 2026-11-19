@@ -40,12 +40,13 @@ Next in line: running power from pace and grade when no power meter is present, 
 ### Self-hosted app
 
 - Import one or many files; duplicates (same bytes) are skipped.
-- Activity list and activity page with pace, heart rate and elevation charts and best efforts.
+- Activity list and activity page with pace, heart rate and elevation charts, best efforts, time in zones and TRIMP.
+- Training load page: fitness, fatigue and form over time from daily TRIMP.
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
 - JSON API: `GET /api/activities`, `GET /api/activities/{id}/records`.
 - One process, SQLite, files on local disk. Runs with `uv run pacelab-server` or Docker.
 
-Next: time in zones and TRIMP on the activity page, fitness/fatigue/form chart, map view, Strava sync page, search and filters, multi-user with login.
+Next: map view, Strava sync page, search and filters, multi-user with login.
 
 ## Non-goals
 
@@ -57,7 +58,7 @@ Next: time in zones and TRIMP on the activity page, fitness/fatigue/form chart, 
 
 1. ~~Parsers, record stream, core metrics, CLI~~
 2. ~~Self-hosted app: import, list, activity page~~
-3. Athlete settings, zones and TRIMP per activity, fitness/fatigue/form page
+3. ~~Athlete settings, zones and TRIMP per activity, fitness/fatigue/form page~~
 4. ~~Database migrations (Alembic) before the schema changes again~~
 5. Strava sync
 6. Grade-adjusted pace, splits and laps, running dynamics
