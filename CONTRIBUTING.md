@@ -27,6 +27,7 @@ Metric definitions are part of the public contract. A change needs:
 1. The definition updated in `GLOSSARY.md`.
 2. A test in `packages/pacelab/tests/test_metrics.py` with hand-computed expected values, seen failing before the change.
 3. A note in the pull request on how results shift for existing users.
+4. An entry under `[Unreleased]` in `CHANGELOG.md` saying the same.
 
 ## Pull requests
 
