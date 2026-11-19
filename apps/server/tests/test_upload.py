@@ -16,6 +16,7 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
     assert len(activities) == 1
     assert activities[0]["distance_m"] == 3000.0
     assert activities[0]["sport"] == "running"
+    assert activities[0]["start_time"] == "2026-03-01T07:00:00+00:00"
 
     index = client.get("/")
     assert "morning.fit" in index.text
