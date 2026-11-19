@@ -35,7 +35,7 @@ There is no login. Keep the app on `127.0.0.1` or behind a reverse proxy that ad
 
 The data directory holds:
 
-- `pacelab.db` - a SQLite database with one row per activity and its summary
+- `pacelab.db` - a SQLite database with one row per activity and its summary. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
 - `originals/` - each imported file as uploaded, named by its SHA-256
 - `streams/` - the normalised record stream of each activity as Parquet
 
@@ -54,3 +54,17 @@ Importing the same file twice is detected by its hash and skipped. Uploads are c
 ## Development
 
 The app is FastAPI with Jinja templates and inline SVG charts; there is no front-end build step. `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and [ADR 4](../../docs/adr/0004-server-rendered-self-hosted-app.md).
+
+### Changing the database schema
+
+The schema is managed by Alembic migrations in `src/pacelab_server/migrations/versions/`, numbered `0001`, `0002`, and so on. After changing the models in `db.py`, from `apps/server`:
+
+```bash
+PACELAB_DATA_DIR=/tmp/pacelab-dev uv run alembic upgrade head
+```
+
+```bash
+PACELAB_DATA_DIR=/tmp/pacelab-dev uv run alembic revision --autogenerate --rev-id NNNN -m "describe the change"
+```
+
+`NNNN` is the next number after the newest file in `versions/`. Read the generated file before committing: autogenerate misses some changes, such as renames, and SQLite changes run in batch mode, which copies the table. `tests/test_migrations.py` fails while the models and the migrations disagree, and checks that a 0.1.0 database still upgrades.

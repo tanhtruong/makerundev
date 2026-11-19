@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Changed
+
+- `pacelab-server` manages its database schema with Alembic migrations and upgrades the database on startup. A data directory from 0.1.0 is upgraded in place with its activities kept; back it up before upgrading, as usual.
+
 ## [0.1.0] - 2026-11-19
 
 ### Added

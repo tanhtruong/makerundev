@@ -6,6 +6,7 @@ license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
     "pacelab",
+    "alembic>=1.20.1",
     "fastapi>=0.165",
     "jinja2>=3.1.6",
     "python-multipart>=0.0.34",

@@ -1,7 +1,9 @@
 import datetime as dt
 from pathlib import Path
 
-from sqlalchemy import DateTime, Dialect, Float, String, create_engine
+from alembic import command
+from alembic.config import Config
+from sqlalchemy import DateTime, Dialect, Float, String, create_engine, inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
@@ -50,7 +52,22 @@ class ActivityRow(Base):
     )
 
 
+MIGRATIONS = Path(__file__).parent / "migrations"
+BASELINE_REVISION = "0001"
+
+
 def connect(data_dir: Path) -> Engine:
     engine = create_engine(f"sqlite:///{data_dir / 'pacelab.db'}")
-    Base.metadata.create_all(engine)
+    upgrade(engine)
     return engine
+
+
+def upgrade(engine: Engine) -> None:
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        tables = inspect(connection).get_table_names()
+        if ActivityRow.__tablename__ in tables and "alembic_version" not in tables:
+            command.stamp(config, BASELINE_REVISION)
+        command.upgrade(config, "head")

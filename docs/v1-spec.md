@@ -57,7 +57,7 @@ Next: athlete settings (max and resting heart rate, zones), fitness/fatigue/form
 1. ~~Parsers, record stream, core metrics, CLI~~
 2. ~~Self-hosted app: import, list, activity page~~
 3. Athlete settings, zones and TRIMP per activity, fitness/fatigue/form page
-4. Database migrations (Alembic) before the schema changes again
+4. ~~Database migrations (Alembic) before the schema changes again~~
 5. Strava sync
 6. Grade-adjusted pace, splits and laps, running dynamics
 7. Garmin Connect sync (optional extra)
