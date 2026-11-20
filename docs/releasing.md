@@ -14,8 +14,13 @@ A published GitHub release runs `.github/workflows/release.yml`. It checks that 
 
 ## Cutting a release
 
-1. In one pull request, bump `version` in `packages/pacelab/pyproject.toml` and, in `CHANGELOG.md`, rename `[Unreleased]` to `[<version>] - <YYYY-MM-DD>`, start a new empty `[Unreleased]` section above it, and update the comparison links at the bottom. Merge it.
-2. Create a release on GitHub with a new tag `v<version>` on `main`, for example `v0.1.0`, paste that version's changelog entry as the release notes, and publish it.
-3. Watch the **Release** workflow. When it finishes, `pip install pacelab==<version>` and `docker pull ghcr.io/tanhtruong/pacelab-server:<version>` both work.
+You need a clean working tree and `gh` signed in with write access. The changelog stays hand-written: everything under `## [Unreleased]` becomes the release notes, so write anything users must do before upgrading (such as backing up their data) there.
+
+1. `make release VERSION=<version>`, for example `make release VERSION=0.3.0`. From `origin/main` it creates the branch `release/<version>`, sets `version` in both `packages/pacelab` and `apps/server` with `uv version` (which also updates `uv.lock`), moves the `[Unreleased]` entries under `## [<version>] - <today>` with a new empty `[Unreleased]` above, updates the comparison links, and opens the pull request. It refuses if `[Unreleased]` is empty, the version is not greater than the current one, or the tree has changes. To see the notes without changing anything, run `uv run python scripts/release.py prepare <version> --dry-run`.
+2. Review and merge the pull request. If it merges on a later day, fix the date in `CHANGELOG.md` first.
+3. `make publish`. It reads the version and that version's changelog entry from `origin/main`, shows them, asks for confirmation, and creates the GitHub release `v<version>` on that exact commit with the entry as its notes. It refuses if the tag already exists. `uv run python scripts/release.py publish --dry-run` shows what it would publish.
+4. Watch the **Release** workflow. When it finishes, `pip install pacelab==<version>` and `docker pull ghcr.io/tanhtruong/pacelab-server:<version>` both work.
+
+A version on PyPI can never be reused, so step 3 is the one that cannot be undone. The release script is `scripts/release.py`, tested in `scripts/tests/test_release.py`.
 
 After the first image push, set the `pacelab-server` package's visibility to public under the repository's **Packages** settings, since GitHub creates new container packages as private.
