@@ -43,6 +43,9 @@ def build_fit(
         "hr": "heart_rate",
         "cadence": "cadence",
         "power": "power",
+        "stance_time": "stance_time",
+        "vertical_oscillation": "vertical_oscillation",
+        "step_length": "step_length",
     }
     for row in rows:
         record = RecordMessage()

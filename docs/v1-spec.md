@@ -15,7 +15,7 @@ Give runners full, private access to the telemetry their watch records, with met
 
 | Source | v1 | How |
 | --- | --- | --- |
-| FIT files | Done | `fitdecode` (MIT). Covers Garmin, Coros, Suunto, Polar, Wahoo. |
+| FIT files | Done | `fitdecode` (MIT). Covers Garmin, Coros, Suunto, Polar, Wahoo. Reads running dynamics (ground contact time, vertical oscillation, step length) into the record stream. |
 | GPX files | Done | Own parser on `defusedxml`, reads the Garmin TrackPointExtension (heart rate, cadence, temperature, power). |
 | TCX files | Done | Own parser on `defusedxml`, reads the ActivityExtension (speed, run cadence, watts). |
 | Gzipped files | Done | Detected by magic bytes. Covers Strava bulk exports. |
@@ -36,7 +36,7 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - Grade-adjusted pace (Minetti cost model).
 - Training load: fitness, fatigue, form.
 
-Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed, running dynamics (ground contact time, vertical oscillation, stride length) where the FIT file has them.
+Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed, running dynamics averages (ground contact time, vertical oscillation, step length) where the FIT file has them; the record stream already carries the values.
 
 ### Self-hosted app
 
