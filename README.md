@@ -117,6 +117,7 @@ Each sync brings in what is new and then works back through your history, newest
 | Grade-adjusted pace | Your pace as if the route were flat, from the Minetti energy-cost model |
 | Climb and descent | Elevation gain and loss, with altimeter noise filtered out |
 | Best efforts | Your fastest 400 m, 1 km, mile, 5 km, 10 km, half and marathon within any run |
+| Laps | The laps your watch recorded, with each lap's time, distance and pace |
 | Time in heart-rate zones | How long you spent in each zone, from thresholds you choose |
 | TRIMP | Banister's training impulse: one number for how hard a session was |
 | Aerobic decoupling | How much your speed per heartbeat dropped from the first half of a run to the second |
@@ -186,9 +187,9 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, and Strava sync. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava sync, and laps. Next, roughly in order:
 
-- **Splits, laps and running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
+- **Splits and running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
 - **Garmin Connect sync** as an optional, clearly unofficial extra
 - Running power without a power meter, a VO2max estimate from race results, critical speed
 - In the app: a map view, search and filters
