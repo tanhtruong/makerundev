@@ -8,16 +8,18 @@ pip install makerundev
 
 ```python
 from makerundev import load
-from makerundev.metrics import best_efforts, summarize
+from makerundev.metrics import best_efforts, splits, summarize
 
 activity = load("morning.fit")
 print(summarize(activity))
 print(best_efforts(activity))
+print(splits(activity))
 ```
 
 ```bash
 makerundev summary morning.fit
 makerundev efforts morning.fit
+makerundev splits morning.fit
 makerundev export morning.fit records.parquet
 ```
 

@@ -30,6 +30,25 @@
 {{ line("Heart rate", heart_rate, format_bpm) }}
 {{ line("Elevation", elevation, format_metres) }}
 
+{% if splits %}
+<h2>Splits</h2>
+<table class="splits">
+  <thead>
+    <tr><th scope="col" class="num">Split</th><th scope="col" class="num">Distance</th><th scope="col" class="num">Time</th><th scope="col" class="num">Pace</th></tr>
+  </thead>
+  <tbody>
+    {% for split in splits %}
+    <tr>
+      <td class="num">{{ loop.index }}</td>
+      <td class="num">{{ split.distance_m | km }}</td>
+      <td class="num">{{ split.moving_s | duration }}</td>
+      <td class="num">{{ split.pace_s_per_km | pace }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if laps %}
 <h2>Laps</h2>
 <table class="laps">

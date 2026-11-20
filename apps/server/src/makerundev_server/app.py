@@ -2,6 +2,7 @@ import contextlib
 import datetime as dt
 import secrets
 import threading
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
@@ -13,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from makerundev import ActivityFileError, Lap, format
-from makerundev.metrics import best_efforts, time_in_zones
+from makerundev.metrics import best_efforts, splits, time_in_zones
 
 from makerundev_server import charts, config
 from makerundev_server.db import ActivityRow, connect
@@ -116,6 +117,7 @@ def create_app(
                 if row.external_source == "strava"
                 else None,
                 "efforts": best_efforts(activity),
+                "splits": _unless_single(splits(activity)),
                 "laps": _lap_rows(store.laps(row)),
                 "settings_set": settings is not None,
                 "zones": zones,
@@ -286,9 +288,11 @@ def _count(template: str, count: int) -> str:
     return template.format(f"{count} {'activity' if count == 1 else 'activities'}")
 
 
+def _unless_single[T](rows: Sequence[T]) -> list[T]:
+    return list(rows) if len(rows) >= 2 else []
+
+
 def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
-    if len(laps) < 2:
-        return []
     return [
         {
             "number": number,
@@ -298,7 +302,7 @@ def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
             if lap.elapsed_s is not None and lap.distance_m
             else None,
         }
-        for number, lap in enumerate(laps, start=1)
+        for number, lap in enumerate(_unless_single(laps), start=1)
     ]
 
 
