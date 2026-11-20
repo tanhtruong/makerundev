@@ -9,7 +9,8 @@ Open source running analytics: a Python library and CLI (`packages/pacelab`) tha
 - `make format` - apply ruff formatting and fixes
 - `make serve` - run the app on http://127.0.0.1:8000 (`PACELAB_DATA_DIR`, `PACELAB_HOST`, `PACELAB_PORT`)
 - `uv run pacelab --help` - the CLI
-- Releases: publishing a GitHub release `v<version>` ships PyPI and the GHCR image, see `docs/releasing.md`
+- `make release VERSION=x.y.z` - open the release PR: bumps both packages and moves `[Unreleased]` in `CHANGELOG.md` under the version
+- `make publish` - once that PR is merged, create the GitHub release `v<version>`, which ships PyPI and the GHCR image (`docs/releasing.md`)
 
 ## Architecture (decided - see ADRs before revisiting)
 
@@ -23,4 +24,4 @@ Open source running analytics: a Python library and CLI (`packages/pacelab`) tha
 ## Tests
 
 - FIT fixtures are generated in tests with `fit-tool` (`conftest.py` at the root), not checked in as binaries.
-- `packages/pacelab/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `apps/server/tests/test_upload.py` the import-to-page path, `apps/server/tests/test_settings.py` athlete settings and TRIMP recompute, `apps/server/tests/test_load.py` zones, TRIMP and the training load page, `apps/server/tests/test_migrations.py` that migrations match the models and that a 0.1.0 database still upgrades.
+- `packages/pacelab/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `apps/server/tests/test_upload.py` the import-to-page path, `apps/server/tests/test_settings.py` athlete settings and TRIMP recompute, `apps/server/tests/test_load.py` zones, TRIMP and the training load page, `apps/server/tests/test_migrations.py` that migrations match the models and that a 0.1.0 database still upgrades, `scripts/tests/test_release.py` the changelog rolling and release notes.

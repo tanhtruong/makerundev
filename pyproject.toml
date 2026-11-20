@@ -34,12 +34,13 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["packages/pacelab/src", "apps/server/src"]
+files = ["packages/pacelab/src", "apps/server/src", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["fitdecode", "fitdecode.*", "defusedxml", "defusedxml.*", "fit_tool", "fit_tool.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["packages/pacelab/tests", "apps/server/tests"]
+testpaths = ["packages/pacelab/tests", "apps/server/tests", "scripts/tests"]
+pythonpath = ["scripts"]
 addopts = "--import-mode=importlib"

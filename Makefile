@@ -1,4 +1,4 @@
-.PHONY: sync check lint format types test serve
+.PHONY: sync check lint format types test serve release publish
 
 sync:
 	uv sync --locked
@@ -21,3 +21,10 @@ test:
 
 serve:
 	uv run pacelab-server
+
+release:
+	@test -n "$(VERSION)" || { echo "usage: make release VERSION=x.y.z" >&2; exit 1; }
+	uv run python scripts/release.py prepare $(VERSION)
+
+publish:
+	uv run python scripts/release.py publish
