@@ -1,6 +1,6 @@
 [project]
 name = "pacelab-server"
-version = "0.1.0"
+version = "0.2.0"
 description = "Self-hosted web app for your running data, built on pacelab."
 license = "Apache-2.0"
 requires-python = ">=3.12"
