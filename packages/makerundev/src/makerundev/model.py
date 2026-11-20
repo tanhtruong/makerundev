@@ -43,12 +43,20 @@ class Sport(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
+class Lap:
+    start_time: dt.datetime
+    elapsed_s: float | None = None
+    distance_m: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Activity:
     sport: Sport
     start_time: dt.datetime
     records: pl.DataFrame
     source_format: SourceFormat = "rows"
     device: str | None = None
+    laps: tuple[Lap, ...] = ()
 
     @classmethod
     def from_rows(
@@ -58,6 +66,7 @@ class Activity:
         source_format: SourceFormat = "rows",
         device: str | None = None,
         start_time: dt.datetime | None = None,
+        laps: Iterable[Lap] = (),
     ) -> "Activity":
         records = normalize_records(rows)
         first: dt.datetime = records["timestamp"][0]
@@ -67,6 +76,7 @@ class Activity:
             records=records,
             source_format=source_format,
             device=device,
+            laps=tuple(sorted(laps, key=lambda lap: lap.start_time)),
         )
 
 

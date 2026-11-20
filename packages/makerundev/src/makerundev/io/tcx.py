@@ -2,7 +2,7 @@ from typing import Any
 from xml.etree.ElementTree import Element
 
 from makerundev.io.xml import children, descendants, find, number, text, timestamp
-from makerundev.model import Activity, Sport
+from makerundev.model import Activity, Lap, Sport
 
 TCX_SPORTS = {"running": Sport.RUNNING, "biking": Sport.CYCLING}
 
@@ -11,8 +11,20 @@ def read_tcx(root: Element) -> Activity:
     activity = find(root, "Activities", "Activity")
     sport_name = (activity.get("Sport") or "").lower() if activity is not None else ""
     rows = [_trackpoint(point) for point in descendants(root, "Trackpoint")]
+    laps = [lap for node in descendants(root, "Lap") if (lap := _lap(node)) is not None]
     return Activity.from_rows(
-        rows, sport=TCX_SPORTS.get(sport_name, Sport.OTHER), source_format="tcx"
+        rows, sport=TCX_SPORTS.get(sport_name, Sport.OTHER), source_format="tcx", laps=laps
+    )
+
+
+def _lap(node: Element) -> Lap | None:
+    start_time = timestamp(node.get("StartTime"))
+    if start_time is None:
+        return None
+    return Lap(
+        start_time=start_time,
+        elapsed_s=number(text(node, "TotalTimeSeconds")),
+        distance_m=number(text(node, "DistanceMeters")),
     )
 
 
