@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `makerundev.io.strava.read_strava(activity, streams)` maps a Strava activity and its streams (as returned by the Strava API) onto the record stream, with no network access of its own. Run cadence is doubled to steps per minute for both feet, as for files. `Activity.source_format` can now be `"strava"`.
+
 ### Changed
 
 - **Breaking:** the project is renamed from pacelab to makerundev. The PyPI package, the import and the CLI are now `makerundev` (`pip install makerundev`, `from makerundev import load`, `makerundev summary`); the app is `makerundev-server` and its image `ghcr.io/tanhtruong/makerundev-server`. The `pacelab` package and `pacelab-server` image stop at 0.2.0. No metric definition changes.

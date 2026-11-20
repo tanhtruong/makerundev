@@ -9,7 +9,7 @@ import polars as pl
 
 from makerundev.errors import ActivityFileError
 
-SourceFormat = Literal["fit", "gpx", "tcx", "rows"]
+SourceFormat = Literal["fit", "gpx", "tcx", "strava", "rows"]
 
 EARTH_RADIUS_M = 6_371_008.8
 
