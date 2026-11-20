@@ -45,3 +45,14 @@ def test_imported_activity_gets_trimp_only_once_heart_rate_is_set(
 
     trimp = {row.filename: row.trimp for row in store.list()}
     assert trimp["after.fit"] is not None and trimp["after.fit"] > 0
+
+
+def test_pages_link_icons_that_are_served(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    index = client.get("/").text
+    for name in ("favicon-light.png", "favicon-dark.png", "apple-touch-icon.png"):
+        assert f"/static/{name}" in index
+        icon = client.get(f"/static/{name}")
+        assert icon.status_code == 200
+        assert icon.headers["content-type"] == "image/png"
