@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/icon-dark-256.png">
+  <img alt="makerundev logo: an orange runner over a track and a pace line" src="docs/images/icon-light-256.png" width="96">
+</picture>
+
 # makerundev
 
 [![CI](https://github.com/tanhtruong/makerundev/actions/workflows/ci.yml/badge.svg)](https://github.com/tanhtruong/makerundev/actions/workflows/ci.yml)
