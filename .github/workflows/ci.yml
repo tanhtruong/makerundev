@@ -26,12 +26,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: docker build -t pacelab-server:ci .
-      - run: docker run -d --name pacelab -p 8000:8000 pacelab-server:ci
+      - run: docker build -t makerundev-server:ci .
+      - run: docker run -d --name makerundev -p 8000:8000 makerundev-server:ci
       - run: |
           for _ in $(seq 1 30); do
             curl -sf http://127.0.0.1:8000/api/activities && exit 0
             sleep 1
           done
-          docker logs pacelab
+          docker logs makerundev
           exit 1

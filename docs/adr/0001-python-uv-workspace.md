@@ -8,14 +8,14 @@ Accepted
 
 ## Context
 
-pacelab is both a library people install and a web app people self-host. The analysis side benefits most from Python's data ecosystem (polars, numpy) and most potential contributors from the running-data community already write Python.
+makerundev is both a library people install and a web app people self-host. The analysis side benefits most from Python's data ecosystem (polars, numpy) and most potential contributors from the running-data community already write Python.
 
 ## Decision
 
 One repository, one [uv](https://docs.astral.sh/uv/) workspace, two distributions:
 
-- `packages/pacelab`: library and CLI. Depends only on what parsing and metrics need.
-- `apps/server`: `pacelab-server`, depends on `pacelab` plus the web stack.
+- `packages/makerundev`: library and CLI. Depends only on what parsing and metrics need.
+- `apps/server`: `makerundev-server`, depends on `makerundev` plus the web stack.
 
 Tooling: ruff for lint and format, mypy in strict mode, pytest. `make check` runs all of it and CI runs `make check`.
 

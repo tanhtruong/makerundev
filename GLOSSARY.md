@@ -1,6 +1,6 @@
 # Glossary
 
-**Activity** - One recorded workout: its sport, start time, source device and record stream. Built by `pacelab.load` from a file, or by `Activity.from_rows`.
+**Activity** - One recorded workout: its sport, start time, source device and record stream. Built by `makerundev.load` from a file, or by `Activity.from_rows`.
 
 **Record stream** - The per-sample telemetry of an activity, a polars DataFrame with the canonical columns and units listed in the README. Every source format is normalised into it; nothing downstream knows which format a file came from.
 

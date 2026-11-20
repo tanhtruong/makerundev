@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Training load - makerundev{% endblock %}
+{% block content %}
+<h1>Training load</h1>
+<p class="meta">Fitness and fatigue are 42- and 7-day weighted averages of daily TRIMP. Form is fitness minus fatigue at the start of the day.</p>
+
+{% if not settings_set %}
+<p class="notice">Set your max and resting heart rate in <a href="/settings">Settings</a> to see training load.</p>
+{% elif not view %}
+<p class="empty">No activities yet. <a href="/">Import some</a> to see training load.</p>
+{% else %}
+<nav class="ranges" aria-label="Range">
+  {% for key in ranges %}
+  <a href="/load?days={{ key }}"{% if key == selected %} aria-current="page"{% endif %}>{{ "All" if key == "all" else key ~ " days" }}</a>
+  {% endfor %}
+</nav>
+
+<dl class="stats">
+  <div><dt>Fitness</dt><dd>{{ "%.0f" | format(view.today.fitness) }}</dd></div>
+  <div><dt>Fatigue</dt><dd>{{ "%.0f" | format(view.today.fatigue) }}</dd></div>
+  <div><dt>Form</dt><dd>{{ view.today.form | signed }}</dd></div>
+  <div><dt>Activities</dt><dd>{{ view.activities }}</dd></div>
+</dl>
+{% if view.without_heart_rate %}
+<p class="meta">{{ view.without_heart_rate }} {{ "activity" if view.without_heart_rate == 1 else "activities" }} in this range had no heart rate, so {{ "it counts" if view.without_heart_rate == 1 else "they count" }} as 0.</p>
+{% endif %}
+
+{% macro hits() %}
+  {% for hit in plot.hits %}<rect class="hit" x="{{ "%.1f" | format(hit.x) }}" y="0" width="{{ "%.1f" | format(hit.width) }}" height="{{ chart.height }}"><title>{{ hit.title }}</title></rect>{% endfor %}
+{% endmacro %}
+
+<figure class="chart load">
+  <figcaption>Fitness and fatigue <span>0 - {{ "%.0f" | format(plot.load_top) }} TRIMP per day</span></figcaption>
+  <ul class="legend">
+    <li><i class="swatch fitness"></i>Fitness</li>
+    <li><i class="swatch fatigue"></i>Fatigue</li>
+  </ul>
+  <div class="plot">
+    <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" preserveAspectRatio="none" role="img" aria-label="Fitness and fatigue by day">
+      <path class="fatigue" d="{{ plot.fatigue.path }}" vector-effect="non-scaling-stroke"/>
+      <path class="fitness" d="{{ plot.fitness.path }}" vector-effect="non-scaling-stroke"/>
+      {{ hits() }}
+    </svg>
+    {% for name, top in plot.end_labels %}<span class="end-label" style="top: {{ "%.1f" | format(top) }}%">{{ name }}</span>{% endfor %}
+  </div>
+  <p class="axis"><span>{{ view.days[0].date }}</span><span>{{ view.today.date }}</span></p>
+</figure>
+
+<figure class="chart load">
+  <figcaption>Form <span>{{ plot.form_low | signed }} to {{ plot.form_high | signed }}</span></figcaption>
+  <div class="plot">
+    <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" preserveAspectRatio="none" role="img" aria-label="Form by day">
+      <line class="zero" x1="0" x2="{{ chart.width }}" y1="{{ "%.1f" | format(plot.zero) }}" y2="{{ "%.1f" | format(plot.zero) }}" vector-effect="non-scaling-stroke"/>
+      <path class="form" d="{{ plot.form.path }}" vector-effect="non-scaling-stroke"/>
+      {{ hits() }}
+    </svg>
+  </div>
+  <p class="axis"><span>{{ view.days[0].date }}</span><span>{{ view.today.date }}</span></p>
+</figure>
+
+<details class="table-view">
+  <summary>Show as a table</summary>
+  <div class="table-scroll">
+  <table>
+    <thead><tr><th>Week ending</th><th class="num">TRIMP</th><th class="num">Fitness</th><th class="num">Fatigue</th><th class="num">Form</th></tr></thead>
+    <tbody>
+      {% for day, load in view.weeks %}
+      <tr>
+        <td>{{ day.date }}</td>
+        <td class="num">{{ "%.0f" | format(load) }}</td>
+        <td class="num">{{ "%.0f" | format(day.fitness) }}</td>
+        <td class="num">{{ "%.0f" | format(day.fatigue) }}</td>
+        <td class="num">{{ day.form | signed }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</details>
+{% endif %}
+{% endblock %}

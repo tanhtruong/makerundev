@@ -20,7 +20,7 @@ test:
 	uv run pytest -q
 
 serve:
-	uv run pacelab-server
+	uv run makerundev-server
 
 release:
 	@test -n "$(VERSION)" || { echo "usage: make release VERSION=x.y.z" >&2; exit 1; }

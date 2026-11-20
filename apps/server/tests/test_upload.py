@@ -1,8 +1,8 @@
 from fastapi.testclient import TestClient
-from pacelab_server import create_app
-from pacelab_server.db import connect
-from pacelab_server.settings import AthleteSettings
-from pacelab_server.store import Store
+from makerundev_server import create_app
+from makerundev_server.db import connect
+from makerundev_server.settings import AthleteSettings
+from makerundev_server.store import Store
 
 
 def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit):

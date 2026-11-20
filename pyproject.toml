@@ -1,5 +1,5 @@
 [project]
-name = "pacelab-workspace"
+name = "makerundev-workspace"
 version = "0.0.0"
 requires-python = ">=3.12"
 
@@ -10,13 +10,13 @@ package = false
 members = ["packages/*", "apps/*"]
 
 [tool.uv.sources]
-pacelab = { workspace = true }
-pacelab-server = { workspace = true }
+makerundev = { workspace = true }
+makerundev-server = { workspace = true }
 
 [dependency-groups]
 dev = [
-    "pacelab",
-    "pacelab-server",
+    "makerundev",
+    "makerundev-server",
     "fit-tool>=0.9.17",
     "httpx2>=2.16",
     "mypy>=2.4",
@@ -34,13 +34,13 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["packages/pacelab/src", "apps/server/src", "scripts"]
+files = ["packages/makerundev/src", "apps/server/src", "scripts"]
 
 [[tool.mypy.overrides]]
 module = ["fitdecode", "fitdecode.*", "defusedxml", "defusedxml.*", "fit_tool", "fit_tool.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["packages/pacelab/tests", "apps/server/tests", "scripts/tests"]
+testpaths = ["packages/makerundev/tests", "apps/server/tests", "scripts/tests"]
 pythonpath = ["scripts"]
 addopts = "--import-mode=importlib"

@@ -3,11 +3,11 @@ import itertools
 
 import pytest
 from fastapi.testclient import TestClient
-from pacelab.metrics import training_load
-from pacelab_server import create_app
-from pacelab_server.charts import WIDTH, load_chart, spread_labels, zone_bars
-from pacelab_server.db import ActivityRow
-from pacelab_server.training import Day, load_view
+from makerundev.metrics import training_load
+from makerundev_server import create_app
+from makerundev_server.charts import WIDTH, load_chart, spread_labels, zone_bars
+from makerundev_server.db import ActivityRow
+from makerundev_server.training import Day, load_view
 
 SETTINGS = {
     "max_hr": "190",
