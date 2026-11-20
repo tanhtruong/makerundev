@@ -37,6 +37,8 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Climb** (elevation gain) - Ascent with altitude noise filtered out: a rise or fall counts only once it reaches 3 m from the last turning point.
 
+**Split** - A fixed length of an activity's distance, 1 km by default, counted from the start; the last split is whatever distance remains. The time each boundary is crossed is interpolated between records. A split's pace is its moving time per kilometre, so unlike lap pace it leaves pauses out.
+
 **Best effort** - The fastest time over a fixed distance anywhere within an activity, interpolated between samples.
 
 **Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app, thresholds are percentages of max heart rate by default (zones 2 to 5 start at 60, 70, 80 and 90 %).

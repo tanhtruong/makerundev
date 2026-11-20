@@ -39,6 +39,14 @@ class Summary:
 
 
 @dataclass(frozen=True, slots=True)
+class Split:
+    distance_m: float
+    elapsed_s: float
+    moving_s: float
+    pace_s_per_km: float | None
+
+
+@dataclass(frozen=True, slots=True)
 class _Intervals:
     seconds: FloatArray
     meters: FloatArray
@@ -163,6 +171,14 @@ def elevation_change(
     return gain, loss
 
 
+def _at_distance(distance: FloatArray, values: FloatArray, targets: FloatArray) -> FloatArray:
+    after = np.searchsorted(distance, targets, side="left")
+    before = after - 1
+    fraction = (targets - distance[before]) / (distance[after] - distance[before])
+    interpolated: FloatArray = values[before] + fraction * (values[after] - values[before])
+    return interpolated
+
+
 def best_efforts(
     activity: Activity, distances_m: Sequence[float] = DEFAULT_EFFORT_DISTANCES_M
 ) -> dict[float, float]:
@@ -174,12 +190,40 @@ def best_efforts(
         starts = np.flatnonzero(ends <= distance[-1])
         if starts.size == 0:
             continue
-        after = np.searchsorted(distance, ends[starts], side="left")
-        before = after - 1
-        fraction = (ends[starts] - distance[before]) / (distance[after] - distance[before])
-        finish = elapsed[before] + fraction * (elapsed[after] - elapsed[before])
+        finish = _at_distance(distance, elapsed, ends[starts])
         efforts[target] = float(np.min(finish - elapsed[starts]))
     return efforts
+
+
+def splits(activity: Activity, every_m: float = 1000.0) -> list[Split]:
+    distance = _column(activity, "distance")
+    total = distance[-1] - distance[0]
+    if total <= 0:
+        return []
+    elapsed = _elapsed(activity)
+    steps = _intervals(activity)
+    moving = np.concatenate(([0.0], np.cumsum(np.where(steps.moving, steps.seconds, 0.0))))
+    marks = np.arange(1, int(total // every_m) + 1) * every_m
+    marks = marks[marks < total]
+    ends_m = np.append(marks, total)
+    ends_elapsed = np.append(_at_distance(distance, elapsed, distance[0] + marks), elapsed[-1])
+    ends_moving = np.append(_at_distance(distance, moving, distance[0] + marks), moving[-1])
+    result = []
+    for meters, elapsed_s, moving_s in zip(
+        np.diff(ends_m, prepend=0.0),
+        np.diff(ends_elapsed, prepend=0.0),
+        np.diff(ends_moving, prepend=0.0),
+        strict=True,
+    ):
+        result.append(
+            Split(
+                distance_m=float(meters),
+                elapsed_s=float(elapsed_s),
+                moving_s=float(moving_s),
+                pace_s_per_km=float(moving_s / (meters / 1000)) if moving_s > 0 else None,
+            )
+        )
+    return result
 
 
 def time_in_zones(activity: Activity, boundaries_bpm: Sequence[float]) -> list[float]:

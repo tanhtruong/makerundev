@@ -57,6 +57,8 @@ uvx makerundev efforts race.fit
  Half marathon  1:24:04
 ```
 
+Or the moving time and pace of every kilometre with `uvx makerundev splits race.fit`.
+
 And get the whole normalised record stream out as Parquet or CSV:
 
 ```bash
@@ -117,6 +119,7 @@ Each sync brings in what is new and then works back through your history, newest
 | Grade-adjusted pace | Your pace as if the route were flat, from the Minetti energy-cost model |
 | Climb and descent | Elevation gain and loss, with altimeter noise filtered out |
 | Best efforts | Your fastest 400 m, 1 km, mile, 5 km, 10 km, half and marathon within any run |
+| Splits | Moving time and pace for every kilometre, and for the distance left over at the end |
 | Laps | The laps your watch recorded, with each lap's time, distance and pace |
 | Time in heart-rate zones | How long you spent in each zone, from thresholds you choose |
 | TRIMP | Banister's training impulse: one number for how hard a session was |
@@ -137,6 +140,7 @@ from makerundev.metrics import (
     aerobic_decoupling,
     best_efforts,
     grade_adjusted_pace,
+    splits,
     summarize,
     time_in_zones,
     training_load,
@@ -154,6 +158,8 @@ summarize(activity)
 grade_adjusted_pace(activity)
 # {400.0: 121.6, 1000.0: 306.0, 1609.344: 493.9, 5000.0: 1539.6, 10000.0: 3088.2}
 best_efforts(activity)
+# [Split(distance_m=1000.0, elapsed_s=312.0, moving_s=312.0, pace_s_per_km=312.0), ...]
+splits(activity)
 # seconds per zone: [15.0, 45.0, 1000.0, 4395.0, 0.0]
 time_in_zones(activity, [113, 132, 150, 169])
 # 180.6
@@ -187,9 +193,9 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava sync, and laps. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava sync, laps and splits. Next, roughly in order:
 
-- **Splits and running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
+- **Running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
 - **Garmin Connect sync** as an optional, clearly unofficial extra
 - Running power without a power meter, a VO2max estimate from race results, critical speed
 - In the app: a map view, search and filters

@@ -33,6 +33,11 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
     detail = client.get(f"/activities/{activities[0]['id']}")
     assert detail.status_code == 200
     assert "5:33 /km" in detail.text
+    assert table_cells(detail.text, "splits") == [
+        *("1", "1.00 km", "5:33", "5:33 /km"),
+        *("2", "1.00 km", "5:33", "5:33 /km"),
+        *("3", "1.00 km", "5:33", "5:33 /km"),
+    ]
 
 
 def test_imported_activity_gets_trimp_only_once_heart_rate_is_set(
@@ -60,8 +65,8 @@ LAPS = [
 LAP_CELLS = ["1", "5:30", "1.00 km", "5:30 /km", "2", "4:30", "0.80 km", "5:38 /km"]
 
 
-def lap_cells(page: str) -> list[str]:
-    table = re.search(r'<table class="laps">.*?<tbody>(.*?)</tbody>', page, re.S)
+def table_cells(page: str, name: str) -> list[str]:
+    table = re.search(rf'<table class="{name}">.*?<tbody>(.*?)</tbody>', page, re.S)
     assert table is not None
     return [cell.strip() for cell in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", table[1], re.S)]
 
@@ -78,7 +83,7 @@ def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
         {"start_time": "2026-03-01T07:00:00+00:00", "elapsed_s": 330.0, "distance_m": 1000.0},
         {"start_time": "2026-03-01T07:05:30+00:00", "elapsed_s": 270.0, "distance_m": 800.0},
     ]
-    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
+    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
 
 
 def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_path, make_fit):
@@ -89,9 +94,9 @@ def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_p
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         db.execute("UPDATE activities SET laps = NULL")
 
-    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
+    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
     (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).unlink()
-    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
+    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
 
 
 def test_pages_link_icons_that_are_served(tmp_path):

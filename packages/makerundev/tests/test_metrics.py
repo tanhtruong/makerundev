@@ -9,6 +9,7 @@ from makerundev.metrics import (
     best_efforts,
     elevation_change,
     grade_adjusted_pace,
+    splits,
     summarize,
     time_in_zones,
     training_load,
@@ -60,6 +61,47 @@ def test_best_efforts_interpolate_and_skip_distances_longer_than_the_run():
     efforts = best_efforts(run(rows), distances_m=(400.0, 1000.0, 1609.344, 5000.0))
 
     assert efforts == pytest.approx({400.0: 80.0, 1000.0: 200.0, 1609.344: 352.336})
+
+
+def test_splits_interpolate_boundaries_and_leave_pauses_out_of_moving_time():
+    rows = steady(350, 3.0)
+    rows += [{"t": 350.0 + i, "distance": 1050.0} for i in range(1, 50)]
+    rows += steady(290, 5.0, start_t=400.0, start_d=1050.0)
+    activity = run(rows)
+
+    result = splits(activity)
+
+    assert [s.distance_m for s in result] == pytest.approx([1000.0, 1000.0, 500.0])
+    assert [s.elapsed_s for s in result] == pytest.approx([1000 / 3, 590 - 1000 / 3, 100.0])
+    assert [s.moving_s for s in result] == pytest.approx([1000 / 3, 50 / 3 + 190, 100.0])
+    assert [s.pace_s_per_km for s in result] == pytest.approx([1000 / 3, 50 / 3 + 190, 200.0])
+    summary = summarize(activity)
+    assert sum(s.elapsed_s for s in result) == pytest.approx(summary.elapsed_s)
+    assert sum(s.moving_s for s in result) == pytest.approx(summary.moving_s)
+
+
+def test_splits_give_one_partial_split_under_a_kilometre_and_none_without_distance():
+    rows = steady(100, 3.0) + [{"t": 100.0 + i, "distance": 300.0} for i in range(1, 21)]
+    short = splits(run(rows))
+    assert len(short) == 1
+    assert short[0].distance_m == pytest.approx(300.0)
+    assert short[0].elapsed_s == pytest.approx(120.0)
+    assert short[0].moving_s == pytest.approx(100.0)
+    assert short[0].pace_s_per_km == pytest.approx(1000 / 3)
+
+    assert splits(run([{"t": float(i), "distance": 0.0} for i in range(60)])) == []
+
+
+def test_splits_end_on_an_exact_kilometre_and_have_no_pace_without_moving_time():
+    rows = steady(300, 3.0)
+    rows += steady(300, 3.0, start_t=500.0, start_d=2100.0)
+
+    result = splits(run(rows))
+
+    assert [s.distance_m for s in result] == pytest.approx([1000.0, 1000.0, 1000.0])
+    assert [s.elapsed_s for s in result] == pytest.approx([950 / 3, 500 / 3, 950 / 3])
+    assert [s.moving_s for s in result] == pytest.approx([300.0, 0.0, 300.0])
+    assert [s.pace_s_per_km for s in result] == [pytest.approx(300.0), None, pytest.approx(300.0)]
 
 
 def test_time_in_zones_splits_recorded_time_by_heart_rate():

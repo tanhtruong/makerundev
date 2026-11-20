@@ -6,7 +6,7 @@ import typer
 from makerundev import format
 from makerundev.errors import ActivityFileError
 from makerundev.io import load
-from makerundev.metrics import best_efforts, summarize
+from makerundev.metrics import best_efforts, splits, summarize
 from makerundev.model import Activity
 
 app = typer.Typer(no_args_is_help=True, help="Analyse FIT, GPX and TCX activity files.")
@@ -41,6 +41,22 @@ def summary(files: Files) -> None:
 def efforts(file: File) -> None:
     for distance, seconds in best_efforts(_load(file)).items():
         typer.echo(f"{format.distance_name(distance):>14}  {format.duration(seconds)}")
+
+
+@app.command("splits", help="Print the moving time and pace of each kilometre.")
+def splits_command(file: File) -> None:
+    rows = [
+        (
+            format.kilometres(split.distance_m),
+            format.duration(split.moving_s),
+            format.pace(split.pace_s_per_km),
+        )
+        for split in splits(_load(file))
+    ]
+    width = max((len(time) for _, time, _ in rows), default=0)
+    digits = max(2, len(str(len(rows))))
+    for number, (distance, time, pace) in enumerate(rows, start=1):
+        typer.echo(f"{number:>{digits}}  {distance}  {time:>{width}}  {pace}")
 
 
 @app.command(help="Write the normalised record stream to .csv or .parquet.")

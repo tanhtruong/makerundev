@@ -9,7 +9,10 @@ A change to a metric definition is always listed, with how results shift for exi
 ### Added
 
 - `Activity.laps` holds the laps the watch recorded (auto-lap or the lap button) as `makerundev.Lap`s, with start time, elapsed time and distance as the device reported them. Read from FIT and TCX files; GPX has no laps and Strava laps are not synced yet, so those give none. `Activity.from_rows` takes `laps`.
+- `makerundev.metrics.splits(activity, every_m=1000.0)` splits an activity's distance into 1 km splits counted from the start, plus whatever distance remains, with each split's distance, elapsed time, moving time and pace. Works for every sport. The time each boundary is crossed is interpolated between records, and pace is moving time per kilometre, so pauses are left out.
+- `makerundev splits FILE` prints each kilometre's distance, moving time and pace.
 - `makerundev-server`: the activity page lists the laps of a file with two or more, with each lap's time, distance and pace. Activities imported earlier get their laps from the kept original the first time their page opens.
+- `makerundev-server`: the activity page shows a Splits table, with each kilometre's distance, moving time and pace, above the laps. It is computed when the page opens, so activities imported earlier get it too. Activities of 1 km or less have none.
 
 ### Changed
 
