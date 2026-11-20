@@ -1,5 +1,6 @@
 import datetime as dt
 from pathlib import Path
+from typing import Any
 
 from alembic import command
 from alembic.config import Config
@@ -69,6 +70,7 @@ class ActivityRow(Base):
     max_heart_rate: Mapped[float | None] = mapped_column(Float)
     elevation_gain_m: Mapped[float] = mapped_column(Float)
     trimp: Mapped[float | None] = mapped_column(Float)
+    laps: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
     imported_at: Mapped[dt.datetime] = mapped_column(
         UtcDateTime, default=lambda: dt.datetime.now(dt.UTC)
     )

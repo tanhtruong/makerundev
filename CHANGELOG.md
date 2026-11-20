@@ -8,7 +8,12 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
-- `Activity.laps` holds the laps the watch recorded (auto-lap or the lap button) as `makerundev.Lap`s, with start time, elapsed time and distance as the device reported them. Read from FIT and TCX files; GPX has no laps and Strava laps are not synced yet, so those give none. `Activity.from_rows` takes `laps`. The app does not store or show laps yet.
+- `Activity.laps` holds the laps the watch recorded (auto-lap or the lap button) as `makerundev.Lap`s, with start time, elapsed time and distance as the device reported them. Read from FIT and TCX files; GPX has no laps and Strava laps are not synced yet, so those give none. `Activity.from_rows` takes `laps`.
+- `makerundev-server`: the activity page lists the laps of a file with two or more, with each lap's time, distance and pace. Activities imported earlier get their laps from the kept original the first time their page opens.
+
+### Changed
+
+- `makerundev-server`: the database keeps each activity's laps (migration `0005`). It is upgraded on startup as usual; back up the data directory first.
 
 ## [0.3.0] - 2026-11-21
 

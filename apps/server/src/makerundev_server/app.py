@@ -12,7 +12,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from makerundev import ActivityFileError, format
+from makerundev import ActivityFileError, Lap, format
 from makerundev.metrics import best_efforts, time_in_zones
 
 from makerundev_server import charts, config
@@ -116,6 +116,7 @@ def create_app(
                 if row.external_source == "strava"
                 else None,
                 "efforts": best_efforts(activity),
+                "laps": _lap_rows(store.laps(row)),
                 "settings_set": settings is not None,
                 "zones": zones,
                 "timezone": settings.timezone if settings else "UTC",
@@ -283,6 +284,22 @@ def _count(template: str, count: int) -> str:
     if not count:
         return ""
     return template.format(f"{count} {'activity' if count == 1 else 'activities'}")
+
+
+def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
+    if len(laps) < 2:
+        return []
+    return [
+        {
+            "number": number,
+            "elapsed_s": lap.elapsed_s,
+            "distance_m": lap.distance_m,
+            "pace_s_per_km": lap.elapsed_s / lap.distance_m * 1000
+            if lap.elapsed_s is not None and lap.distance_m
+            else None,
+        }
+        for number, lap in enumerate(laps, start=1)
+    ]
 
 
 def _row(store: Store, activity_id: int) -> ActivityRow:

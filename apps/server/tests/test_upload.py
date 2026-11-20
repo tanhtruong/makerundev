@@ -1,3 +1,8 @@
+import hashlib
+import json
+import re
+import sqlite3
+
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.db import connect
@@ -45,6 +50,48 @@ def test_imported_activity_gets_trimp_only_once_heart_rate_is_set(
 
     trimp = {row.filename: row.trimp for row in store.list()}
     assert trimp["after.fit"] is not None and trimp["after.fit"] > 0
+
+
+LAP_ROWS = [{"t": float(i), "distance": i * 3.0} for i in range(601)]
+LAPS = [
+    {"t": 0.0, "elapsed": 330.0, "distance": 1000.0},
+    {"t": 330.0, "elapsed": 270.0, "distance": 800.0},
+]
+LAP_CELLS = ["1", "5:30", "1.00 km", "5:30 /km", "2", "4:30", "0.80 km", "5:38 /km"]
+
+
+def lap_cells(page: str) -> list[str]:
+    table = re.search(r'<table class="laps">.*?<tbody>(.*?)</tbody>', page, re.S)
+    assert table is not None
+    return [cell.strip() for cell in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", table[1], re.S)]
+
+
+def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(LAP_ROWS, laps=LAPS)
+    client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
+    activity_id = client.get("/api/activities").json()[0]["id"]
+
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        stored = json.loads(db.execute("SELECT laps FROM activities").fetchone()[0])
+    assert stored == [
+        {"start_time": "2026-03-01T07:00:00+00:00", "elapsed_s": 330.0, "distance_m": 1000.0},
+        {"start_time": "2026-03-01T07:05:30+00:00", "elapsed_s": 270.0, "distance_m": 800.0},
+    ]
+    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
+
+
+def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(LAP_ROWS, laps=LAPS)
+    client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
+    activity_id = client.get("/api/activities").json()[0]["id"]
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute("UPDATE activities SET laps = NULL")
+
+    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
+    (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).unlink()
+    assert lap_cells(client.get(f"/activities/{activity_id}").text) == LAP_CELLS
 
 
 def test_pages_link_icons_that_are_served(tmp_path):

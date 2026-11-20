@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import polars as pl
-from makerundev import Activity, Sport, load
+from makerundev import Activity, ActivityFileError, Lap, Sport, load
 from makerundev.metrics import Summary, summarize, trimp
 from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
@@ -93,8 +93,32 @@ class Store:
 
     def activity(self, row: ActivityRow) -> Activity:
         return Activity(
-            sport=Sport(row.sport), start_time=row.start_time, records=self.records(row)
+            sport=Sport(row.sport),
+            start_time=row.start_time,
+            records=self.records(row),
+            laps=_decode_laps(row.laps or []),
         )
+
+    def laps(self, row: ActivityRow) -> tuple[Lap, ...]:
+        if row.laps is not None:
+            return _decode_laps(row.laps)
+        with self.writing, Session(self.engine) as session:
+            stored = session.get(ActivityRow, row.id)
+            if stored is None:
+                return ()
+            if stored.laps is None:
+                stored.laps = _encode_laps(self._original_laps(stored))
+                session.commit()
+            return _decode_laps(stored.laps)
+
+    def _original_laps(self, row: ActivityRow) -> tuple[Lap, ...]:
+        if row.sha256 is None:
+            return ()
+        try:
+            return load(self.originals / row.storage_key).laps
+        except (OSError, ActivityFileError) as error:
+            log.warning("cannot read the laps of activity %s: %s", row.id, error)
+            return ()
 
     def highest_heart_rate(self) -> float | None:
         with Session(self.engine) as session:
@@ -289,6 +313,29 @@ def _describe(
     row.max_heart_rate = summary.max_heart_rate
     row.elevation_gain_m = summary.elevation_gain_m
     row.trimp = _trimp(activity, settings) if settings else None
+    row.laps = _encode_laps(activity.laps)
+
+
+def _encode_laps(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
+    return [
+        {
+            "start_time": lap.start_time.isoformat(),
+            "elapsed_s": lap.elapsed_s,
+            "distance_m": lap.distance_m,
+        }
+        for lap in laps
+    ]
+
+
+def _decode_laps(stored: list[dict[str, Any]]) -> tuple[Lap, ...]:
+    return tuple(
+        Lap(
+            start_time=dt.datetime.fromisoformat(lap["start_time"]),
+            elapsed_s=lap["elapsed_s"],
+            distance_m=lap["distance_m"],
+        )
+        for lap in stored
+    )
 
 
 def _connection(session: Session) -> StravaConnectionRow:

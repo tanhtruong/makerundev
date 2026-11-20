@@ -30,6 +30,25 @@
 {{ line("Heart rate", heart_rate, format_bpm) }}
 {{ line("Elevation", elevation, format_metres) }}
 
+{% if laps %}
+<h2>Laps</h2>
+<table class="laps">
+  <thead>
+    <tr><th scope="col" class="num">Lap</th><th scope="col" class="num">Time</th><th scope="col" class="num">Distance</th><th scope="col" class="num">Pace</th></tr>
+  </thead>
+  <tbody>
+    {% for lap in laps %}
+    <tr>
+      <td class="num">{{ lap.number }}</td>
+      <td class="num">{{ lap.elapsed_s | duration if lap.elapsed_s is not none else "-" }}</td>
+      <td class="num">{{ lap.distance_m | km if lap.distance_m is not none else "-" }}</td>
+      <td class="num">{{ lap.pace_s_per_km | pace }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
 {% if zones %}
 <h2>Time in zones</h2>
 <table class="zones">
