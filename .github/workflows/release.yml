@@ -15,14 +15,14 @@ jobs:
       - uses: astral-sh/setup-uv@v10.3.3
       - name: Check the tag matches the package version
         run: |
-          version="$(uv version --short --package pacelab)"
+          version="$(uv version --short --package makerundev)"
           if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match pacelab ${version}" >&2
+            echo "Tag ${GITHUB_REF_NAME} does not match makerundev ${version}" >&2
             exit 1
           fi
       - run: uv sync --locked
       - run: make check
-      - run: uv build --package pacelab
+      - run: uv build --package makerundev
       - uses: actions/upload-artifact@v7
         with:
           name: dist
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/pacelab/
+      url: https://pypi.org/project/makerundev/
     permissions:
       id-token: write
     steps:
@@ -61,7 +61,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pacelab-server
+          images: ghcr.io/${{ github.repository_owner }}/makerundev-server
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}

@@ -9,10 +9,10 @@ import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PACKAGES = ("pacelab", "pacelab-server")
-LIBRARY_PYPROJECT = "packages/pacelab/pyproject.toml"
+PACKAGES = ("makerundev", "makerundev-server")
+LIBRARY_PYPROJECT = "packages/makerundev/pyproject.toml"
 CHANGELOG = "CHANGELOG.md"
-REPO_URL = "https://github.com/tanhtruong/pacelab"
+REPO_URL = "https://github.com/tanhtruong/makerundev"
 
 _VERSION = re.compile(r"\d+\.\d+\.\d+")
 _SECTION = re.compile(r"^## \[(?P<name>[^\]]+)\](?P<date>.*)$", re.MULTILINE)
@@ -148,7 +148,7 @@ def prepare(version: str, *, dry_run: bool) -> None:
 def _pull_request_body(version: str, previous: str) -> str:
     return (
         f"Release {version}, prepared by `make release`.\n\n"
-        f"- `pacelab` and `pacelab-server`: {previous} -> {version}, `uv.lock` updated\n"
+        f"- `makerundev` and `makerundev-server`: {previous} -> {version}, `uv.lock` updated\n"
         f"- `CHANGELOG.md`: [Unreleased] is now [{version}] - {dt.date.today().isoformat()}\n\n"
         "Check the changelog entry reads well as release notes, and update its date if this "
         "merges on a later day. After merging, run `make publish`.\n"
@@ -189,7 +189,7 @@ def publish(*, yes: bool, dry_run: bool) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Cut a pacelab release, see docs/releasing.md")
+    parser = argparse.ArgumentParser(description="Cut a makerundev release, see docs/releasing.md")
     commands = parser.add_subparsers(dest="command", required=True)
     prepare_parser = commands.add_parser("prepare", help="bump versions and open the release PR")
     prepare_parser.add_argument("version", help="the new version, for example 0.3.0")

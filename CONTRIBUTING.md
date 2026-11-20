@@ -1,15 +1,15 @@
-# Contributing to pacelab
+# Contributing to makerundev
 
 Thanks for helping. Bug reports, file-format edge cases, metric ideas and code are all welcome.
 
 ## Set up
 
-Contributions come in through forks: only maintainers can push branches to this repository. Fork pacelab on GitHub, then:
+Contributions come in through forks: only maintainers can push branches to this repository. Fork makerundev on GitHub, then:
 
 ```bash
-git clone https://github.com/<your-username>/pacelab.git
-cd pacelab
-git remote add upstream https://github.com/tanhtruong/pacelab.git
+git clone https://github.com/<your-username>/makerundev.git
+cd makerundev
+git remote add upstream https://github.com/tanhtruong/makerundev.git
 uv sync
 make check
 ```
@@ -25,7 +25,7 @@ The most useful report includes the file that fails. Activity files contain GPS 
 Metric definitions are part of the public contract. A change needs:
 
 1. The definition updated in `GLOSSARY.md`.
-2. A test in `packages/pacelab/tests/test_metrics.py` with hand-computed expected values, seen failing before the change.
+2. A test in `packages/makerundev/tests/test_metrics.py` with hand-computed expected values, seen failing before the change.
 3. A note in the pull request on how results shift for existing users.
 4. An entry under `[Unreleased]` in `CHANGELOG.md` saying the same.
 

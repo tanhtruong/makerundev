@@ -1,10 +1,15 @@
 # Changelog
 
-Notable changes to pacelab, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may break the API or change a metric definition; the entry says so when it does.
+Notable changes to makerundev (pacelab up to 0.2.0), newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/). Before 1.0, a minor version may break the API or change a metric definition; the entry says so when it does.
 
 A change to a metric definition is always listed, with how results shift for existing users.
 
 ## [Unreleased]
+
+### Changed
+
+- **Breaking:** the project is renamed from pacelab to makerundev. The PyPI package, the import and the CLI are now `makerundev` (`pip install makerundev`, `from makerundev import load`, `makerundev summary`); the app is `makerundev-server` and its image `ghcr.io/tanhtruong/makerundev-server`. The `pacelab` package and `pacelab-server` image stop at 0.2.0. No metric definition changes.
+- `makerundev-server` reads `MAKERUNDEV_DATA_DIR`, `MAKERUNDEV_HOST` and `MAKERUNDEV_PORT`, and names a new database `makerundev.db`. Existing installs keep working: the `PACELAB_` variables are still read when the new one is not set, an existing `pacelab.db` is used where it is, and `compose.yml` keeps the `pacelab-data` volume. With the image, which sets the `MAKERUNDEV_` variables itself, rename any `PACELAB_` variable you override. The Compose service is now `makerundev`; run `docker compose up -d --remove-orphans` once to replace the old container. Compose prefixes the volume with the checkout's folder name, so keep that folder's name, or pass `-p pacelab`, to stay on the same volume.
 
 ## [0.2.0] - 2026-11-20
 
@@ -30,6 +35,6 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/pacelab/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/tanhtruong/pacelab/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/tanhtruong/pacelab/releases/tag/v0.1.0
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tanhtruong/makerundev/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/tanhtruong/makerundev/releases/tag/v0.1.0

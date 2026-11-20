@@ -5,8 +5,8 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
-from pacelab_server import create_app
-from pacelab_server.db import MIGRATIONS, Base, connect
+from makerundev_server import create_app
+from makerundev_server.db import MIGRATIONS, Base, connect
 
 SCHEMA_0_1_0 = """
 CREATE TABLE activities (
@@ -73,5 +73,5 @@ def test_athlete_settings_hold_at_most_one_row(tmp_path):
         "(2, 190, 50, 'male', 'UTC', 'max_hr_percent', '[60, 70, 80, 90]')"
     )
 
-    with sqlite3.connect(tmp_path / "pacelab.db") as db, pytest.raises(sqlite3.IntegrityError):
+    with sqlite3.connect(tmp_path / "makerundev.db") as db, pytest.raises(sqlite3.IntegrityError):
         db.execute(insert)

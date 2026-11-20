@@ -1,20 +1,20 @@
-# pacelab
+# makerundev
 
-[![CI](https://github.com/tanhtruong/pacelab/actions/workflows/ci.yml/badge.svg)](https://github.com/tanhtruong/pacelab/actions/workflows/ci.yml)
-[![PyPI](https://img.shields.io/pypi/v/pacelab)](https://pypi.org/project/pacelab/)
+[![CI](https://github.com/tanhtruong/makerundev/actions/workflows/ci.yml/badge.svg)](https://github.com/tanhtruong/makerundev/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/makerundev)](https://pypi.org/project/makerundev/)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](pyproject.toml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**Your watch records every second of every run. pacelab gives all of it back to you.**
+**Your watch records every second of every run. makerundev gives all of it back to you.**
 
-pacelab reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo watches produce (FIT, GPX, TCX), turns them into one clean per-second record stream, and computes the numbers runners care about: pace and grade-adjusted pace, climb, best efforts, heart-rate zones, TRIMP, aerobic decoupling and fitness, fatigue and form. Use it as a Python library and CLI, or run the self-hosted web app on your own machine.
+makerundev reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo watches produce (FIT, GPX, TCX), turns them into one clean per-second record stream, and computes the numbers runners care about: pace and grade-adjusted pace, climb, best efforts, heart-rate zones, TRIMP, aerobic decoupling and fitness, fatigue and form. Use it as a Python library and CLI, or run the self-hosted web app on your own machine.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/activity-dark.jpg">
-  <img alt="pacelab activity page for an interval session: distance, moving time, pace, heart rate and climb, with pace, heart-rate and elevation charts" src="docs/images/activity-light.jpg">
+  <img alt="makerundev activity page for an interval session: distance, moving time, pace, heart rate and climb, with pace, heart-rate and elevation charts" src="docs/images/activity-light.jpg">
 </picture>
 
-## Why pacelab
+## Why makerundev
 
 - **Your data stays yours.** No account, no cloud, no subscription. The app is one process with SQLite and files on your disk, and it loads nothing from the internet.
 - **Metrics you can check.** Every metric has a written definition in the [glossary](GLOSSARY.md) and tests with hand-computed values. When a definition changes, the [changelog](CHANGELOG.md) says how your numbers shift.
@@ -25,10 +25,10 @@ pacelab reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo wat
 
 ## Try it in 30 seconds
 
-With [uv](https://docs.astral.sh/uv/), point pacelab at any activity files, no install needed:
+With [uv](https://docs.astral.sh/uv/), point makerundev at any activity files, no install needed:
 
 ```bash
-uvx pacelab summary ~/Downloads/*.fit
+uvx makerundev summary ~/Downloads/*.fit
 ```
 
 ```text
@@ -40,7 +40,7 @@ uvx pacelab summary ~/Downloads/*.fit
 Find the best efforts hiding inside a run:
 
 ```bash
-uvx pacelab efforts race.fit
+uvx makerundev efforts race.fit
 ```
 
 ```text
@@ -55,19 +55,19 @@ uvx pacelab efforts race.fit
 And get the whole normalised record stream out as Parquet or CSV:
 
 ```bash
-uvx pacelab export race.fit race.parquet
+uvx makerundev export race.fit race.parquet
 ```
 
-Prefer pip? `pip install pacelab` gives you the same `pacelab` command and the library.
+Prefer pip? `pip install makerundev` gives you the same `makerundev` command and the library.
 
 ## Run your own dashboard
 
 The web app turns a folder of activity files into a private training log: every run with its charts, best efforts, time in zones and TRIMP, plus your fitness, fatigue and form over months.
 
 ```bash
-git clone https://github.com/tanhtruong/pacelab.git && cd pacelab
+git clone https://github.com/tanhtruong/makerundev.git && cd makerundev
 uv sync
-uv run pacelab-server
+uv run makerundev-server
 ```
 
 Or with Docker, which builds the image from the checkout:
@@ -79,12 +79,12 @@ docker compose up
 Then open http://127.0.0.1:8000 and:
 
 1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped.
-2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. pacelab works out TRIMP for every activity and keeps it up to date when you change them.
+2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them.
 3. **Open Training load** to see fitness, fatigue and form built from your daily TRIMP.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/load-dark.jpg">
-  <img alt="pacelab training load page: fitness rising steadily over five months of training, fatigue above it, and form dipping during hard blocks and rising for a race" src="docs/images/load-light.jpg">
+  <img alt="makerundev training load page: fitness rising steadily over five months of training, fatigue above it, and form dipping during hard blocks and rising for a race" src="docs/images/load-light.jpg">
 </picture>
 
 The app has no login, so keep it on `127.0.0.1` or behind a reverse proxy that adds authentication. Configuration, data layout, backups and the JSON API are in the [server README](apps/server/README.md).
@@ -107,12 +107,12 @@ The exact definitions, thresholds and formulas are in the [glossary](GLOSSARY.md
 ## Using the library
 
 ```bash
-pip install pacelab
+pip install makerundev
 ```
 
 ```python
-from pacelab import load
-from pacelab.metrics import (
+from makerundev import load
+from makerundev.metrics import (
     aerobic_decoupling,
     best_efforts,
     grade_adjusted_pace,
@@ -161,7 +161,7 @@ The record stream has the same columns and units whatever the source file:
 ## Getting your data out of your watch
 
 - **Garmin**: Garmin Connect → activity → ⚙ → *Export Original* gives the FIT file. For everything at once, request a data export from your Garmin account's data management page.
-- **Strava**: Settings → My Account → *Download or Delete Your Account* → *Request your archive*. The `activities/` folder holds `.fit.gz`, `.gpx.gz` and `.tcx.gz` files, which pacelab imports as they are.
+- **Strava**: Settings → My Account → *Download or Delete Your Account* → *Request your archive*. The `activities/` folder holds `.fit.gz`, `.gpx.gz` and `.tcx.gz` files, which makerundev imports as they are.
 - **Coros, Suunto, Polar, Wahoo**: each app can export single activities as FIT.
 
 ## Roadmap
@@ -178,7 +178,7 @@ Not planned: social feeds, segment leaderboards, hosting other people's data or 
 
 ## Contributing
 
-Bug reports, file-format edge cases, metric ideas and code are all welcome. The most useful thing you can send is a file pacelab gets wrong (shift or strip the GPS track first). Setup is `uv sync` and `make check`; [CONTRIBUTING.md](CONTRIBUTING.md) has the rest, including what a metric change needs.
+Bug reports, file-format edge cases, metric ideas and code are all welcome. The most useful thing you can send is a file makerundev gets wrong (shift or strip the GPS track first). Setup is `uv sync` and `make check`; [CONTRIBUTING.md](CONTRIBUTING.md) has the rest, including what a metric change needs.
 
 ## Documentation
 

@@ -2,8 +2,8 @@ import math
 
 import pytest
 from fastapi.testclient import TestClient
-from pacelab_server import create_app
-from pacelab_server.db import ActivityRow, connect
+from makerundev_server import create_app
+from makerundev_server.db import ActivityRow, connect
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

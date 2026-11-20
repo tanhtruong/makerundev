@@ -1,4 +1,4 @@
-# pacelab v1 spec
+# makerundev v1 spec
 
 ## Goal
 
@@ -7,7 +7,7 @@ Give runners full, private access to the telemetry their watch records, with met
 ## Users
 
 1. **Runners who self-host**: import a Strava or Garmin export, browse every run, and track fitness over time.
-2. **Developers and data people**: `pip install pacelab`, load files into polars, build their own analysis.
+2. **Developers and data people**: `pip install makerundev`, load files into polars, build their own analysis.
 
 ## Scope
 
@@ -44,14 +44,14 @@ Next in line: running power from pace and grade when no power meter is present, 
 - Training load page: fitness, fatigue and form over time from daily TRIMP.
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
 - JSON API: `GET /api/activities`, `GET /api/activities/{id}/records`.
-- One process, SQLite, files on local disk. Runs with `uv run pacelab-server` or Docker.
+- One process, SQLite, files on local disk. Runs with `uv run makerundev-server` or Docker.
 
 Next: map view, Strava sync page, search and filters, multi-user with login.
 
 ## Non-goals
 
 - A social network: no feeds, kudos or segments leaderboards.
-- Hosting other people's data. pacelab is self-hosted software, not a service.
+- Hosting other people's data. makerundev is self-hosted software, not a service.
 - Training-plan generation.
 
 ## Build order
@@ -63,4 +63,4 @@ Next: map view, Strava sync page, search and filters, multi-user with login.
 5. Strava sync
 6. Grade-adjusted pace, splits and laps, running dynamics
 7. Garmin Connect sync (optional extra)
-8. First PyPI release of `pacelab`, container image for `pacelab-server`
+8. First PyPI release of `makerundev`, container image for `makerundev-server`

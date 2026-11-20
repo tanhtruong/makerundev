@@ -1,11 +1,11 @@
 [project]
-name = "pacelab-server"
+name = "makerundev-server"
 version = "0.2.0"
-description = "Self-hosted web app for your running data, built on pacelab."
+description = "Self-hosted web app for your running data, built on makerundev."
 license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
-    "pacelab",
+    "makerundev",
     "alembic>=1.20.1",
     "fastapi>=0.165",
     "jinja2>=3.1.6",
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pacelab-server = "pacelab_server.main:run"
+makerundev-server = "makerundev_server.main:run"
 
 [build-system]
 requires = ["uv_build>=0.13.8,<0.14"]
