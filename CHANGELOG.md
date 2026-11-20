@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-20
+
 ### Added
 
 - `pacelab-server`: a Settings page for max and resting heart rate, TRIMP coefficients, heart-rate zones (as % of max heart rate) and timezone. TRIMP is stored for each activity once heart rate is set, and recomputed when max heart rate, resting heart rate or the coefficients change.
@@ -28,5 +30,6 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/pacelab/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/pacelab/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/tanhtruong/pacelab/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanhtruong/pacelab/releases/tag/v0.1.0
