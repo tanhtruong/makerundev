@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Strava - makerundev{% endblock %}
+{% block head %}{% if connection and connection.syncing %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block content %}
+<h1>Strava</h1>
+<p class="meta">Bring your activities in from Strava, with their full streams. Tokens stay in this instance's data directory.</p>
+
+{% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
+
+{% if not configured %}
+<section class="steps">
+  <h2>Set up your own Strava API application</h2>
+  <ol>
+    <li>On Strava, open <a href="https://www.strava.com/settings/api" rel="noopener">Settings → My API Application</a> and create an application.</li>
+    <li>Set its <strong>Authorization Callback Domain</strong> to <code>{{ callback_domain }}</code>.</li>
+    <li>Start makerundev with the application's values in <code>MAKERUNDEV_STRAVA_CLIENT_ID</code> and <code>MAKERUNDEV_STRAVA_CLIENT_SECRET</code>.</li>
+  </ol>
+  <p class="meta">The application is yours alone, so your data moves only between Strava and this machine.</p>
+</section>
+
+{% elif not connected %}
+<form class="strava-actions" action="/strava/connect" method="post">
+  <button type="submit">Connect with Strava</button>
+</form>
+<p class="meta">Strava will ask you to let this instance read your activities. The callback domain of your API application must be <code>{{ callback_domain }}</code>.</p>
+
+{% else %}
+<dl class="stats">
+  <div><dt>Status</dt><dd>{{ "Syncing" if connection.syncing else "Connected" }}</dd></div>
+  <div><dt>Imported</dt><dd>{{ connection.imported }}</dd></div>
+  <div><dt>Matched to files</dt><dd>{{ connection.matched }}</dd></div>
+  <div><dt>History</dt><dd>{{ "Complete" if connection.backfill_done else "In progress" }}</dd></div>
+</dl>
+<p class="meta">
+  {% if connection.syncing %}Syncing now. This page refreshes on its own.
+  {% elif connection.last_sync_at %}{{ connection.sync_message }} Last sync {{ connection.last_sync_at | local(timezone) }}.
+  {% elif connection.sync_message %}{{ connection.sync_message }}
+  {% else %}Nothing synced yet.{% endif %}
+  {% if connection.backfill_before and not connection.backfill_done %}History reaches back to {{ connection.backfill_before | local(timezone, "%Y-%m-%d") }} so far.{% endif %}
+</p>
+
+<form class="strava-actions" action="/strava/sync" method="post">
+  <button type="submit"{% if connection.syncing %} disabled{% endif %}>Sync now</button>
+</form>
+
+{% if connection.skipped %}
+<h2>Skipped activities</h2>
+<p class="meta">These have nothing to chart and are not tried again.</p>
+<div class="table-scroll">
+<table>
+  <thead><tr><th>Date</th><th>Name</th><th>Why</th></tr></thead>
+  <tbody>
+    {% for item in connection.skipped %}
+    <tr>
+      <td>{{ item.start_time[:10] }}</td>
+      <td><a class="strava-link" href="https://www.strava.com/activities/{{ item.id }}" rel="noopener">{{ item.name }}</a></td>
+      <td>{{ item.reason }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+
+<details class="disconnect">
+  <summary>Disconnect</summary>
+  <p>Disconnecting revokes this instance's access and deletes every activity that came only from Strava. Activities imported from files stay.</p>
+  <form action="/strava/disconnect" method="post">
+    <button type="submit" class="danger">Disconnect and delete synced activities</button>
+  </form>
+</details>
+{% endif %}
+
+<p class="powered">Powered by Strava</p>
+{% endblock %}

@@ -8,6 +8,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
+- `makerundev-server`: sync from Strava with your own Strava API application (`MAKERUNDEV_STRAVA_CLIENT_ID`, `MAKERUNDEV_STRAVA_CLIENT_SECRET`). The new Strava page connects, syncs by hand in the background, lists activities that were skipped, and disconnects. A sync stops short of Strava's rate limits and the next one continues. Activities already imported from files are matched, not duplicated, and synced activities link to "View on Strava".
+- `makerundev-server`: `external_source` and `external_id` in `GET /api/activities`.
 - `makerundev.io.strava.read_strava(activity, streams)` maps a Strava activity and its streams (as returned by the Strava API) onto the record stream, with no network access of its own. Run cadence is doubled to steps per minute for both feet, as for files. `Activity.source_format` can now be `"strava"`.
 
 ### Changed

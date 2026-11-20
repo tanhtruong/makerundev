@@ -176,3 +176,14 @@ td.file { color: var(--muted); max-width: 200px; overflow: hidden; text-overflow
 
 .table-view { margin-top: 28px; }
 .table-view summary { cursor: pointer; color: var(--muted); }
+
+.strava-link { color: #fc5200; font-weight: 600; text-decoration: underline; text-decoration-color: currentColor; }
+.strava-actions { margin: 20px 0 0; }
+button:disabled { opacity: 0.5; cursor: default; }
+button.danger { background: transparent; color: var(--text); border: 1px solid var(--accent); }
+.steps ol { padding-left: 20px; display: grid; gap: 6px; }
+.steps h2 { margin-top: 24px; }
+code { font-size: 13px; padding: 1px 5px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.disconnect { margin-top: 40px; max-width: 520px; }
+.disconnect summary { cursor: pointer; color: var(--muted); }
+.powered { margin: 48px 0 0; color: var(--muted); font-size: 13px; }

@@ -20,8 +20,9 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 - Untrusted XML is parsed with `defusedxml` only. Gzip input is size-capped.
 - The app is server-rendered (Jinja, inline SVG). No front-end build step, no CDN assets.
 - The library must not depend on the server's stack.
+- Strava: the stream mapping is library code with no HTTP (`makerundev/io/strava.py`); OAuth, the HTTP client (`httpx2`) and the sync live in the server (ADR 6).
 
 ## Tests
 
 - FIT fixtures are generated in tests with `fit-tool` (`conftest.py` at the root), not checked in as binaries.
-- `packages/makerundev/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `test_strava.py` the mapping of Strava streams onto the record stream, `apps/server/tests/test_upload.py` the import-to-page path, `apps/server/tests/test_settings.py` athlete settings and TRIMP recompute, `apps/server/tests/test_load.py` zones, TRIMP and the training load page, `apps/server/tests/test_config.py` the pacelab-era environment variables and database name still being read, `apps/server/tests/test_migrations.py` that migrations match the models and that a 0.1.0 database still upgrades, `scripts/tests/test_release.py` the changelog rolling and release notes.
+- `packages/makerundev/tests/test_io.py` guards parsing, `test_metrics.py` the metric definitions, `test_strava.py` the mapping of Strava streams onto the record stream, `apps/server/tests/test_upload.py` the import-to-page path, `apps/server/tests/test_settings.py` athlete settings and TRIMP recompute, `apps/server/tests/test_load.py` zones, TRIMP and the training load page, `apps/server/tests/test_strava.py` Strava OAuth, sync, rate limits, matching against files and disconnect (against a fake Strava, never the live API), `apps/server/tests/test_config.py` the pacelab-era environment variables and database name still being read, `apps/server/tests/test_migrations.py` that migrations match the models and that a 0.1.0 database still upgrades, `scripts/tests/test_release.py` the changelog rolling and release notes.
