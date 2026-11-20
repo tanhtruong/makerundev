@@ -1,5 +1,7 @@
+import datetime as dt
 import sqlite3
 
+import polars as pl
 import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
@@ -56,6 +58,9 @@ def test_new_data_directory_is_created_at_head_and_matches_the_models(tmp_path):
 def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_path):
     with sqlite3.connect(tmp_path / "pacelab.db") as legacy:
         legacy.executescript(SCHEMA_0_1_0)
+    (tmp_path / "streams").mkdir()
+    stream = pl.DataFrame({"timestamp": [dt.datetime(2026, 2, 1, 6, 30, tzinfo=dt.UTC)]})
+    stream.write_parquet(tmp_path / "streams" / "ab.parquet")
 
     client = TestClient(create_app(data_dir=tmp_path))
 
@@ -64,6 +69,12 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
         ("old.fit", "2026-02-01T06:30:00+00:00")
     ]
     assert_at_head_and_matches_models(connect(tmp_path))
+    with sqlite3.connect(tmp_path / "pacelab.db") as db:
+        identity = db.execute(
+            "SELECT sha256, storage_key, external_source, external_id FROM activities"
+        ).fetchall()
+    assert identity == [("ab", "ab", None, None)]
+    assert len(client.get(f"/api/activities/{activities[0]['id']}/records").json()) == 1
 
 
 def test_athlete_settings_hold_at_most_one_row(tmp_path):
@@ -75,3 +86,19 @@ def test_athlete_settings_hold_at_most_one_row(tmp_path):
 
     with sqlite3.connect(tmp_path / "makerundev.db") as db, pytest.raises(sqlite3.IntegrityError):
         db.execute(insert)
+
+
+def test_activities_without_a_file_are_told_apart_by_their_external_identity(tmp_path):
+    connect(tmp_path)
+    insert = (
+        "INSERT INTO activities (storage_key, external_source, external_id, filename,"
+        " source_format, sport, start_time, distance_m, elapsed_s, moving_s, elevation_gain_m,"
+        " imported_at) VALUES (?, 'strava', ?, 'Run', 'strava', 'running',"
+        " '2026-02-01 06:30:00', 1.0, 1.0, 1.0, 0.0, '2026-02-01 08:00:00')"
+    )
+
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(insert, ("strava-1", "1"))
+        db.execute(insert, ("strava-2", "2"))
+        with pytest.raises(sqlite3.IntegrityError):
+            db.execute(insert, ("strava-3", "2"))

@@ -50,6 +50,7 @@ class Store:
             settings = _settings(session)
             row = ActivityRow(
                 sha256=digest,
+                storage_key=digest,
                 filename=Path(filename).name[:255] or "upload",
                 source_format=activity.source_format,
                 sport=activity.sport.value,
@@ -82,7 +83,7 @@ class Store:
             return session.get(ActivityRow, activity_id)
 
     def records(self, row: ActivityRow) -> pl.DataFrame:
-        return pl.read_parquet(self.streams / f"{row.sha256}.parquet")
+        return pl.read_parquet(self.streams / f"{row.storage_key}.parquet")
 
     def activity(self, row: ActivityRow) -> Activity:
         return Activity(

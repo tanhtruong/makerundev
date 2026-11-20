@@ -11,6 +11,7 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     inspect,
 )
@@ -44,9 +45,16 @@ class Base(DeclarativeBase):
 
 class ActivityRow(Base):
     __tablename__ = "activities"
+    __table_args__ = (
+        UniqueConstraint("storage_key", name="uq_activities_storage_key"),
+        UniqueConstraint("external_source", "external_id", name="uq_activities_external"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), unique=True)
+    storage_key: Mapped[str] = mapped_column(String(64))
+    external_source: Mapped[str | None] = mapped_column(String(16))
+    external_id: Mapped[str | None] = mapped_column(String(32))
     filename: Mapped[str] = mapped_column(String(255))
     source_format: Mapped[str] = mapped_column(String(8))
     sport: Mapped[str] = mapped_column(String(32))
