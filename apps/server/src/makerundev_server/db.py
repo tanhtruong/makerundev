@@ -5,12 +5,14 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     Dialect,
     Float,
     Integer,
     String,
+    UniqueConstraint,
     create_engine,
     inspect,
 )
@@ -44,9 +46,16 @@ class Base(DeclarativeBase):
 
 class ActivityRow(Base):
     __tablename__ = "activities"
+    __table_args__ = (
+        UniqueConstraint("storage_key", name="uq_activities_storage_key"),
+        UniqueConstraint("external_source", "external_id", name="uq_activities_external"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), unique=True)
+    storage_key: Mapped[str] = mapped_column(String(64))
+    external_source: Mapped[str | None] = mapped_column(String(16))
+    external_id: Mapped[str | None] = mapped_column(String(32))
     filename: Mapped[str] = mapped_column(String(255))
     source_format: Mapped[str] = mapped_column(String(8))
     sport: Mapped[str] = mapped_column(String(32))
@@ -76,6 +85,26 @@ class AthleteSettingsRow(Base):
     timezone: Mapped[str] = mapped_column(String(64))
     zone_model: Mapped[str] = mapped_column(String(32))
     zone_thresholds: Mapped[list[float]] = mapped_column(JSON)
+
+
+class StravaConnectionRow(Base):
+    __tablename__ = "strava_connection"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_strava_connection_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    oauth_state: Mapped[str | None] = mapped_column(String(64))
+    access_token: Mapped[str | None] = mapped_column(String(255))
+    refresh_token: Mapped[str | None] = mapped_column(String(255))
+    expires_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    newest_synced: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    backfill_before: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    backfill_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    syncing: Mapped[bool] = mapped_column(Boolean, default=False)
+    sync_message: Mapped[str | None] = mapped_column(String(255))
+    last_sync_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+    imported: Mapped[int] = mapped_column(Integer, default=0)
+    matched: Mapped[int] = mapped_column(Integer, default=0)
+    skipped: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
 
 
 MIGRATIONS = Path(__file__).parent / "migrations"

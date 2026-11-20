@@ -3,6 +3,9 @@ services:
     build: .
     ports:
       - "127.0.0.1:8000:8000"
+    environment:
+      MAKERUNDEV_STRAVA_CLIENT_ID: ${MAKERUNDEV_STRAVA_CLIENT_ID:-}
+      MAKERUNDEV_STRAVA_CLIENT_SECRET: ${MAKERUNDEV_STRAVA_CLIENT_SECRET:-}
     volumes:
       - pacelab-data:/data
     restart: unless-stopped

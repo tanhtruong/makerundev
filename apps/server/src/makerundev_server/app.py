@@ -1,8 +1,12 @@
+import contextlib
 import datetime as dt
+import secrets
+import threading
 from pathlib import Path
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
+import httpx2
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -15,16 +19,30 @@ from makerundev_server import charts, config
 from makerundev_server.db import ActivityRow, connect
 from makerundev_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
 from makerundev_server.store import Store
+from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
+from makerundev_server.sync import StravaSync
 from makerundev_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 HERE = Path(__file__).parent
+STRAVA_NOTICES = {
+    "connected": "Connected to Strava. Start a sync to bring your activities in.",
+    "denied": "Strava access was not granted, so nothing was connected.",
+    "state": "That Strava response did not match a connection started here. Try again.",
+    "scope": "makerundev needs permission to read your activities, private ones included."
+    " Connect again and leave that box ticked.",
+    "failed": "Strava did not complete the connection. Check the client id and secret.",
+    "disconnected": "Disconnected from Strava.",
+}
 
 
-def create_app(data_dir: Path | None = None) -> FastAPI:
+def create_app(
+    data_dir: Path | None = None, strava_transport: httpx2.BaseTransport | None = None
+) -> FastAPI:
     root = data_dir or config.data_dir()
     root.mkdir(parents=True, exist_ok=True)
     store = Store(root, connect(root))
+    store.reset_strava_sync()
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters.update(
         km=format.kilometres,
@@ -94,6 +112,9 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             "activity.html",
             {
                 "activity": row,
+                "strava_url": ACTIVITY_URL.format(row.external_id)
+                if row.external_source == "strava"
+                else None,
                 "efforts": best_efforts(activity),
                 "settings_set": settings is not None,
                 "zones": zones,
@@ -167,6 +188,77 @@ def create_app(data_dir: Path | None = None) -> FastAPI:
             },
         )
 
+    def strava_client() -> StravaClient | None:
+        configured = credentials()
+        return StravaClient(configured, strava_transport) if configured else None
+
+    def to_strava(notice: str = "") -> RedirectResponse:
+        return RedirectResponse(f"/strava?notice={notice}" if notice else "/strava", 303)
+
+    @app.get("/strava", response_class=HTMLResponse)
+    def strava(request: Request, notice: str = "") -> HTMLResponse:
+        connection = store.strava_connection()
+        return templates.TemplateResponse(
+            request,
+            "strava.html",
+            {
+                "configured": credentials() is not None,
+                "connected": connection is not None and connection.access_token is not None,
+                "connection": connection,
+                "notice": STRAVA_NOTICES.get(notice),
+                "callback_domain": request.url.hostname,
+                "timezone": timezone(),
+            },
+        )
+
+    @app.post("/strava/connect", response_model=None)
+    def strava_connect(request: Request) -> Response:
+        client = strava_client()
+        if client is None:
+            return to_strava()
+        state = secrets.token_urlsafe(32)
+        store.begin_strava_oauth(state)
+        redirect_uri = str(request.url_for("strava_callback"))
+        return RedirectResponse(client.authorize_url(redirect_uri, state), status_code=303)
+
+    @app.get("/strava/callback", name="strava_callback", response_model=None)
+    def strava_callback(
+        code: str = "", state: str = "", scope: str = "", error: str = ""
+    ) -> Response:
+        client = strava_client()
+        connection = store.strava_connection()
+        expected = connection.oauth_state if connection else None
+        if client is None or not expected or not secrets.compare_digest(expected, state):
+            return to_strava("state")
+        if error or not code:
+            return to_strava("denied")
+        if SCOPE not in scope.replace(" ", ",").split(","):
+            return to_strava("scope")
+        try:
+            tokens = client.exchange(code)
+        except (StravaError, httpx2.HTTPError, KeyError):
+            return to_strava("failed")
+        store.save_strava_tokens(tokens)
+        return to_strava("connected")
+
+    @app.post("/strava/sync", response_model=None)
+    def strava_sync() -> Response:
+        client = strava_client()
+        if client is not None and store.start_strava_sync():
+            worker = threading.Thread(target=StravaSync(store, client).run, daemon=True)
+            app.state.strava_sync = worker
+            worker.start()
+        return to_strava()
+
+    @app.post("/strava/disconnect", response_model=None)
+    def strava_disconnect() -> Response:
+        client = strava_client()
+        if client is not None:
+            with contextlib.suppress(StravaError, httpx2.HTTPError, KeyError):
+                client.revoke(StravaSync(store, client).access_token())
+        store.disconnect_strava()
+        return to_strava("disconnected")
+
     @app.get("/api/activities")
     def api_activities() -> list[dict[str, Any]]:
         return [_as_dict(row) for row in store.list()]
@@ -216,4 +308,6 @@ def _as_dict(row: ActivityRow) -> dict[str, Any]:
         "max_heart_rate": row.max_heart_rate,
         "elevation_gain_m": row.elevation_gain_m,
         "trimp": row.trimp,
+        "external_source": row.external_source,
+        "external_id": row.external_id,
     }

@@ -6,8 +6,15 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `makerundev-server`: sync from Strava with your own Strava API application (`MAKERUNDEV_STRAVA_CLIENT_ID`, `MAKERUNDEV_STRAVA_CLIENT_SECRET`). The new Strava page connects, syncs by hand in the background, lists activities that were skipped, and disconnects. A sync stops short of Strava's rate limits and the next one continues. Activities already imported from files are matched, not duplicated, and synced activities link to "View on Strava".
+- `makerundev-server`: `external_source` and `external_id` in `GET /api/activities`.
+- `makerundev.io.strava.read_strava(activity, streams)` maps a Strava activity and its streams (as returned by the Strava API) onto the record stream, with no network access of its own. Run cadence is doubled to steps per minute for both feet, as for files. `Activity.source_format` can now be `"strava"`.
+
 ### Changed
 
+- `makerundev-server`: the database gains an identity for activities that do not come from a file (migration `0003`). It is upgraded on startup as usual, and no file on disk is renamed; back up the data directory first.
 - **Breaking:** the project is renamed from pacelab to makerundev. The PyPI package, the import and the CLI are now `makerundev` (`pip install makerundev`, `from makerundev import load`, `makerundev summary`); the app is `makerundev-server` and its image `ghcr.io/tanhtruong/makerundev-server`. The `pacelab` package and `pacelab-server` image stop at 0.2.0. No metric definition changes.
 - `makerundev-server` reads `MAKERUNDEV_DATA_DIR`, `MAKERUNDEV_HOST` and `MAKERUNDEV_PORT`, and names a new database `makerundev.db`. Existing installs keep working: the `PACELAB_` variables are still read when the new one is not set, an existing `pacelab.db` is used where it is, and `compose.yml` keeps the `pacelab-data` volume. With the image, which sets the `MAKERUNDEV_` variables itself, rename any `PACELAB_` variable you override. The Compose service is now `makerundev`; run `docker compose up -d --remove-orphans` once to replace the old container. Compose prefixes the volume with the checkout's folder name, so keep that folder's name, or pass `-p pacelab`, to stay on the same volume.
 
