@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-21
+
 ### Added
 
 - `makerundev-server`: sync from Strava with your own Strava API application (`MAKERUNDEV_STRAVA_CLIENT_ID`, `MAKERUNDEV_STRAVA_CLIENT_SECRET`). The new Strava page connects, syncs by hand in the background, lists activities that were skipped, and disconnects. A sync stops short of Strava's rate limits and the next one continues. Activities already imported from files are matched, not duplicated, and synced activities link to "View on Strava".
@@ -43,6 +45,7 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/tanhtruong/makerundev/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tanhtruong/makerundev/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanhtruong/makerundev/releases/tag/v0.1.0
