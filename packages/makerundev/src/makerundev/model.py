@@ -24,6 +24,9 @@ STREAM_SCHEMA: dict[str, pl.DataType] = {
     "cadence": pl.Float64(),
     "power": pl.Float64(),
     "temperature": pl.Float64(),
+    "ground_contact_time": pl.Float64(),
+    "vertical_oscillation": pl.Float64(),
+    "step_length": pl.Float64(),
 }
 
 

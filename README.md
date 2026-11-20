@@ -184,6 +184,9 @@ The record stream has the same columns and units whatever the source file:
 | `cadence` | steps/min, both feet |
 | `power` | watts |
 | `temperature` | °C |
+| `ground_contact_time` | ms |
+| `vertical_oscillation` | mm |
+| `step_length` | metres |
 
 ## Getting your data out of your watch
 

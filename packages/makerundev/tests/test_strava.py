@@ -61,6 +61,9 @@ def test_streams_are_mapped_onto_the_record_stream_in_canonical_units():
         "cadence": 170.0,
         "power": 250.0,
         "temperature": 12.0,
+        "ground_contact_time": None,
+        "vertical_oscillation": None,
+        "step_length": None,
     }
 
 
@@ -114,7 +117,16 @@ def test_missing_streams_become_nulls_and_distance_falls_back_to_positions():
 
     records = read_strava(summary(), only).records
 
-    for column in ("altitude", "heart_rate", "cadence", "power", "temperature"):
+    for column in (
+        "altitude",
+        "heart_rate",
+        "cadence",
+        "power",
+        "temperature",
+        "ground_contact_time",
+        "vertical_oscillation",
+        "step_length",
+    ):
         assert records[column].null_count() == records.height
     assert records["distance"][0] == 0.0
     assert records["distance"][2] == pytest.approx(6.67, abs=0.05)

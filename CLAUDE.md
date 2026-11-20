@@ -15,7 +15,7 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 ## Architecture (decided - see ADRs before revisiting)
 
 - Parsers map each format onto `STREAM_SCHEMA` in `makerundev/model.py`; metrics read only that stream and never branch on source format.
-- Canonical units: UTC timestamps, degrees, metres, m/s, bpm, steps/min (both feet), watts, °C.
+- Canonical units: UTC timestamps, degrees, metres, m/s, bpm, steps/min (both feet), watts, °C; ground contact time in ms, vertical oscillation in mm.
 - FIT parsing uses `fitdecode`, never Garmin's SDK (licence, ADR 2).
 - Untrusted XML is parsed with `defusedxml` only. Gzip input is size-capped.
 - The app is server-rendered (Jinja, inline SVG). No front-end build step, no CDN assets.

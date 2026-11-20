@@ -35,6 +35,14 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Cadence** - Steps per minute, both feet. FIT, GPX and TCX files store running cadence per foot; the parsers double it.
 
+**Running dynamics** - Ground contact time, vertical oscillation and step length, measured per record by a watch or heart-rate strap with an accelerometer. Read from FIT files as the device recorded them, zeros included; other sources have none.
+
+**Ground contact time** - How long a foot stays on the ground in one step, in milliseconds. FIT calls it stance time.
+
+**Vertical oscillation** - How far the torso moves up and down in one step, in millimetres.
+
+**Step length** - The distance from one foot strike to the next, by the other foot, in metres. Speed in m/s is cadence times step length, divided by 60. Garmin Connect labels the same value "stride length"; a stride in the strict sense is two steps.
+
 **Climb** (elevation gain) - Ascent with altitude noise filtered out: a rise or fall counts only once it reaches 3 m from the last turning point.
 
 **Split** - A fixed length of an activity's distance, 1 km by default, counted from the start; the last split is whatever distance remains. The time each boundary is crossed is interpolated between records. A split's pace is its moving time per kilometre, so unlike lap pace it leaves pauses out.

@@ -8,6 +8,7 @@ from makerundev.errors import ActivityFileError
 from makerundev.model import Activity, Lap, Sport
 
 SEMICIRCLE_TO_DEGREES = 180 / 2**31
+MILLIMETRES_PER_METRE = 1000
 
 FIT_SPORTS = {
     "running": Sport.RUNNING,
@@ -78,6 +79,7 @@ def _record(frame: Any) -> dict[str, Any]:
     fractional = _value(frame, "fractional_cadence")
     if cadence is not None and fractional is not None:
         cadence += fractional
+    step_length = _value(frame, "step_length")
     return {
         "timestamp": _value(frame, "timestamp"),
         "latitude": lat * SEMICIRCLE_TO_DEGREES if lat is not None else None,
@@ -89,6 +91,9 @@ def _record(frame: Any) -> dict[str, Any]:
         "cadence": cadence,
         "power": _value(frame, "power"),
         "temperature": _value(frame, "temperature"),
+        "ground_contact_time": _value(frame, "stance_time"),
+        "vertical_oscillation": _value(frame, "vertical_oscillation"),
+        "step_length": step_length / MILLIMETRES_PER_METRE if step_length is not None else None,
     }
 
 
