@@ -16,6 +16,8 @@
 
 **Elapsed time** - Last record's time minus first record's time.
 
+**Lap** - A segment the device recorded, by auto-lap or the lap button: its start time, duration (pauses included) and distance, taken as the device reported them and not checked against the record stream. Read from FIT and TCX; a lap without a start time is dropped.
+
 **Pace** - Moving time per kilometre.
 
 **Grade-adjusted pace** (GAP) - The flat-ground pace with the same energy cost as a run's moving pace. It uses the running cost model from Minetti et al. (2002), [Energy cost of walking and running at extreme uphill and downhill slopes](https://doi.org/10.1152/japplphysiol.01177.2001):

@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `Activity.laps` holds the laps the watch recorded (auto-lap or the lap button) as `makerundev.Lap`s, with start time, elapsed time and distance as the device reported them. Read from FIT and TCX files; GPX has no laps and Strava laps are not synced yet, so those give none. `Activity.from_rows` takes `laps`. The app does not store or show laps yet.
+
 ## [0.3.0] - 2026-11-21
 
 ### Added

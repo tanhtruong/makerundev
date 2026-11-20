@@ -5,7 +5,7 @@ from typing import Any
 import fitdecode
 
 from makerundev.errors import ActivityFileError
-from makerundev.model import Activity, Sport
+from makerundev.model import Activity, Lap, Sport
 
 SEMICIRCLE_TO_DEGREES = 180 / 2**31
 
@@ -24,6 +24,7 @@ def read_fit(data: bytes) -> Activity:
     sport = Sport.OTHER
     start_time: dt.datetime | None = None
     device: str | None = None
+    laps: list[Lap] = []
     session_seen = False
     try:
         with fitdecode.FitReader(io.BytesIO(data), check_crc=fitdecode.CrcCheck.ENABLED) as reader:
@@ -32,6 +33,10 @@ def read_fit(data: bytes) -> Activity:
                     continue
                 if frame.name == "record":
                     rows.append(_record(frame))
+                elif frame.name == "lap":
+                    lap = _lap(frame)
+                    if lap is not None:
+                        laps.append(lap)
                 elif frame.name == "session" and not session_seen:
                     session_seen = True
                     sport = _sport(_value(frame, "sport"), _value(frame, "sub_sport"))
@@ -45,7 +50,20 @@ def read_fit(data: bytes) -> Activity:
             if row["cadence"] is not None:
                 row["cadence"] *= 2
     return Activity.from_rows(
-        rows, sport=sport, source_format="fit", device=device, start_time=start_time
+        rows, sport=sport, source_format="fit", device=device, start_time=start_time, laps=laps
+    )
+
+
+def _lap(frame: Any) -> Lap | None:
+    start_time = _value(frame, "start_time")
+    if not isinstance(start_time, dt.datetime):
+        return None
+    elapsed = _value(frame, "total_elapsed_time")
+    distance = _value(frame, "total_distance")
+    return Lap(
+        start_time=start_time.astimezone(dt.UTC),
+        elapsed_s=float(elapsed) if elapsed is not None else None,
+        distance_m=float(distance) if distance is not None else None,
     )
 
 

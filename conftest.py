@@ -5,6 +5,7 @@ from typing import Any
 import pytest
 from fit_tool.fit_file_builder import FitFileBuilder
 from fit_tool.profile.messages.file_id_message import FileIdMessage
+from fit_tool.profile.messages.lap_message import LapMessage
 from fit_tool.profile.messages.record_message import RecordMessage
 from fit_tool.profile.messages.session_message import SessionMessage
 from fit_tool.profile.profile_type import FileType, Manufacturer, Sport, SubSport
@@ -20,7 +21,10 @@ def _millis(seconds: float) -> int:
 
 
 def build_fit(
-    rows: Sequence[FitRow], sport: Any = Sport.RUNNING, sub_sport: Any = SubSport.GENERIC
+    rows: Sequence[FitRow],
+    sport: Any = Sport.RUNNING,
+    sub_sport: Any = SubSport.GENERIC,
+    laps: Sequence[FitRow] = (),
 ) -> bytes:
     builder = FitFileBuilder(auto_define=True, min_string_size=50)
     file_id = FileIdMessage()
@@ -47,6 +51,16 @@ def build_fit(
             if key in row:
                 setattr(record, attribute, row[key])
         builder.add(record)
+    for row in laps:
+        lap = LapMessage()
+        if "t" in row:
+            lap.start_time = _millis(row["t"])
+            lap.timestamp = _millis(row["t"] + row.get("elapsed", 0.0))
+        if "elapsed" in row:
+            lap.total_elapsed_time = row["elapsed"]
+        if "distance" in row:
+            lap.total_distance = row["distance"]
+        builder.add(lap)
     session = SessionMessage()
     session.timestamp = _millis(rows[-1]["t"])
     session.start_time = _millis(0)
