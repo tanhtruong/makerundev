@@ -75,6 +75,14 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
         ).fetchall()
     assert identity == [("ab", "ab", None, None)]
     assert len(client.get(f"/api/activities/{activities[0]['id']}/records").json()) == 1
+    duplicate = (
+        "INSERT INTO activities (sha256, storage_key, filename, source_format, sport,"
+        " start_time, distance_m, elapsed_s, moving_s, elevation_gain_m, imported_at)"
+        " VALUES ('ab', 'other', 'again.fit', 'fit', 'running', '2026-02-02 06:30:00',"
+        " 1.0, 1.0, 1.0, 0.0, '2026-02-02 08:00:00')"
+    )
+    with sqlite3.connect(tmp_path / "pacelab.db") as db, pytest.raises(sqlite3.IntegrityError):
+        db.execute(duplicate)
 
 
 def test_athlete_settings_hold_at_most_one_row(tmp_path):

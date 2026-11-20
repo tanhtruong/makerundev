@@ -8,7 +8,13 @@ from makerundev import ActivityFileError
 from makerundev.io.strava import read_strava
 
 from makerundev_server.store import Phase, Store
-from makerundev_server.strava import RateLimited, StravaClient, StravaError, Unauthorized
+from makerundev_server.strava import (
+    RateLimited,
+    Refused,
+    StravaClient,
+    StravaError,
+    Unauthorized,
+)
 
 REFRESH_MARGIN = dt.timedelta(hours=1)
 UP_TO_DATE = "Up to date."
@@ -67,8 +73,8 @@ class StravaSync:
             if not batch:
                 break
             page += 1
-        for summary in sorted(listed, key=_start):
-            self._one(summary, "newer")
+        for start, summary in sorted(_dated(listed), key=lambda dated: dated[0]):
+            self._one(summary, start, "newer")
 
     def _backfill(self) -> None:
         while True:
@@ -77,21 +83,24 @@ class StravaSync:
                 return
             before = row.backfill_before
             batch = self.client.activities(self.access_token(), before=before)
-            for summary in sorted(batch, key=_start, reverse=True):
-                self._one(summary, "backfill")
+            for start, summary in sorted(_dated(batch), key=lambda dated: dated[0], reverse=True):
+                self._one(summary, start, "backfill")
             after = self.store.strava_connection()
             if not batch or after is None or after.backfill_before == before:
                 self.store.finish_strava_backfill()
                 return
 
-    def _one(self, summary: Mapping[str, Any], phase: Phase) -> None:
-        start = _start(summary)
+    def _one(self, summary: Mapping[str, Any], start: dt.datetime, phase: Phase) -> None:
         if self.store.claim_strava(summary, start, phase):
             return
         if summary.get("manual"):
             self.store.skip_strava(summary, start, "a manual entry, with no streams", phase)
             return
-        streams = self.client.streams(self.access_token(), str(summary["id"]))
+        try:
+            streams = self.client.streams(self.access_token(), str(summary["id"]))
+        except Refused as refused:
+            self.store.skip_strava(summary, start, str(refused), phase)
+            return
         if streams is None:
             self.store.skip_strava(summary, start, "no streams on Strava", phase)
             return
@@ -101,6 +110,16 @@ class StravaSync:
             self.store.skip_strava(summary, start, str(error), phase)
             return
         self.store.add_strava(summary, streams, activity, phase)
+
+
+def _dated(listed: list[dict[str, Any]]) -> list[tuple[dt.datetime, dict[str, Any]]]:
+    dated = []
+    for summary in listed:
+        try:
+            dated.append((_start(summary), summary))
+        except (KeyError, ValueError):
+            log.warning("Strava activity %s has no readable start time", summary.get("id"))
+    return dated
 
 
 def _start(summary: Mapping[str, Any]) -> dt.datetime:

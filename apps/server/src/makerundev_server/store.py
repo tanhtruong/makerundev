@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from makerundev_server.db import ActivityRow, AthleteSettingsRow, StravaConnectionRow
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
-from makerundev_server.strava import Tokens
+from makerundev_server.strava import Tokens, Unauthorized
 
 SETTINGS_ID = 1
 CONNECTION_ID = 1
@@ -183,7 +183,7 @@ class Store:
 
     def finish_strava_backfill(self) -> None:
         with self.writing, Session(self.engine) as session:
-            _connection(session).backfill_done = True
+            _connected(session).backfill_done = True
             session.commit()
 
     def claim_strava(self, summary: Mapping[str, Any], start: dt.datetime, phase: Phase) -> bool:
@@ -194,7 +194,7 @@ class Store:
                     ActivityRow.external_source == STRAVA, ActivityRow.external_id == strava_id
                 )
             )
-            connection = _connection(session)
+            connection = _connected(session)
             if known is None:
                 distance = float(summary.get("distance") or 0.0)
                 file_row = _file_match(session, strava_id, start, distance)
@@ -226,8 +226,8 @@ class Store:
                 filename=str(summary.get("name") or "Strava activity")[:255],
             )
             _describe(row, activity, described, _settings(session))
+            connection = _connected(session)
             session.add(row)
-            connection = _connection(session)
             connection.imported += 1
             _advance(connection, phase, activity.start_time)
             session.flush()
@@ -245,7 +245,7 @@ class Store:
             "reason": reason[:255],
         }
         with self.writing, Session(self.engine) as session:
-            connection = _connection(session)
+            connection = _connected(session)
             connection.skipped = [entry, *connection.skipped][:SKIPPED_KEPT]
             _advance(connection, phase, start)
             session.commit()
@@ -298,6 +298,13 @@ def _connection(session: Session) -> StravaConnectionRow:
             id=CONNECTION_ID, backfill_done=False, syncing=False, imported=0, matched=0, skipped=[]
         )
         session.add(row)
+    return row
+
+
+def _connected(session: Session) -> StravaConnectionRow:
+    row = session.get(StravaConnectionRow, CONNECTION_ID)
+    if row is None or row.access_token is None:
+        raise Unauthorized("not connected to Strava")
     return row
 
 

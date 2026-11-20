@@ -33,6 +33,12 @@ class Unauthorized(StravaError):
     pass
 
 
+class Refused(StravaError):
+    def __init__(self, status: int) -> None:
+        super().__init__(f"Strava answered {status}")
+        self.status = status
+
+
 @dataclass(frozen=True, slots=True)
 class Credentials:
     client_id: str
@@ -106,6 +112,8 @@ class StravaClient:
         response = self._get(access_token, f"/activities/{activity_id}/streams", params)
         if response.status_code == 404:
             return None
+        if 400 <= response.status_code < 500:
+            raise Refused(response.status_code)
         response.raise_for_status()
         streams: dict[str, Any] = response.json()
         return streams
