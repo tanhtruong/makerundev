@@ -1,12 +1,12 @@
 import itertools
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, NoReturn
 
 import typer
 
 from makerundev import format
 from makerundev.errors import ActivityFileError
-from makerundev.io import load
+from makerundev.io import anonymize, load
 from makerundev.metrics import (
     BANISTER_FEMALE,
     BANISTER_MALE,
@@ -163,12 +163,37 @@ def export(file: File, output: Annotated[Path, typer.Argument(dir_okay=False)]) 
         raise typer.BadParameter("output must end in .csv or .parquet", param_hint="OUTPUT")
 
 
+@app.command(
+    "anonymize",
+    help="Write a copy with every position moved far away, safe to attach to a bug report.",
+)
+def anonymize_command(file: File, output: Annotated[Path, typer.Argument(dir_okay=False)]) -> None:
+    try:
+        result = anonymize(file.read_bytes())
+    except ActivityFileError as error:
+        _fail(file, error)
+    try:
+        with output.open("xb") as target:
+            target.write(result.data)
+    except FileExistsError as error:
+        raise typer.BadParameter("already exists", param_hint="OUTPUT") from error
+    typer.echo(f"Shifted {result.positions} positions to {output}")
+    if result.identifying:
+        typer.echo(
+            f"Still in the file: {', '.join(result.identifying)}. Check them before attaching it."
+        )
+
+
 def _load(path: Path) -> Activity:
     try:
         return load(path)
     except ActivityFileError as error:
-        typer.echo(f"{path}: {error}", err=True)
-        raise typer.Exit(1) from error
+        _fail(path, error)
+
+
+def _fail(path: Path, error: ActivityFileError) -> NoReturn:
+    typer.echo(f"{path}: {error}", err=True)
+    raise typer.Exit(1) from error
 
 
 def _load_heart_rate(path: Path) -> Activity:

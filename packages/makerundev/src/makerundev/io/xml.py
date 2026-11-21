@@ -5,8 +5,12 @@ from xml.etree.ElementTree import Element
 from makerundev.errors import ActivityFileError
 
 
+def strip_namespace(tag: str) -> str:
+    return tag.rsplit("}", 1)[-1]
+
+
 def local_name(element: Element) -> str:
-    return element.tag.rsplit("}", 1)[-1]
+    return strip_namespace(element.tag)
 
 
 def children(element: Element, name: str) -> Iterator[Element]:

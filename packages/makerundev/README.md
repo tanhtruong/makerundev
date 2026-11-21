@@ -22,6 +22,7 @@ makerundev efforts morning.fit
 makerundev splits morning.fit
 makerundev laps morning.fit
 makerundev export morning.fit records.parquet
+makerundev anonymize run.gpx shifted.gpx
 ```
 
 See the [project README](https://github.com/tanhtruong/makerundev) for the full documentation.

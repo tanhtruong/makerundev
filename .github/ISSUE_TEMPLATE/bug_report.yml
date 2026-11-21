@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        **Activity files contain GPS tracks**, often starting at your home. Do not attach one unless you have removed or shifted the positions. The device, firmware and export path usually let us reproduce the problem with a generated file.
+        **Activity files contain GPS tracks**, often starting at your home. For a GPX or TCX file, run `makerundev anonymize FILE OUTPUT` and attach the output instead: every position moves far away and the rest of the file stays as it was. Do not attach a FIT file; the device, firmware and export path usually let us reproduce the problem with a generated file.
   - type: textarea
     id: what-happened
     attributes:

@@ -1,4 +1,5 @@
 import os
+import random
 import re
 import zipfile
 import zlib
@@ -12,9 +13,11 @@ from defusedxml import ElementTree
 from defusedxml.common import DefusedXmlException
 
 from makerundev.errors import ActivityFileError
+from makerundev.io.anonymize import Anonymized, Identifying, shift_positions
 from makerundev.io.fit import read_fit
 from makerundev.io.gpx import read_gpx
 from makerundev.io.tcx import read_tcx
+from makerundev.io.xml import local_name
 from makerundev.model import Activity
 
 MAX_DECOMPRESSED_BYTES = 256 * 1024 * 1024
@@ -42,7 +45,15 @@ _XML_READERS: dict[str, Callable[[Element], Activity]] = {
     "TrainingCenterDatabase": read_tcx,
 }
 
-__all__ = ["ActivityFileError", "ZipEntry", "load", "unzip"]
+__all__ = [
+    "ActivityFileError",
+    "Anonymized",
+    "Identifying",
+    "ZipEntry",
+    "anonymize",
+    "load",
+    "unzip",
+]
 
 
 class ZipEntry(NamedTuple):
@@ -51,17 +62,32 @@ class ZipEntry(NamedTuple):
 
 
 def load(source: str | os.PathLike[str] | bytes) -> Activity:
-    data = source if isinstance(source, bytes) else Path(source).read_bytes()
-    entry = unzip(data)
-    if entry is not None:
-        data = entry.data
-    if data[:2] == b"\x1f\x8b":
-        data = _gunzip(data)
+    data = _unwrap(source if isinstance(source, bytes) else Path(source).read_bytes())
     if _is_fit(data):
         return read_fit(data)
     if _xml_root(data) is not None:
         return _read_xml(data)
     raise ActivityFileError("unsupported file: expected FIT, GPX or TCX")
+
+
+def anonymize(data: bytes, *, rng: random.Random | None = None) -> Anonymized:
+    data = _unwrap(data)
+    if _is_fit(data):
+        raise ActivityFileError("FIT files are not supported yet; export a GPX or TCX instead")
+    if data[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in data[:4]:
+        raise ActivityFileError("UTF-16 and UTF-32 files are not supported; save it as UTF-8")
+    if _xml_root(data) not in _XML_READERS:
+        raise ActivityFileError("unsupported file: expected GPX or TCX")
+    return shift_positions(data, rng or random.SystemRandom())
+
+
+def _unwrap(data: bytes) -> bytes:
+    entry = unzip(data)
+    if entry is not None:
+        data = entry.data
+    if data[:2] == b"\x1f\x8b":
+        data = _gunzip(data)
+    return data
 
 
 def unzip(data: bytes) -> ZipEntry | None:
@@ -157,7 +183,7 @@ def _read_xml(data: bytes) -> Activity:
         root = ElementTree.fromstring(data)
     except (ElementTree.ParseError, DefusedXmlException) as error:
         raise ActivityFileError(f"unreadable XML: {error}") from error
-    name = root.tag.rsplit("}", 1)[-1]
+    name = local_name(root)
     reader = _XML_READERS.get(name)
     if reader is None:
         raise ActivityFileError(f"unsupported XML document <{name}>")
