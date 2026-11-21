@@ -3,7 +3,9 @@ import gzip
 import hashlib
 import json
 import logging
+import os
 import threading
+import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +29,7 @@ SKIPPED_KEPT = 50
 MATCH_SECONDS = 60.0
 MATCH_DISTANCE_M = 200.0
 MATCH_DISTANCE_SHARE = 0.05
+RUNNING_DYNAMICS = ("ground_contact_time", "vertical_oscillation", "step_length")
 
 Phase = Literal["newer", "backfill"]
 log = logging.getLogger(__name__)
@@ -89,7 +92,33 @@ class Store:
             return session.get(ActivityRow, activity_id)
 
     def records(self, row: ActivityRow) -> pl.DataFrame:
-        return pl.read_parquet(self.streams / f"{row.storage_key}.parquet")
+        path = self.streams / f"{row.storage_key}.parquet"
+        records = pl.read_parquet(path)
+        if row.source_format != "fit" or set(RUNNING_DYNAMICS) <= set(records.columns):
+            return records
+        records = records.with_columns(self._original_dynamics(row, records))
+        try:
+            _replace_parquet(records, path)
+        except OSError as error:
+            log.warning("cannot store the running dynamics of activity %s: %s", row.id, error)
+        return records
+
+    def _original_dynamics(self, row: ActivityRow, stored: pl.DataFrame) -> tuple[pl.Series, ...]:
+        try:
+            parsed = load(self.originals / row.storage_key).records
+        except (OSError, ActivityFileError) as error:
+            log.warning("cannot read the running dynamics of activity %s: %s", row.id, error)
+        else:
+            if parsed.height == stored.height and parsed["timestamp"].equals(stored["timestamp"]):
+                return tuple(parsed[name].cast(pl.Float64) for name in RUNNING_DYNAMICS)
+            log.warning(
+                "the original of activity %s no longer matches its stream; "
+                "running dynamics left empty",
+                row.id,
+            )
+        return tuple(
+            pl.Series(name, [None] * stored.height, pl.Float64) for name in RUNNING_DYNAMICS
+        )
 
     def activity(self, row: ActivityRow) -> Activity:
         return Activity(
@@ -314,6 +343,15 @@ def _describe(
     row.elevation_gain_m = summary.elevation_gain_m
     row.trimp = _trimp(activity, settings) if settings else None
     row.laps = _encode_laps(activity.laps)
+
+
+def _replace_parquet(records: pl.DataFrame, path: Path) -> None:
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        records.write_parquet(temporary)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _encode_laps(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:

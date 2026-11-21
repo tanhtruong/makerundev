@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from makerundev import ActivityFileError, Lap, format
-from makerundev.metrics import best_efforts, splits, time_in_zones
+from makerundev.metrics import best_efforts, splits, summarize, time_in_zones
 
 from makerundev_server import charts, config
 from makerundev_server.db import ActivityRow, connect
@@ -103,6 +103,7 @@ def create_app(
         row = _row(store, activity_id)
         activity = store.activity(row)
         records = activity.records
+        summary = summarize(activity)
         settings = store.athlete_settings()
         zones = []
         if settings is not None:
@@ -119,6 +120,9 @@ def create_app(
                 "efforts": best_efforts(activity),
                 "splits": _unless_single(splits(activity)),
                 "laps": _lap_rows(store.laps(row)),
+                "ground_contact_time": summary.avg_ground_contact_time,
+                "vertical_oscillation": summary.avg_vertical_oscillation,
+                "step_length": summary.avg_step_length,
                 "settings_set": settings is not None,
                 "zones": zones,
                 "timezone": settings.timezone if settings else "UTC",

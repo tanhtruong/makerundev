@@ -205,3 +205,52 @@ def test_grade_adjusted_pace_is_only_defined_for_moving_runs():
         sport=Sport.WALKING,
     )
     assert grade_adjusted_pace(walking) is None
+
+
+RUNNING_DYNAMICS = {
+    "ground_contact_time": "avg_ground_contact_time",
+    "vertical_oscillation": "avg_vertical_oscillation",
+    "step_length": "avg_step_length",
+}
+
+
+@pytest.mark.parametrize("column", RUNNING_DYNAMICS)
+def test_running_dynamics_averages_drop_zeros_and_weight_moving_intervals(column):
+    rows = [
+        {"t": 0.0, "distance": 0.0, column: 200.0, "cadence": 200.0},
+        {"t": 1.0, "distance": 3.0, column: 0.0, "cadence": 0.0},
+        {"t": 2.0, "distance": 6.0, column: 320.0, "cadence": 320.0},
+        {"t": 4.0, "distance": 12.0, column: 260.0, "cadence": 260.0},
+        {"t": 5.0, "distance": 12.0, column: 900.0, "cadence": 900.0},
+        {"t": 6.0, "distance": 12.0, column: 700.0, "cadence": 700.0},
+    ]
+
+    summary = summarize(run(rows))
+
+    assert getattr(summary, RUNNING_DYNAMICS[column]) == pytest.approx((200 + 320 * 2) / 3)
+    assert summary.avg_cadence == pytest.approx((200 + 0 + 320 * 2) / 4)
+
+
+def test_running_dynamics_averages_are_unavailable_without_measurements():
+    zeros = {column: 0.0 for column in RUNNING_DYNAMICS}
+
+    for summary in (summarize(run(steady(60, 3.0))), summarize(run(steady(60, 3.0, **zeros)))):
+        for attribute in RUNNING_DYNAMICS.values():
+            assert getattr(summary, attribute) is None
+
+
+def test_summary_tolerates_a_stream_stored_without_running_dynamics():
+    rows = steady(600, 3.0, heart_rate=140.0)
+    full = run(rows)
+    stored = Activity(
+        sport=full.sport,
+        start_time=full.start_time,
+        records=full.records.drop(list(RUNNING_DYNAMICS)),
+    )
+
+    summary = summarize(stored)
+
+    assert summary.distance_m == 1800.0
+    assert summary.avg_heart_rate == 140.0
+    for attribute in RUNNING_DYNAMICS.values():
+        assert getattr(summary, attribute) is None
