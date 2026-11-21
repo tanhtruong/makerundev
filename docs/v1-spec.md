@@ -31,18 +31,19 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - Summary: distance, elapsed and moving time, pace, average and max heart rate, average cadence and power, climb and descent.
 - Best efforts: 400 m, 1 km, 1 mile, 5 km, 10 km, half marathon, marathon.
 - Splits: moving time and pace per kilometre, the last split being whatever distance remains.
+- Running dynamics averages: ground contact time, vertical oscillation and step length, where the FIT file has them.
 - Time in heart-rate zones.
 - TRIMP (Banister, with male and female coefficients).
 - Aerobic decoupling.
 - Grade-adjusted pace (Minetti cost model).
 - Training load: fitness, fatigue, form.
 
-Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed, running dynamics averages (ground contact time, vertical oscillation, step length) where the FIT file has them; the record stream already carries the values.
+Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed.
 
 ### Self-hosted app
 
 - Import one or many files; duplicates (same bytes) are skipped.
-- Activity list and activity page with pace, heart rate and elevation charts, splits, laps, best efforts, time in zones and TRIMP.
+- Activity list and activity page with pace, heart rate and elevation charts, the route shape, splits, laps, running dynamics averages, best efforts, time in zones and TRIMP.
 - Training load page: fitness, fatigue and form over time from daily TRIMP.
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
 - Strava sync page: connect, sync by hand, see what was skipped, disconnect.
@@ -65,6 +66,6 @@ Next: map view, search and filters, multi-user with login.
 3. ~~Athlete settings, zones and TRIMP per activity, fitness/fatigue/form page~~
 4. ~~Database migrations (Alembic) before the schema changes again~~
 5. ~~Strava sync~~
-6. ~~Grade-adjusted pace, splits and laps~~, running dynamics
+6. ~~Grade-adjusted pace, splits and laps, running dynamics~~
 7. ~~Garmin Connect sync with a personal API key~~
-8. First PyPI release of `makerundev`, container image for `makerundev-server`
+8. ~~First PyPI release of `makerundev`, container image for `makerundev-server`~~
