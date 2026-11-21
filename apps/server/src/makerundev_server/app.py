@@ -17,6 +17,7 @@ from makerundev import ActivityFileError, Lap, format
 from makerundev.metrics import best_efforts, splits, summarize, time_in_zones
 
 from makerundev_server import charts, config, garmin
+from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import ActivityRow, connect
 from makerundev_server.garmin_sync import GarminSync
 from makerundev_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
@@ -75,6 +76,7 @@ def create_app(
         return settings.timezone if settings else "UTC"
 
     app = FastAPI(title="makerundev")
+    app.add_middleware(CrossSiteGuard)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
     def index(request: Request, notices: list[str], status_code: int = 200) -> HTMLResponse:

@@ -35,6 +35,8 @@ The project was called pacelab up to 0.2.0. `PACELAB_DATA_DIR`, `PACELAB_HOST` a
 
 There is no login. Keep the app on `127.0.0.1` or behind a reverse proxy that adds authentication; the bundled `compose.yml` only publishes the port on localhost.
 
+So that another website cannot make your browser change anything here, every request other than `GET`, `HEAD` and `OPTIONS` is refused with 403 when the browser marks it as coming from another site (`Sec-Fetch-Site` other than `same-origin` or `none`), or, from a browser that does not send that header, when its `Origin` names a different host and port than the request's `Host`. A request with neither header, such as one from curl or a script, goes through. Behind a reverse proxy, make sure it passes the original `Host` header.
+
 ## Data
 
 The data directory holds:
