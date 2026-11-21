@@ -126,6 +126,7 @@ def create_app(
                 "settings_set": settings is not None,
                 "zones": zones,
                 "timezone": settings.timezone if settings else "UTC",
+                "route": charts.route(records),
                 "pace": charts.series(records, "pace", invert=True),
                 "heart_rate": charts.series(records, "heart_rate"),
                 "elevation": charts.series(records, "altitude"),

@@ -48,6 +48,42 @@ def series(records: pl.DataFrame, column: str, invert: bool = False) -> Series |
     return Series(path="M" + " L".join(points), low=low, high=high)
 
 
+ROUTE_SIZE = 1000.0
+
+
+@dataclass(frozen=True, slots=True)
+class Route:
+    points: str
+    width: float
+    height: float
+
+
+def route(records: pl.DataFrame) -> Route | None:
+    positions = records.select("latitude", "longitude").drop_nulls()
+    if positions.height < 2:
+        return None
+    step = max(1, positions.height // MAX_POINTS)
+    frame = positions.gather_every(step)
+    if (positions.height - 1) % step:
+        frame = pl.concat([frame, positions.tail(1)])
+    lat = frame["latitude"].to_list()
+    lon = frame["longitude"].to_list()
+    squash = math.cos(math.radians(sum(lat) / len(lat)))
+    x = [value * squash for value in lon]
+    left, right = min(x), max(x)
+    bottom, top = min(lat), max(lat)
+    scale = ROUTE_SIZE / (max(right - left, top - bottom) or 1.0)
+    points = " ".join(
+        f"{INSET + (xi - left) * scale:.1f},{INSET + (top - yi) * scale:.1f}"
+        for xi, yi in zip(x, lat, strict=True)
+    )
+    return Route(
+        points=points,
+        width=(right - left) * scale + 2 * INSET,
+        height=(top - bottom) * scale + 2 * INSET,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ZoneBar:
     name: str

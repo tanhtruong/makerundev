@@ -16,6 +16,7 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev-server`: the activity page lists the laps of a file with two or more, with each lap's time, distance and pace. Activities imported earlier get their laps from the kept original the first time their page opens.
 - `makerundev-server`: the activity page shows average ground contact time, vertical oscillation and step length when the activity has running dynamics. Streams of FIT files imported earlier gain the columns from the kept original the first time they are read, by the activity page or `/api/activities/{id}/records`; GPX, TCX and Strava activities keep streams without them.
 - `makerundev-server`: the activity page shows a Splits table, with each kilometre's distance, moving time and pace, above the laps. It is computed when the page opens, so activities imported earlier get it too. Activities of 1 km or less have none.
+- `makerundev-server`: the activity page draws the route shape from the GPS track, north up, as an inline SVG with no map tiles. Activities without positions, such as treadmill runs, show none.
 
 ### Changed
 
