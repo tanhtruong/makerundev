@@ -43,6 +43,8 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Step length** - The distance from one foot strike to the next, by the other foot, in metres. Speed in m/s is cadence times step length, divided by 60. Garmin Connect labels the same value "stride length"; a stride in the strict sense is two steps.
 
+**Average ground contact time, vertical oscillation and step length** - The running dynamics of an activity's moving intervals, each interval weighted by its duration, like average cadence. A zero is a dropout, not a measurement, so zeros are left out. An activity without running dynamics, or with only zeros, has no average rather than one of zero.
+
 **Climb** (elevation gain) - Ascent with altitude noise filtered out: a rise or fall counts only once it reaches 3 m from the last turning point.
 
 **Split** - A fixed length of an activity's distance, 1 km by default, counted from the start; the last split is whatever distance remains. The time each boundary is crossed is interpolated between records. A split's pace is its moving time per kilometre, so unlike lap pace it leaves pauses out.

@@ -34,6 +34,9 @@ class Summary:
     max_heart_rate: float | None
     avg_cadence: float | None
     avg_power: float | None
+    avg_ground_contact_time: float | None
+    avg_vertical_oscillation: float | None
+    avg_step_length: float | None
     elevation_gain_m: float
     elevation_loss_m: float
 
@@ -55,8 +58,16 @@ class _Intervals:
 
 
 def _column(activity: Activity, name: str) -> FloatArray:
+    if name not in activity.records.columns:
+        return np.full(activity.records.height, np.nan)
     values: FloatArray = activity.records[name].cast(pl.Float64).fill_null(np.nan).to_numpy()
     return values
+
+
+def _measured(activity: Activity, name: str) -> FloatArray:
+    values = _column(activity, name)
+    measured: FloatArray = np.where(values == 0, np.nan, values)
+    return measured
 
 
 def _elapsed(activity: Activity) -> FloatArray:
@@ -99,6 +110,13 @@ def summarize(activity: Activity) -> Summary:
         max_heart_rate=float(np.nanmax(heart_rate)) if not np.isnan(heart_rate).all() else None,
         avg_cadence=_weighted_mean(_column(activity, "cadence")[:-1], moving_weights),
         avg_power=_weighted_mean(_column(activity, "power")[:-1], moving_weights),
+        avg_ground_contact_time=_weighted_mean(
+            _measured(activity, "ground_contact_time")[:-1], moving_weights
+        ),
+        avg_vertical_oscillation=_weighted_mean(
+            _measured(activity, "vertical_oscillation")[:-1], moving_weights
+        ),
+        avg_step_length=_weighted_mean(_measured(activity, "step_length")[:-1], moving_weights),
         elevation_gain_m=gain,
         elevation_loss_m=loss,
     )
