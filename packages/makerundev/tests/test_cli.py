@@ -1,5 +1,8 @@
+import polars as pl
 import pytest
 from makerundev.cli import app
+from makerundev.io import load
+from makerundev.model import STREAM_SCHEMA
 from typer.testing import CliRunner
 
 
@@ -95,7 +98,9 @@ def test_laps_prints_each_recorded_lap_with_its_distance_time_and_pace(tmp_path,
     ]
 
 
-def test_summary_long_adds_grade_adjusted_pace_and_decoupling_to_each_line(tmp_path, make_fit):
+def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and_decoupling(
+    tmp_path, make_fit
+):
     hill = tmp_path / "hill.fit"
     hill.write_bytes(
         make_fit(
@@ -112,9 +117,11 @@ def test_summary_long_adds_grade_adjusted_pace_and_decoupling_to_each_line(tmp_p
     )
     bare = tmp_path / "bare.fit"
     bare.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(626)]))
+    broken = tmp_path / "broken.fit"
+    broken.write_bytes(b"not an activity")
 
     long = CliRunner().invoke(app, ["summary", "--long", str(hill), str(bare)])
-    default = CliRunner().invoke(app, ["summary", str(hill)])
+    default = CliRunner().invoke(app, ["summary", str(broken), str(hill)])
 
     assert long.exit_code == 0
     assert long.output.splitlines() == [
@@ -123,6 +130,54 @@ def test_summary_long_adds_grade_adjusted_pace_and_decoupling_to_each_line(tmp_p
         "bare.fit  2026-03-01 07:00  running  2.50 km  10:25  4:10 /km  -  +0 m"
         "  GAP -  decoupling -",
     ]
-    assert default.output.splitlines() == [
+    assert default.exit_code == 1
+    assert default.stdout.splitlines() == [
         "hill.fit  2026-03-01 07:00  running  3.00 km  15:00  5:00 /km  144 bpm  +300 m",
     ]
+    assert default.stderr == f"{broken}: unsupported file: expected FIT, GPX or TCX\n"
+
+
+def test_efforts_prints_the_fastest_time_over_each_distance_the_run_covers(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(626)]))
+
+    result = CliRunner().invoke(app, ["efforts", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "         400 m  1:40",
+        "          1 km  4:10",
+        "        1 mile  6:42",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("suffix", "read_back"),
+    [
+        (".csv", lambda path: pl.read_csv(path, schema=STREAM_SCHEMA)),
+        (".parquet", pl.read_parquet),
+    ],
+)
+def test_export_writes_the_record_stream_that_reads_back_unchanged(
+    tmp_path, steady_run_fit, suffix, read_back
+):
+    path = tmp_path / "run.fit"
+    path.write_bytes(steady_run_fit)
+    output = tmp_path / f"run{suffix}"
+
+    result = CliRunner().invoke(app, ["export", str(path), str(output)])
+
+    assert result.exit_code == 0
+    assert read_back(output).equals(load(path).records)
+
+
+def test_export_rejects_an_output_that_is_not_csv_or_parquet(tmp_path, steady_run_fit):
+    path = tmp_path / "run.fit"
+    path.write_bytes(steady_run_fit)
+    output = tmp_path / "run.json"
+
+    result = CliRunner().invoke(app, ["export", str(path), str(output)])
+
+    assert result.exit_code == 2
+    assert ".csv or .parquet" in result.stderr
+    assert not output.exists()
