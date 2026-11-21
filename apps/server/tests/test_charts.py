@@ -69,4 +69,13 @@ def test_route_is_downsampled():
         positions([55.0 + i * 1e-5 for i in range(count)], [12.0 + i * 1e-5 for i in range(count)])
     )
     assert route is not None
-    assert len(points(route)) == charts.MAX_POINTS
+    assert len(points(route)) == charts.MAX_POINTS + 1
+
+
+def test_downsampled_route_ends_at_the_final_position():
+    count = 10 * charts.MAX_POINTS + 7
+    route = charts.route(
+        positions([55.0 + i * 1e-5 for i in range(count)], [12.0 + i * 1e-5 for i in range(count)])
+    )
+    assert route is not None
+    assert points(route)[-1] == pytest.approx((route.width - charts.INSET, charts.INSET), abs=0.1)

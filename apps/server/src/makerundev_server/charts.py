@@ -59,10 +59,13 @@ class Route:
 
 
 def route(records: pl.DataFrame) -> Route | None:
-    frame = records.select("latitude", "longitude").drop_nulls()
-    if frame.height < 2:
+    positions = records.select("latitude", "longitude").drop_nulls()
+    if positions.height < 2:
         return None
-    frame = frame.gather_every(max(1, frame.height // MAX_POINTS))
+    step = max(1, positions.height // MAX_POINTS)
+    frame = positions.gather_every(step)
+    if (positions.height - 1) % step:
+        frame = pl.concat([frame, positions.tail(1)])
     lat = frame["latitude"].to_list()
     lon = frame["longitude"].to_list()
     squash = math.cos(math.radians(sum(lat) / len(lat)))
