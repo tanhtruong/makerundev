@@ -20,6 +20,7 @@ print(splits(activity))
 makerundev summary morning.fit
 makerundev efforts morning.fit
 makerundev splits morning.fit
+makerundev laps morning.fit
 makerundev export morning.fit records.parquet
 ```
 

@@ -51,6 +51,12 @@ class Lap:
     elapsed_s: float | None = None
     distance_m: float | None = None
 
+    @property
+    def pace_s_per_km(self) -> float | None:
+        if self.elapsed_s is None or not self.distance_m:
+            return None
+        return self.elapsed_s / self.distance_m * 1000
+
 
 @dataclass(frozen=True, slots=True)
 class Activity:
