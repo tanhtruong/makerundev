@@ -16,6 +16,14 @@ make check
 
 `make check` runs ruff, mypy (strict) and the test suite. CI runs the same command.
 
+## Finding something to work on
+
+- [`good first issue`](https://github.com/tanhtruong/makerundev/labels/good%20first%20issue) issues are small and fully specified.
+- [`help wanted`](https://github.com/tanhtruong/makerundev/labels/help%20wanted) issues are larger and need some judgement.
+- [`roadmap`](https://github.com/tanhtruong/makerundev/labels/roadmap) issues are planned by the maintainer and are not open for pull requests yet. Comments on them are welcome.
+
+Comment on an issue before you start, so two people don't build the same thing. For anything without an issue, open one or start a Discussion first.
+
 ## Reporting a parsing bug
 
 The most useful report includes the file that fails. Activity files contain GPS tracks, so strip or shift the positions first, or describe the device, firmware and export path so we can reproduce it with a generated file.
@@ -40,13 +48,15 @@ Metric definitions are part of the public contract. A change needs:
 
 2. Run `make check`, push the branch to your fork, and open a pull request against `main` here.
 3. Leave **Allow edits by maintainers** ticked, so we can update your branch or push small fixes.
-4. CI must pass and review threads must be resolved before merging. Pull requests are squash-merged, so the pull request title becomes the commit message on `main`.
+4. We aim to give a first review within a week.
+5. CI must pass and review threads must be resolved before merging. Pull requests are squash-merged, so the pull request title becomes the commit message on `main`.
 
 Guidelines:
 
 - One concern per pull request.
 - Pull request titles and commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(metrics): add grade-adjusted pace`.
 - UI changes include before and after screenshots.
+- The decisions in `docs/adr/` are settled; pull requests that go against one will be closed. To propose revisiting one, start a Discussion that says what has changed since it was made.
 - New decisions that are hard to reverse get an ADR in `docs/adr/`.
 
 By contributing you agree that your contributions are licensed under the Apache License 2.0.
