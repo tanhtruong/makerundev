@@ -59,6 +59,18 @@ uvx makerundev efforts race.fit
 
 Or the moving time and pace of every kilometre with `uvx makerundev splits race.fit`.
 
+The time in each heart-rate zone, from your max heart rate (zones start at 60, 70, 80 and 90 % of it unless you pass `--thresholds`):
+
+```bash
+uvx makerundev zones race.fit --max-hr 190
+```
+
+And the Banister TRIMP training load, as a whole number (`--female` for the female coefficients):
+
+```bash
+uvx makerundev trimp race.fit --max-hr 190 --resting-hr 50
+```
+
 And get the whole normalised record stream out as Parquet or CSV:
 
 ```bash

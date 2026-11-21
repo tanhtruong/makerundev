@@ -51,7 +51,7 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Best effort** - The fastest time over a fixed distance anywhere within an activity, interpolated between samples.
 
-**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app, thresholds are percentages of max heart rate by default (zones 2 to 5 start at 60, 70, 80 and 90 %).
+**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app and the CLI, thresholds are percentages of max heart rate, by default 60, 70, 80 and 90 % (the starts of zones 2 to 5).
 
 **Zone model** - How zone thresholds are expressed and turned into heart rates. The app supports `max_hr_percent` (five zones, thresholds as % of max heart rate); others, such as % of heart-rate reserve, may follow.
 

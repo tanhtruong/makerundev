@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import polars as pl
+from makerundev import format
 
 from makerundev_server.training import Day
 
@@ -96,17 +97,15 @@ def zone_bars(seconds: Sequence[float], boundaries_bpm: Sequence[float]) -> list
     total = sum(seconds)
     if not total:
         return []
-    starts = [math.ceil(boundary) for boundary in boundaries_bpm]
-    bars = []
-    for zone, zone_seconds in enumerate(seconds):
-        if zone == 0:
-            bpm = f"under {starts[0]} bpm"
-        elif zone == len(starts):
-            bpm = f"{starts[-1]} bpm and up"
-        else:
-            bpm = f"{starts[zone - 1]}-{starts[zone] - 1} bpm"
-        bars.append(ZoneBar(f"Zone {zone + 1}", bpm, zone_seconds, zone_seconds / total))
-    return bars
+    return [
+        ZoneBar(
+            f"Zone {zone + 1}",
+            format.zone_range(zone, boundaries_bpm),
+            zone_seconds,
+            zone_seconds / total,
+        )
+        for zone, zone_seconds in enumerate(seconds)
+    ]
 
 
 @dataclass(frozen=True, slots=True)
