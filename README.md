@@ -23,7 +23,7 @@ makerundev reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo 
 
 - **Your data stays yours.** No account, no cloud, no subscription. The app is one process with SQLite and files on your disk, and it loads nothing from the internet.
 - **Metrics you can check.** Every metric has a written definition in the [glossary](GLOSSARY.md) and tests with hand-computed values. When a definition changes, the [changelog](CHANGELOG.md) says how your numbers shift.
-- **Any watch, one shape.** FIT, GPX and TCX files, plain or gzipped, all become the same table in the same units. Nothing downstream needs to know which watch you wore.
+- **Any watch, one shape.** FIT, GPX and TCX files, plain, gzipped or zipped, all become the same table in the same units. Nothing downstream needs to know which watch you wore.
 - **Made to be poked at.** The record stream is a [polars](https://pola.rs) DataFrame. Export it to Parquet or CSV and take it into a notebook, DuckDB or a spreadsheet.
 
 > **Status: pre-alpha.** File import, Strava sync, the metrics below and the web app work today. Garmin Connect sync is on the [roadmap](#roadmap).
@@ -147,7 +147,7 @@ from makerundev.metrics import (
     trimp,
 )
 
-# FIT, GPX or TCX, plain or .gz
+# FIT, GPX or TCX, plain, .gz, or a .zip holding one of them
 activity = load("long-run.fit")
 # polars DataFrame, one row per sample
 activity.records
@@ -190,7 +190,7 @@ The record stream has the same columns and units whatever the source file:
 
 ## Getting your data out of your watch
 
-- **Garmin**: Garmin Connect → activity → ⚙ → *Export Original* gives the FIT file. For everything at once, request a data export from your Garmin account's data management page.
+- **Garmin**: Garmin Connect → activity → ⚙ → *Export Original* gives a ZIP holding the FIT file, which makerundev imports as it is. For everything at once, request a data export from your Garmin account's data management page.
 - **Strava**: Settings → My Account → *Download or Delete Your Account* → *Request your archive*. The `activities/` folder holds `.fit.gz`, `.gpx.gz` and `.tcx.gz` files, which makerundev imports as they are.
 - **Coros, Suunto, Polar, Wahoo**: each app can export single activities as FIT.
 

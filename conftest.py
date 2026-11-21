@@ -1,4 +1,6 @@
 import datetime as dt
+import io
+import zipfile
 from collections.abc import Callable, Sequence
 from typing import Any
 
@@ -14,6 +16,7 @@ FIT_START = dt.datetime(2026, 3, 1, 7, 0, tzinfo=dt.UTC)
 
 FitRow = dict[str, float]
 MakeFit = Callable[..., bytes]
+MakeZip = Callable[..., bytes]
 
 
 def _millis(seconds: float) -> int:
@@ -95,3 +98,19 @@ def steady_run_fit() -> bytes:
         for i in range(1001)
     ]
     return build_fit(rows)
+
+
+def build_zip(*entries: tuple[str, bytes], method: int = zipfile.ZIP_DEFLATED) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", method) as archive:
+        for name, data in entries:
+            if name.endswith("/"):
+                archive.mkdir(name.rstrip("/"))
+            else:
+                archive.writestr(name, data)
+    return buffer.getvalue()
+
+
+@pytest.fixture
+def make_zip() -> MakeZip:
+    return build_zip

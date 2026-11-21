@@ -17,7 +17,7 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 - Parsers map each format onto `STREAM_SCHEMA` in `makerundev/model.py`; metrics read only that stream and never branch on source format.
 - Canonical units: UTC timestamps, degrees, metres, m/s, bpm, steps/min (both feet), watts, °C; ground contact time in ms, vertical oscillation in mm.
 - FIT parsing uses `fitdecode`, never Garmin's SDK (licence, ADR 2).
-- Untrusted XML is parsed with `defusedxml` only. Gzip input is size-capped.
+- Untrusted XML is parsed with `defusedxml` only. Gzip and ZIP input is size-capped, and a ZIP must hold exactly one activity file.
 - The app is server-rendered (Jinja, inline SVG). No front-end build step, no CDN assets.
 - The library must not depend on the server's stack.
 - Strava: the stream mapping is library code with no HTTP (`makerundev/io/strava.py`); OAuth, the HTTP client (`httpx2`) and the sync live in the server (ADR 6).
