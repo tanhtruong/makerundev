@@ -363,9 +363,7 @@ def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
             "number": number,
             "elapsed_s": lap.elapsed_s,
             "distance_m": lap.distance_m,
-            "pace_s_per_km": lap.elapsed_s / lap.distance_m * 1000
-            if lap.elapsed_s is not None and lap.distance_m
-            else None,
+            "pace_s_per_km": lap.pace_s_per_km,
         }
         for number, lap in enumerate(_unless_single(laps), start=1)
     ]

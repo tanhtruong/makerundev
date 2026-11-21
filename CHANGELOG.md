@@ -12,6 +12,8 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev trimp FILE --max-hr N --resting-hr N` prints the Banister TRIMP as a whole number; `--female` uses the female coefficients.
 - Both commands exit with status 1 and say so when the file has no heart rate.
 - `makerundev.metrics.DEFAULT_ZONE_THRESHOLDS`, the default zone thresholds the app and the CLI share, and `makerundev.format.zone_range(zone, boundaries_bpm)`, the bpm range label of a zone (`under 114 bpm`, `114-132 bpm`, `171 bpm and up`).
+- `makerundev laps FILE` prints each lap the watch recorded with its distance, elapsed time and pace. A file with no laps, such as any GPX, prints nothing.
+- `makerundev.Lap.pace_s_per_km`, a lap's duration per kilometre with pauses included, which the app and the CLI share.
 
 ## [0.5.0] - 2026-11-21
 

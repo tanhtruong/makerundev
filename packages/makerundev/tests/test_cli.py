@@ -72,3 +72,24 @@ def test_zones_rejects_thresholds_that_do_not_ascend(tmp_path, make_fit):
 
     assert result.exit_code == 2
     assert "ascending" in result.stderr
+
+
+def test_laps_prints_each_recorded_lap_with_its_distance_time_and_pace(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    laps = [
+        {"t": 0.0, "elapsed": 330.0, "distance": 1000.0},
+        {"t": 330.0, "elapsed": 270.0, "distance": 800.0},
+        {"t": 600.0, "elapsed": 30.0},
+    ]
+    path.write_bytes(
+        make_fit([{"t": float(i), "distance": i * 3.0} for i in range(631)], laps=laps)
+    )
+
+    result = CliRunner().invoke(app, ["laps", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        " 1  1.00 km  5:30  5:30 /km",
+        " 2  0.80 km  4:30  5:38 /km",
+        " 3        -  0:30  -",
+    ]

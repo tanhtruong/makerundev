@@ -71,6 +71,25 @@ def splits_command(file: File) -> None:
         typer.echo(f"{number:>{digits}}  {distance}  {time:>{width}}  {pace}")
 
 
+@app.command(help="Print the distance, time and pace of each lap the watch recorded.")
+def laps(file: File) -> None:
+    rows = [
+        (
+            format.kilometres(lap.distance_m) if lap.distance_m is not None else "-",
+            format.duration(lap.elapsed_s) if lap.elapsed_s is not None else "-",
+            format.pace(lap.pace_s_per_km),
+        )
+        for lap in _load(file).laps
+    ]
+    distance_width = max((len(distance) for distance, _, _ in rows), default=0)
+    time_width = max((len(time) for _, time, _ in rows), default=0)
+    digits = max(2, len(str(len(rows))))
+    for number, (distance, time, pace) in enumerate(rows, start=1):
+        typer.echo(
+            f"{number:>{digits}}  {distance:>{distance_width}}  {time:>{time_width}}  {pace}"
+        )
+
+
 @app.command(help="Print the time spent in each heart-rate zone.")
 def zones(
     file: File,
