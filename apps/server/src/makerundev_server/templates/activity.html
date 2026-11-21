@@ -26,6 +26,15 @@
 {% endif %}
 {% endmacro %}
 
+{% if route %}
+<figure class="route">
+  <figcaption>Route</figcaption>
+  <svg viewBox="0 0 {{ "%.1f" | format(route.width) }} {{ "%.1f" | format(route.height) }}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Route shape, north up">
+    <polyline points="{{ route.points }}" vector-effect="non-scaling-stroke"/>
+  </svg>
+</figure>
+{% endif %}
+
 {{ line("Pace", pace, format_pace) }}
 {{ line("Heart rate", heart_rate, format_bpm) }}
 {{ line("Elevation", elevation, format_metres) }}

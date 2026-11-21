@@ -99,6 +99,27 @@ def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_p
     assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
 
 
+def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
+    tmp_path, steady_run_fit, make_fit
+):
+    client = TestClient(create_app(data_dir=tmp_path))
+    treadmill = make_fit(LAP_ROWS)
+    for name, fit in (("outdoor.fit", steady_run_fit), ("treadmill.fit", treadmill)):
+        client.post("/activities", files=[("files", (name, fit, "application/octet-stream"))])
+    ids = {row["filename"]: row["id"] for row in client.get("/api/activities").json()}
+
+    outdoor = client.get(f"/activities/{ids['outdoor.fit']}").text
+    assert '<figure class="route">' in outdoor
+    polyline = re.search(r'<polyline points="([^"]+)"', outdoor)
+    assert polyline is not None
+    assert len(polyline[1].split()) > 2
+    assert outdoor.index('<figure class="route">') < outdoor.index("Pace over distance")
+
+    indoor = client.get(f"/activities/{ids['treadmill.fit']}").text
+    assert '<figure class="route">' not in indoor
+    assert "<polyline" not in indoor
+
+
 def test_pages_link_icons_that_are_served(tmp_path):
     client = TestClient(create_app(data_dir=tmp_path))
 
