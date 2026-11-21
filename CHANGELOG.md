@@ -16,6 +16,10 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev laps FILE` prints each lap the watch recorded with its distance, elapsed time and pace. A file with no laps, such as any GPX, prints nothing.
 - `makerundev.Lap.pace_s_per_km`, a lap's duration per kilometre with pauses included, which the app and the CLI share.
 
+### Security
+
+- `makerundev-server` refuses, with 403, any request other than `GET`, `HEAD` and `OPTIONS` that another website makes your browser send, so a page elsewhere can no longer import files, change settings, start a sync, or disconnect Strava or remove the Garmin key behind your back. It trusts the browser's `Sec-Fetch-Site` header, or, from older browsers, compares `Origin` with `Host`. Requests with neither header, from curl or scripts, are unaffected. Behind a reverse proxy, pass the original `Host` header.
+
 ## [0.5.0] - 2026-11-21
 
 ### Added

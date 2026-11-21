@@ -114,7 +114,7 @@ Then open http://127.0.0.1:8000 and:
   <img alt="makerundev training load page: fitness rising steadily over five months of training, fatigue above it, and form dipping during hard blocks and rising for a race" src="docs/images/load-light.jpg">
 </picture>
 
-The app has no login, so keep it on `127.0.0.1` or behind a reverse proxy that adds authentication. Configuration, data layout, backups and the JSON API are in the [server README](apps/server/README.md).
+The app has no login, so keep it on `127.0.0.1` or behind a reverse proxy that adds authentication. It refuses form posts and API writes that another website makes your browser send. Configuration, data layout, backups and the JSON API are in the [server README](apps/server/README.md).
 
 ### Sync from Strava
 
