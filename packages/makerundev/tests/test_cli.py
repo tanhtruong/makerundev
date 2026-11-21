@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import polars as pl
 import pytest
 from makerundev.cli import app
@@ -211,3 +213,17 @@ def test_export_rejects_an_output_that_is_not_csv_or_parquet(tmp_path, steady_ru
     assert result.exit_code == 2
     assert ".csv or .parquet" in result.stderr
     assert not output.exists()
+
+
+def test_anonymize_writes_a_shifted_copy_and_never_overwrites_a_file(tmp_path):
+    source = Path(__file__).parent / "fixtures" / "run.gpx"
+    output = tmp_path / "shifted.gpx"
+
+    first = CliRunner().invoke(app, ["anonymize", str(source), str(output)])
+    written = output.read_bytes()
+    onto_itself = CliRunner().invoke(app, ["anonymize", str(output), str(output)])
+
+    assert first.exit_code == 0
+    assert first.output.split()[1] == "3"
+    assert onto_itself.exit_code != 0
+    assert output.read_bytes() == written
