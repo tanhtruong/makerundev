@@ -11,11 +11,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGES = ("makerundev", "makerundev-server")
 LIBRARY_PYPROJECT = "packages/makerundev/pyproject.toml"
+SERVER_PYPROJECT = "apps/server/pyproject.toml"
 CHANGELOG = "CHANGELOG.md"
 REPO_URL = "https://github.com/tanhtruong/makerundev"
 
 _VERSION = re.compile(r"\d+\.\d+\.\d+")
 _SECTION = re.compile(r"^## \[(?P<name>[^\]]+)\](?P<date>.*)$", re.MULTILINE)
+_LIBRARY_PIN = re.compile(r'^(\s*"makerundev==)[^"]+(",?)$', re.MULTILINE)
 _UNRELEASED_LINK = re.compile(
     r"^\[Unreleased\]: (?P<base>\S+)/compare/v(?P<previous>\d+\.\d+\.\d+)\.\.\.HEAD$",
     re.MULTILINE,
@@ -36,6 +38,13 @@ def parse_version(text: str) -> tuple[int, int, int]:
 def check_bump(current: str, new: str) -> None:
     if parse_version(new) <= parse_version(current):
         raise ReleaseError(f"{new} is not greater than the current version {current}")
+
+
+def pin_library(pyproject: str, version: str) -> str:
+    pinned, count = _LIBRARY_PIN.subn(rf"\g<1>{version}\g<2>", pyproject)
+    if count != 1:
+        raise ReleaseError(f'{SERVER_PYPROJECT} must depend on exactly one "makerundev==<version>"')
+    return pinned
 
 
 def _sections(text: str) -> dict[str, tuple[int, int, str]]:
@@ -122,14 +131,17 @@ def prepare(version: str, *, dry_run: bool) -> None:
             f"the [Unreleased] link in CHANGELOG.md does not compare from v{current}"
         )
     changelog = roll_changelog(changelog, version, dt.date.today())
+    server = pin_library(_git("show", f"origin/main:{SERVER_PYPROJECT}") + "\n", version)
 
     if dry_run:
         print(f"Would bump {', '.join(PACKAGES)} from {current} to {version}")
+        print(f"Would pin makerundev-server to makerundev=={version}")
         print(f"Would open a pull request from {branch}. Release notes:\n")
         print(release_notes(changelog, version))
         return
 
     _git("switch", "--quiet", "--create", branch, "--no-track", "origin/main")
+    (ROOT / SERVER_PYPROJECT).write_text(server)
     for package in PACKAGES:
         _run("uv", "version", "--package", package, version, "--no-sync", capture=True)
     (ROOT / CHANGELOG).write_text(changelog)
@@ -149,6 +161,7 @@ def _pull_request_body(version: str, previous: str) -> str:
     return (
         f"Release {version}, prepared by `make release`.\n\n"
         f"- `makerundev` and `makerundev-server`: {previous} -> {version}, `uv.lock` updated\n"
+        f"- `makerundev-server` requires `makerundev=={version}`\n"
         f"- `CHANGELOG.md`: [Unreleased] is now [{version}] - {dt.date.today().isoformat()}\n\n"
         "Check the changelog entry reads well as release notes, and update its date if this "
         "merges on a later day. After merging, run `make publish`.\n"

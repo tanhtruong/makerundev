@@ -1,7 +1,7 @@
 import datetime as dt
 
 import pytest
-from release import ReleaseError, check_bump, release_notes, roll_changelog
+from release import ReleaseError, check_bump, pin_library, release_notes, roll_changelog
 
 BEFORE = """\
 # Changelog
@@ -95,3 +95,22 @@ def test_bump_compares_numerically() -> None:
     check_bump("0.9.0", "0.10.0")
     with pytest.raises(ReleaseError):
         check_bump("0.10.0", "0.9.0")
+
+
+SERVER_PYPROJECT_TEXT = """\
+[project]
+name = "makerundev-server"
+version = "0.5.0"
+dependencies = [
+    "makerundev==0.5.0",
+    "alembic>=1.20.1",
+]
+"""
+
+
+def test_server_requires_the_library_version_it_is_released_with() -> None:
+    assert pin_library(SERVER_PYPROJECT_TEXT, "0.6.0") == SERVER_PYPROJECT_TEXT.replace(
+        '"makerundev==0.5.0"', '"makerundev==0.6.0"'
+    )
+    with pytest.raises(ReleaseError, match="makerundev=="):
+        pin_library(SERVER_PYPROJECT_TEXT.replace("makerundev==0.5.0", "makerundev"), "0.6.0")

@@ -5,7 +5,7 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 COPY pyproject.toml uv.lock LICENSE ./
 COPY packages/makerundev/pyproject.toml packages/makerundev/README.md packages/makerundev/LICENSE packages/makerundev/
-COPY apps/server/pyproject.toml apps/server/
+COPY apps/server/pyproject.toml apps/server/README.md apps/server/LICENSE apps/server/
 RUN mkdir -p packages/makerundev/src/makerundev apps/server/src/makerundev_server \
     && uv sync --locked --no-dev --no-install-workspace --package makerundev-server
 
