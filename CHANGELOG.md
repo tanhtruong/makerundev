@@ -15,6 +15,13 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev.metrics.DEFAULT_ZONE_THRESHOLDS`, the default zone thresholds the app and the CLI share, and `makerundev.format.zone_range(zone, boundaries_bpm)`, the bpm range label of a zone (`under 114 bpm`, `114-132 bpm`, `171 bpm and up`).
 - `makerundev laps FILE` prints each lap the watch recorded with its distance, elapsed time and pace. A file with no laps, such as any GPX, prints nothing.
 - `makerundev.Lap.pace_s_per_km`, a lap's duration per kilometre with pauses included, which the app and the CLI share.
+- `makerundev summary`, `splits` and `laps` take `--units km|mi`, or read it from `MAKERUNDEV_UNITS`. With `mi` they print distance in miles and pace per mile, `splits` splits every mile and `summary --long` prints grade-adjusted pace per mile. Climb stays in metres.
+- `makerundev.format.Unit` (`km`, `mi`), which `format.distance` and `format.pace` take, kilometres by default; `Unit.metres` is its length in metres. `makerundev.format.METRES_PER_MILE` is 1609.344.
+
+### Changed
+
+- `makerundev.format.kilometres` is now `makerundev.format.distance(meters, unit)`; there is no alias.
+- `makerundev.format.distance_name` names any whole number of miles (`2 miles`), not only `1 mile`.
 
 ### Security
 

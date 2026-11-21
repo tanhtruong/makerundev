@@ -48,6 +48,12 @@ Add `--long` for grade-adjusted pace and aerobic decoupling at the end of each l
 2026-10-11-long.fit  2026-10-11 05:30  running  17.64 km  1:30:55  5:09 /km  152 bpm  +151 m  GAP 5:03 /km  decoupling +3.1%
 ```
 
+Prefer miles? Pass `--units mi` to `summary`, `splits` or `laps`, or set `MAKERUNDEV_UNITS=mi` once:
+
+```text
+2026-10-11-long.fit  2026-10-11 05:30  running  10.96 mi  1:30:55  8:18 /mi  152 bpm  +151 m
+```
+
 Find the best efforts hiding inside a run:
 
 ```bash
@@ -63,7 +69,7 @@ uvx makerundev efforts race.fit
  Half marathon  1:24:04
 ```
 
-Or the moving time and pace of every kilometre with `uvx makerundev splits race.fit`.
+Or the moving time and pace of every kilometre with `uvx makerundev splits race.fit`, or of every mile with `uvx makerundev splits --units mi race.fit`.
 
 Or each lap your watch recorded, with its distance, time and pace: `uvx makerundev laps race.fit`.
 
@@ -148,7 +154,7 @@ Each activity comes in as the original file your watch recorded, as if you had u
 | Grade-adjusted pace | Your pace as if the route were flat, from the Minetti energy-cost model |
 | Climb and descent | Elevation gain and loss, with altimeter noise filtered out |
 | Best efforts | Your fastest 400 m, 1 km, mile, 5 km, 10 km, half and marathon within any run |
-| Splits | Moving time and pace for every kilometre, and for the distance left over at the end |
+| Splits | Moving time and pace for every kilometre or mile, and for the distance left over at the end |
 | Laps | The laps your watch recorded, with each lap's time, distance and pace |
 | Time in heart-rate zones | How long you spent in each zone, from thresholds you choose |
 | TRIMP | Banister's training impulse: one number for how hard a session was |

@@ -6,6 +6,11 @@ from makerundev.model import STREAM_SCHEMA
 from typer.testing import CliRunner
 
 
+@pytest.fixture(autouse=True)
+def default_units(monkeypatch):
+    monkeypatch.delenv("MAKERUNDEV_UNITS", raising=False)
+
+
 def test_splits_prints_each_kilometre_with_its_moving_time_and_pace(tmp_path, make_fit):
     path = tmp_path / "run.fit"
     path.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(626)]))
@@ -17,6 +22,20 @@ def test_splits_prints_each_kilometre_with_its_moving_time_and_pace(tmp_path, ma
         " 1  1.00 km  4:10  4:10 /km",
         " 2  1.00 km  4:10  4:10 /km",
         " 3  0.50 km  2:05  4:10 /km",
+    ]
+
+
+def test_splits_in_miles_prints_each_mile_with_its_pace_per_mile(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(926)]))
+
+    result = CliRunner().invoke(app, ["splits", "--units", "mi", str(path)])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        " 1  1.00 mi  6:42  6:42 /mi",
+        " 2  1.00 mi  6:42  6:42 /mi",
+        " 3  0.30 mi  2:00  6:42 /mi",
     ]
 
 
@@ -89,11 +108,17 @@ def test_laps_prints_each_recorded_lap_with_its_distance_time_and_pace(tmp_path,
     )
 
     result = CliRunner().invoke(app, ["laps", str(path)])
+    miles = CliRunner().invoke(app, ["laps", "--units", "mi", str(path)])
 
     assert result.exit_code == 0
     assert result.output.splitlines() == [
         " 1  1.00 km  5:30  5:30 /km",
         " 2  0.80 km  4:30  5:38 /km",
+        " 3        -  0:30  -",
+    ]
+    assert miles.output.splitlines() == [
+        " 1  0.62 mi  5:30  8:51 /mi",
+        " 2  0.50 mi  4:30  9:03 /mi",
         " 3        -  0:30  -",
     ]
 
@@ -122,6 +147,7 @@ def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and
 
     long = CliRunner().invoke(app, ["summary", "--long", str(hill), str(bare)])
     default = CliRunner().invoke(app, ["summary", str(broken), str(hill)])
+    miles = CliRunner().invoke(app, ["summary", "--long", "--units", "mi", str(hill)])
 
     assert long.exit_code == 0
     assert long.output.splitlines() == [
@@ -135,6 +161,10 @@ def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and
         "hill.fit  2026-03-01 07:00  running  3.00 km  15:00  5:00 /km  144 bpm  +300 m",
     ]
     assert default.stderr == f"{broken}: unsupported file: expected FIT, GPX or TCX\n"
+    assert miles.output.splitlines() == [
+        "hill.fit  2026-03-01 07:00  running  1.86 mi  15:00  8:03 /mi  144 bpm  +300 m"
+        "  GAP 4:51 /mi  decoupling +4.8%",
+    ]
 
 
 def test_efforts_prints_the_fastest_time_over_each_distance_the_run_covers(tmp_path, make_fit):

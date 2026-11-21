@@ -58,7 +58,7 @@ def create_app(
     store.reset_syncs()
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters.update(
-        km=format.kilometres,
+        km=format.distance,
         duration=format.duration,
         pace=format.pace,
         distance_name=format.distance_name,
