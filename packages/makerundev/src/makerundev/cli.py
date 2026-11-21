@@ -28,6 +28,10 @@ MaxHr = Annotated[int, typer.Option("--max-hr", min=1, help="Max heart rate in b
 RestingHr = Annotated[int, typer.Option("--resting-hr", min=1, help="Resting heart rate in bpm.")]
 
 
+Units = Annotated[
+    format.Unit,
+    typer.Option(envvar="MAKERUNDEV_UNITS", help="Print distance and pace in km or mi."),
+]
 Long = Annotated[
     bool,
     typer.Option("--long", "-l", help="Also print grade-adjusted pace and aerobic decoupling."),
@@ -38,7 +42,7 @@ Long = Annotated[
     help="Print distance, time, pace, heart rate and climb for each file, "
     "and with --long grade-adjusted pace and aerobic decoupling."
 )
-def summary(files: Files, long: Long = False) -> None:
+def summary(files: Files, long: Long = False, units: Units = format.Unit.KM) -> None:
     failed = False
     for path in files:
         try:
@@ -51,14 +55,14 @@ def summary(files: Files, long: Long = False) -> None:
         heart_rate = f"{result.avg_heart_rate:.0f} bpm" if result.avg_heart_rate else "-"
         line = (
             f"{path.name}  {activity.start_time:%Y-%m-%d %H:%M}  {activity.sport.value}  "
-            f"{format.kilometres(result.distance_m)}  {format.duration(result.moving_s)}  "
-            f"{format.pace(result.pace_s_per_km)}  {heart_rate}  "
+            f"{format.distance(result.distance_m, units)}  {format.duration(result.moving_s)}  "
+            f"{format.pace(result.pace_s_per_km, units)}  {heart_rate}  "
             f"+{result.elevation_gain_m:.0f} m"
         )
         if long:
             decoupling = aerobic_decoupling(activity)
             line += (
-                f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km)}"
+                f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km, units)}"
                 f"  decoupling {'-' if decoupling is None else f'{decoupling:+.1f}%'}"
             )
         typer.echo(line)
@@ -72,15 +76,15 @@ def efforts(file: File) -> None:
         typer.echo(f"{format.distance_name(distance):>14}  {format.duration(seconds)}")
 
 
-@app.command("splits", help="Print the moving time and pace of each kilometre.")
-def splits_command(file: File) -> None:
+@app.command("splits", help="Print the moving time and pace of each kilometre or mile.")
+def splits_command(file: File, units: Units = format.Unit.KM) -> None:
     rows = [
         (
-            format.kilometres(split.distance_m),
+            format.distance(split.distance_m, units),
             format.duration(split.moving_s),
-            format.pace(split.pace_s_per_km),
+            format.pace(split.pace_s_per_km, units),
         )
-        for split in splits(_load(file))
+        for split in splits(_load(file), every_m=units.metres)
     ]
     width = max((len(time) for _, time, _ in rows), default=0)
     digits = max(2, len(str(len(rows))))
@@ -89,12 +93,12 @@ def splits_command(file: File) -> None:
 
 
 @app.command(help="Print the distance, time and pace of each lap the watch recorded.")
-def laps(file: File) -> None:
+def laps(file: File, units: Units = format.Unit.KM) -> None:
     rows = [
         (
-            format.kilometres(lap.distance_m) if lap.distance_m is not None else "-",
+            format.distance(lap.distance_m, units) if lap.distance_m is not None else "-",
             format.duration(lap.elapsed_s) if lap.elapsed_s is not None else "-",
-            format.pace(lap.pace_s_per_km),
+            format.pace(lap.pace_s_per_km, units),
         )
         for lap in _load(file).laps
     ]
