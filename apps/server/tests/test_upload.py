@@ -2,7 +2,10 @@ import hashlib
 import json
 import re
 import sqlite3
+from pathlib import Path
 
+import polars as pl
+import pytest
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.db import connect
@@ -108,3 +111,103 @@ def test_pages_link_icons_that_are_served(tmp_path):
         icon = client.get(f"/static/{name}")
         assert icon.status_code == 200
         assert icon.headers["content-type"] == "image/png"
+
+
+DYNAMICS_COLUMNS = ["ground_contact_time", "vertical_oscillation", "step_length"]
+DYNAMICS_ROWS = [
+    {
+        "t": float(i),
+        "distance": i * 3.0,
+        "stance_time": 250.0,
+        "vertical_oscillation": 85.0,
+        "step_length": 1100.0,
+    }
+    for i in range(601)
+]
+DYNAMICS_TILES = {
+    "Ground contact": "250 ms",
+    "Vertical oscillation": "8.5 cm",
+    "Step length": "1.10 m",
+}
+
+
+def stats(page: str) -> dict[str, str]:
+    block = re.search(r'<dl class="stats">(.*?)</dl>', page, re.S)
+    assert block is not None
+    return dict(re.findall(r"<dt>(.*?)</dt><dd>(.*?)</dd>", block[1]))
+
+
+def dynamics_tiles(page: str) -> dict[str, str]:
+    return {name: value for name, value in stats(page).items() if name in DYNAMICS_TILES}
+
+
+def upload(client: TestClient, filename: str, data: bytes) -> int:
+    client.post("/activities", files=[("files", (filename, data, "application/octet-stream"))])
+    activity_id: int = client.get("/api/activities").json()[0]["id"]
+    return activity_id
+
+
+def strip_dynamics(tmp_path, data: bytes) -> Path:
+    stream = tmp_path / "streams" / f"{hashlib.sha256(data).hexdigest()}.parquet"
+    pl.read_parquet(stream).drop(DYNAMICS_COLUMNS).write_parquet(stream)
+    return stream
+
+
+def test_activity_page_shows_running_dynamics_averages(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    activity_id = upload(client, "dynamics.fit", make_fit(DYNAMICS_ROWS))
+
+    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == DYNAMICS_TILES
+
+
+def test_activity_imported_before_running_dynamics_gets_them_on_first_view(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(DYNAMICS_ROWS)
+    activity_id = upload(client, "dynamics.fit", fit)
+    stream = strip_dynamics(tmp_path, fit)
+
+    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == DYNAMICS_TILES
+    stored = pl.read_parquet(stream)
+    assert stored["ground_contact_time"].to_list() == [250.0] * 601
+    assert stored["step_length"].to_list() == pytest.approx([1.1] * 601)
+    assert list(tmp_path.joinpath("streams").iterdir()) == [stream]
+    first = client.get(f"/api/activities/{activity_id}/records").json()[0]
+    assert first["vertical_oscillation"] == 85.0
+
+
+def test_activity_whose_original_no_longer_matches_gets_empty_running_dynamics(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(DYNAMICS_ROWS)
+    activity_id = upload(client, "dynamics.fit", fit)
+    stream = strip_dynamics(tmp_path, fit)
+    (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).write_bytes(
+        make_fit(DYNAMICS_ROWS[:-1])
+    )
+
+    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == {}
+    stored = pl.read_parquet(stream)
+    for column in DYNAMICS_COLUMNS:
+        assert stored[column].null_count() == stored.height
+
+
+GPX = b"""<?xml version="1.0"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><type>running</type><trkseg>
+    <trkpt lat="55.6700" lon="12.5600"><time>2026-03-01T07:00:00Z</time></trkpt>
+    <trkpt lat="55.6710" lon="12.5600"><time>2026-03-01T07:00:30Z</time></trkpt>
+    <trkpt lat="55.6720" lon="12.5600"><time>2026-03-01T07:01:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+
+def test_gpx_activity_shows_no_running_dynamics_and_is_not_rewritten(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+    activity_id = upload(client, "run.gpx", GPX)
+    stream = strip_dynamics(tmp_path, GPX)
+
+    page = client.get(f"/activities/{activity_id}").text
+
+    assert "Distance" in stats(page)
+    assert dynamics_tiles(page) == {}
+    assert not set(DYNAMICS_COLUMNS) & set(pl.read_parquet(stream).columns)

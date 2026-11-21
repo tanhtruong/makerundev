@@ -12,6 +12,9 @@
   <div><dt>Avg heart rate</dt><dd>{{ "%.0f bpm" | format(activity.avg_heart_rate) if activity.avg_heart_rate else "-" }}</dd></div>
   <div><dt>Climb</dt><dd>{{ "%.0f m" | format(activity.elevation_gain_m) }}</dd></div>
   <div><dt>Elapsed</dt><dd>{{ activity.elapsed_s | duration }}</dd></div>
+  {% if ground_contact_time is not none %}<div><dt>Ground contact</dt><dd>{{ "%.0f ms" | format(ground_contact_time) }}</dd></div>{% endif %}
+  {% if vertical_oscillation is not none %}<div><dt>Vertical oscillation</dt><dd>{{ "%.1f cm" | format(vertical_oscillation / 10) }}</dd></div>{% endif %}
+  {% if step_length is not none %}<div><dt>Step length</dt><dd>{{ "%.2f m" | format(step_length) }}</dd></div>{% endif %}
   {% if settings_set %}<div><dt>TRIMP</dt><dd>{{ "%.0f" | format(activity.trimp) if activity.trimp is not none else "-" }}</dd></div>{% endif %}
 </dl>
 
