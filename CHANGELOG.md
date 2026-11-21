@@ -8,6 +8,7 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
+- `makerundev summary --long` (`-l`) adds grade-adjusted pace and aerobic decoupling to the end of each line, as `GAP 5:03 /km  decoupling +3.1%`, with `-` for a value the file cannot give (a sport other than running, no altitude or no heart rate).
 - `makerundev zones FILE --max-hr N` prints the time in each heart-rate zone with its bpm range and share of the time that has heart rate. `--thresholds` takes ascending percentages of max heart rate (`62.5,75,87.5`, any count), by default 60, 70, 80 and 90 %.
 - `makerundev trimp FILE --max-hr N --resting-hr N` prints the Banister TRIMP as a whole number; `--female` uses the female coefficients.
 - Both commands exit with status 1 and say so when the file has no heart rate.

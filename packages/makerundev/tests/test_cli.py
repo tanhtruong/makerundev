@@ -93,3 +93,36 @@ def test_laps_prints_each_recorded_lap_with_its_distance_time_and_pace(tmp_path,
         " 2  0.80 km  4:30  5:38 /km",
         " 3        -  0:30  -",
     ]
+
+
+def test_summary_long_adds_grade_adjusted_pace_and_decoupling_to_each_line(tmp_path, make_fit):
+    hill = tmp_path / "hill.fit"
+    hill.write_bytes(
+        make_fit(
+            [
+                {
+                    "t": i * 3.0,
+                    "distance": i * 10.0,
+                    "altitude": 200 + i * 1.0,
+                    "hr": 140 if i < 150 else 147,
+                }
+                for i in range(301)
+            ]
+        )
+    )
+    bare = tmp_path / "bare.fit"
+    bare.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(626)]))
+
+    long = CliRunner().invoke(app, ["summary", "--long", str(hill), str(bare)])
+    default = CliRunner().invoke(app, ["summary", str(hill)])
+
+    assert long.exit_code == 0
+    assert long.output.splitlines() == [
+        "hill.fit  2026-03-01 07:00  running  3.00 km  15:00  5:00 /km  144 bpm  +300 m"
+        "  GAP 3:01 /km  decoupling +4.8%",
+        "bare.fit  2026-03-01 07:00  running  2.50 km  10:25  4:10 /km  -  +0 m"
+        "  GAP -  decoupling -",
+    ]
+    assert default.output.splitlines() == [
+        "hill.fit  2026-03-01 07:00  running  3.00 km  15:00  5:00 /km  144 bpm  +300 m",
+    ]

@@ -11,6 +11,7 @@ from makerundev.metrics import (
     BANISTER_FEMALE,
     BANISTER_MALE,
     DEFAULT_ZONE_THRESHOLDS,
+    aerobic_decoupling,
     best_efforts,
     splits,
     summarize,
@@ -27,8 +28,17 @@ MaxHr = Annotated[int, typer.Option("--max-hr", min=1, help="Max heart rate in b
 RestingHr = Annotated[int, typer.Option("--resting-hr", min=1, help="Resting heart rate in bpm.")]
 
 
-@app.command(help="Print distance, time, pace, heart rate and climb for each file.")
-def summary(files: Files) -> None:
+Long = Annotated[
+    bool,
+    typer.Option("--long", "-l", help="Also print grade-adjusted pace and aerobic decoupling."),
+]
+
+
+@app.command(
+    help="Print distance, time, pace, heart rate and climb for each file, "
+    "and with --long grade-adjusted pace and aerobic decoupling."
+)
+def summary(files: Files, long: Long = False) -> None:
     failed = False
     for path in files:
         try:
@@ -39,12 +49,19 @@ def summary(files: Files) -> None:
             continue
         result = summarize(activity)
         heart_rate = f"{result.avg_heart_rate:.0f} bpm" if result.avg_heart_rate else "-"
-        typer.echo(
+        line = (
             f"{path.name}  {activity.start_time:%Y-%m-%d %H:%M}  {activity.sport.value}  "
             f"{format.kilometres(result.distance_m)}  {format.duration(result.moving_s)}  "
             f"{format.pace(result.pace_s_per_km)}  {heart_rate}  "
             f"+{result.elevation_gain_m:.0f} m"
         )
+        if long:
+            decoupling = aerobic_decoupling(activity)
+            line += (
+                f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km)}"
+                f"  decoupling {'-' if decoupling is None else f'{decoupling:+.1f}%'}"
+            )
+        typer.echo(line)
     if failed:
         raise typer.Exit(1)
 
