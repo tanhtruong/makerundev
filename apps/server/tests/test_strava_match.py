@@ -2,7 +2,7 @@ import datetime as dt
 import gzip
 
 import pytest
-from makerundev_server.store import same_activity
+from makerundev_server.matching import same_activity
 from makerundev_server.sync import UP_TO_DATE
 from strava_fake import FIT_START, FakeStrava, connected, summary, sync, upload
 

@@ -19,7 +19,7 @@
 </section>
 
 {% elif not connected %}
-<form class="strava-actions" action="/strava/connect" method="post">
+<form class="sync-actions" action="/strava/connect" method="post">
   <button type="submit">Connect with Strava</button>
 </form>
 <p class="meta">Strava will ask you to let this instance read your activities. The callback domain of your API application must be <code>{{ callback_domain }}</code>.</p>
@@ -39,7 +39,7 @@
   {% if connection.backfill_before and not connection.backfill_done %}History reaches back to {{ connection.backfill_before | local(timezone, "%Y-%m-%d") }} so far.{% endif %}
 </p>
 
-<form class="strava-actions" action="/strava/sync" method="post">
+<form class="sync-actions" action="/strava/sync" method="post">
   <button type="submit"{% if connection.syncing %} disabled{% endif %}>Sync now</button>
 </form>
 

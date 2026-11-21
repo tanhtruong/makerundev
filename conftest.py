@@ -19,8 +19,8 @@ MakeFit = Callable[..., bytes]
 MakeZip = Callable[..., bytes]
 
 
-def _millis(seconds: float) -> int:
-    return round((FIT_START.timestamp() + seconds) * 1000)
+def _millis(seconds: float, start: dt.datetime = FIT_START) -> int:
+    return round((start.timestamp() + seconds) * 1000)
 
 
 def build_fit(
@@ -28,13 +28,14 @@ def build_fit(
     sport: Any = Sport.RUNNING,
     sub_sport: Any = SubSport.GENERIC,
     laps: Sequence[FitRow] = (),
+    start: dt.datetime = FIT_START,
 ) -> bytes:
     builder = FitFileBuilder(auto_define=True, min_string_size=50)
     file_id = FileIdMessage()
     file_id.type = FileType.ACTIVITY
     file_id.manufacturer = Manufacturer.GARMIN.value
     file_id.product = 4315
-    file_id.time_created = _millis(0)
+    file_id.time_created = _millis(0, start)
     file_id.serial_number = 1
     builder.add(file_id)
     fields = {
@@ -52,7 +53,7 @@ def build_fit(
     }
     for row in rows:
         record = RecordMessage()
-        record.timestamp = _millis(row["t"])
+        record.timestamp = _millis(row["t"], start)
         for key, attribute in fields.items():
             if key in row:
                 setattr(record, attribute, row[key])
@@ -60,16 +61,16 @@ def build_fit(
     for row in laps:
         lap = LapMessage()
         if "t" in row:
-            lap.start_time = _millis(row["t"])
-            lap.timestamp = _millis(row["t"] + row.get("elapsed", 0.0))
+            lap.start_time = _millis(row["t"], start)
+            lap.timestamp = _millis(row["t"] + row.get("elapsed", 0.0), start)
         if "elapsed" in row:
             lap.total_elapsed_time = row["elapsed"]
         if "distance" in row:
             lap.total_distance = row["distance"]
         builder.add(lap)
     session = SessionMessage()
-    session.timestamp = _millis(rows[-1]["t"])
-    session.start_time = _millis(0)
+    session.timestamp = _millis(rows[-1]["t"], start)
+    session.start_time = _millis(0, start)
     session.sport = sport
     session.sub_sport = sub_sport
     builder.add(session)

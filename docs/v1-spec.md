@@ -21,7 +21,7 @@ Give runners full, private access to the telemetry their watch records, with met
 | Gzipped files | Done | Detected by magic bytes. Covers Strava bulk exports. |
 | ZIP files | Done | One activity file per ZIP, as Garmin's *Export Original* and Personal API return it. Stored and deduplicated as the file inside. |
 | Strava sync | Done | OAuth 2 with the instance owner's own Strava API application (client id and secret in env vars). Pulls the activity list and per-activity streams and maps the streams onto the record stream. Stops short of Strava's rate limits; tokens are stored locally only. See [ADR 6](adr/0006-strava-sync.md). |
-| Garmin Connect sync | Planned | Garmin's Personal API with the instance owner's own key, pasted into the app and stored locally only. Lists activities and downloads each one's original file, which goes through the normal file import. Paced at one request a second; stops on a 429 or an expired key. File export and import stays the documented path. See [ADR 7](adr/0007-garmin-personal-api-sync.md). |
+| Garmin Connect sync | Done | Garmin's Personal API with the instance owner's own key, pasted into the app and stored locally only. Lists activities and downloads each one's original file, which goes through the normal file import. Paced at one request a second; stops on a 429 or an expired key. File export and import stays the documented path. See [ADR 7](adr/0007-garmin-personal-api-sync.md). |
 | Apple Health / HealthKit | Later | Needs an iOS companion app. |
 
 ### Metrics
@@ -46,6 +46,7 @@ Next in line: running power from pace and grade when no power meter is present, 
 - Training load page: fitness, fatigue and form over time from daily TRIMP.
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
 - Strava sync page: connect, sync by hand, see what was skipped, disconnect.
+- Garmin sync page: save a Personal API key, sync by hand, see what was skipped, remove the key.
 - JSON API: `GET /api/activities`, `GET /api/activities/{id}/records`.
 - One process, SQLite, files on local disk. Runs with `uv run makerundev-server` or Docker.
 
@@ -65,5 +66,5 @@ Next: map view, search and filters, multi-user with login.
 4. ~~Database migrations (Alembic) before the schema changes again~~
 5. ~~Strava sync~~
 6. ~~Grade-adjusted pace, splits and laps~~, running dynamics
-7. Garmin Connect sync with a personal API key
+7. ~~Garmin Connect sync with a personal API key~~
 8. First PyPI release of `makerundev`, container image for `makerundev-server`

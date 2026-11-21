@@ -19,10 +19,12 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev-server`: the activity page shows average ground contact time, vertical oscillation and step length when the activity has running dynamics. Streams of FIT files imported earlier gain the columns from the kept original the first time they are read, by the activity page or `/api/activities/{id}/records`; GPX, TCX and Strava activities keep streams without them.
 - `makerundev-server`: the activity page shows a Splits table, with each kilometre's distance, moving time and pace, above the laps. It is computed when the page opens, so activities imported earlier get it too. Activities of 1 km or less have none.
 - `makerundev-server`: the activity page draws the route shape from the GPS track, north up, as an inline SVG with no map tiles. Activities without positions, such as treadmill runs, show none.
+- `makerundev-server`: sync from Garmin Connect with your own Garmin Personal API key. The new Garmin page saves the key (checked with Garmin first, never shown again), syncs by hand in the background about one activity a second, lists activities that were skipped, and removes the key. Each activity is downloaded as the original file and imported like an upload, so it has laps, the device and running dynamics. Activities you already have from a file are not downloaded again, and one that came only from Strava is replaced by the Garmin file. Removing the key keeps the imported activities.
 
 ### Changed
 
 - `makerundev-server`: the database keeps each activity's laps (migration `0005`). It is upgraded on startup as usual; back up the data directory first.
+- `makerundev-server`: the database holds the Garmin key and sync progress (migration `0006`). It is upgraded on startup as usual; back up the data directory first.
 
 ## [0.3.0] - 2026-11-21
 

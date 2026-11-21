@@ -26,7 +26,7 @@ makerundev reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo 
 - **Any watch, one shape.** FIT, GPX and TCX files, plain, gzipped or zipped, all become the same table in the same units. Nothing downstream needs to know which watch you wore.
 - **Made to be poked at.** The record stream is a [polars](https://pola.rs) DataFrame. Export it to Parquet or CSV and take it into a notebook, DuckDB or a spreadsheet.
 
-> **Status: pre-alpha.** File import, Strava sync, the metrics below and the web app work today. Garmin Connect sync is on the [roadmap](#roadmap).
+> **Status: pre-alpha.** File import, Strava and Garmin Connect sync, the metrics below and the web app work today.
 
 ## Try it in 30 seconds
 
@@ -85,7 +85,7 @@ docker compose up
 
 Then open http://127.0.0.1:8000 and:
 
-1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or [sync from Strava](#sync-from-strava).
+1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
 2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them.
 3. **Open Training load** to see fitness, fatigue and form built from your daily TRIMP.
 
@@ -110,6 +110,15 @@ Sync uses a Strava API application that you create yourself, so your activities 
 3. Open **Strava** in the app, choose **Connect with Strava**, then **Sync now**.
 
 Each sync brings in what is new and then works back through your history, newest first. Strava allows a new application 100 requests per 15 minutes and 1,000 per day, and each activity takes one, so a long history takes a few syncs; the page says when to come back. An activity you already imported from a file is recognised and not duplicated. The [server README](apps/server/README.md#strava-sync) has the details.
+
+### Sync from Garmin Connect
+
+Garmin sync uses a Personal API key that you create for your own account, so your activities move only between Garmin and your machine.
+
+1. In Garmin Connect on the web, open **Settings → Personal API Key** and create a key. Garmin shows it once.
+2. Open **Garmin** in the app, paste the key, then choose **Sync now**.
+
+Each activity comes in as the original file your watch recorded, as if you had uploaded it, with laps and running dynamics. A sync takes about a second per activity, so a long history takes a few minutes, and the next sync picks up where the last one stopped. Activities you already have, from a file or a Garmin export, are not downloaded again. When the key expires, the page says so; create a new one and paste it in. The [server README](apps/server/README.md#garmin-sync) has the details.
 
 ## What it measures
 
@@ -196,10 +205,9 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava sync, laps and splits. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps and splits. Next, roughly in order:
 
 - **Running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
-- **Garmin Connect sync** with your own Garmin Personal API key
 - Running power without a power meter, a VO2max estimate from race results, critical speed
 - In the app: a map view, search and filters
 
