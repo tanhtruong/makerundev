@@ -6,25 +6,35 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-21
+
+### Added
+
+- `load()` reads a ZIP holding one FIT, GPX or TCX file, as Garmin Connect's *Export Original* gives it. The file is recognised by its content, not its name. A ZIP with more than one activity file (a bulk export), more than 16 files, a central directory over 64 KB, ZIP64, an entry compressed other than stored or deflated, an encrypted entry or more than 256 MB decompressed is refused with `ActivityFileError`, as is any damaged ZIP. `makerundev.io.unzip(data)` returns the file's name and bytes, or `None` when the data is not a ZIP. The CLI reads ZIPs too.
+- `makerundev-server`: upload a single-activity ZIP. It is stored and deduplicated as the file inside, under that file's name, so uploading the ZIP and then the extracted file imports the run once.
+- `makerundev-server`: sync from Garmin Connect with your own Garmin Personal API key. The new Garmin page saves the key (checked with Garmin first, never shown again), syncs by hand in the background about one activity a second, lists activities that were skipped, and removes the key. Each activity is downloaded as the original file and imported like an upload, so it has laps, the device and running dynamics. Activities you already have from a file are not downloaded again, and one that came only from Strava is replaced by the Garmin file. Removing the key keeps the imported activities.
+
+### Changed
+
+- `makerundev-server`: the database holds the Garmin key and sync progress (migration `0006`). It is upgraded on startup as usual; back up the data directory first.
+
+## [0.4.0] - 2026-11-21
+
 ### Added
 
 - `Activity.laps` holds the laps the watch recorded (auto-lap or the lap button) as `makerundev.Lap`s, with start time, elapsed time and distance as the device reported them. Read from FIT and TCX files; GPX has no laps and Strava laps are not synced yet, so those give none. `Activity.from_rows` takes `laps`.
 - `makerundev.metrics.splits(activity, every_m=1000.0)` splits an activity's distance into 1 km splits counted from the start, plus whatever distance remains, with each split's distance, elapsed time, moving time and pace. Works for every sport. The time each boundary is crossed is interpolated between records, and pace is moving time per kilometre, so pauses are left out.
 - The record stream has three running dynamics columns, read from FIT files that carry them: `ground_contact_time` (ms), `vertical_oscillation` (mm) and `step_length` (m). They are null for GPX, TCX and Strava.
 - `Summary` has `avg_ground_contact_time` (ms), `avg_vertical_oscillation` (mm) and `avg_step_length` (m), weighted over moving intervals like `avg_cadence`, with zeros left out as dropouts. They are `None` when an activity has no running dynamics. Metrics treat a missing stream column as all null, so streams without the running dynamics columns still summarize.
-- `load()` reads a ZIP holding one FIT, GPX or TCX file, as Garmin Connect's *Export Original* gives it. The file is recognised by its content, not its name. A ZIP with more than one activity file (a bulk export), more than 16 files, a central directory over 64 KB, ZIP64, an entry compressed other than stored or deflated, an encrypted entry or more than 256 MB decompressed is refused with `ActivityFileError`, as is any damaged ZIP. `makerundev.io.unzip(data)` returns the file's name and bytes, or `None` when the data is not a ZIP. The CLI reads ZIPs too.
 - `makerundev splits FILE` prints each kilometre's distance, moving time and pace.
-- `makerundev-server`: upload a single-activity ZIP. It is stored and deduplicated as the file inside, under that file's name, so uploading the ZIP and then the extracted file imports the run once.
 - `makerundev-server`: the activity page lists the laps of a file with two or more, with each lap's time, distance and pace. Activities imported earlier get their laps from the kept original the first time their page opens.
 - `makerundev-server`: the activity page shows average ground contact time, vertical oscillation and step length when the activity has running dynamics. Streams of FIT files imported earlier gain the columns from the kept original the first time they are read, by the activity page or `/api/activities/{id}/records`; GPX, TCX and Strava activities keep streams without them.
 - `makerundev-server`: the activity page shows a Splits table, with each kilometre's distance, moving time and pace, above the laps. It is computed when the page opens, so activities imported earlier get it too. Activities of 1 km or less have none.
 - `makerundev-server`: the activity page draws the route shape from the GPS track, north up, as an inline SVG with no map tiles. Activities without positions, such as treadmill runs, show none.
-- `makerundev-server`: sync from Garmin Connect with your own Garmin Personal API key. The new Garmin page saves the key (checked with Garmin first, never shown again), syncs by hand in the background about one activity a second, lists activities that were skipped, and removes the key. Each activity is downloaded as the original file and imported like an upload, so it has laps, the device and running dynamics. Activities you already have from a file are not downloaded again, and one that came only from Strava is replaced by the Garmin file. Removing the key keeps the imported activities.
 
 ### Changed
 
 - `makerundev-server`: the database keeps each activity's laps (migration `0005`). It is upgraded on startup as usual; back up the data directory first.
-- `makerundev-server`: the database holds the Garmin key and sync progress (migration `0006`). It is upgraded on startup as usual; back up the data directory first.
 
 ## [0.3.0] - 2026-11-21
 
@@ -65,7 +75,9 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tanhtruong/makerundev/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/tanhtruong/makerundev/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tanhtruong/makerundev/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tanhtruong/makerundev/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/tanhtruong/makerundev/releases/tag/v0.1.0
