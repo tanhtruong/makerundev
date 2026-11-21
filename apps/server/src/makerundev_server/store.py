@@ -9,7 +9,7 @@ import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 import polars as pl
 from makerundev import Activity, ActivityFileError, Lap, Sport, load
@@ -19,20 +19,32 @@ from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from makerundev_server.db import ActivityRow, AthleteSettingsRow, StravaConnectionRow
+from makerundev_server.db import (
+    ActivityRow,
+    AthleteSettingsRow,
+    GarminConnectionRow,
+    StravaConnectionRow,
+    SyncState,
+)
+from makerundev_server.garmin_store import GarminStore
+from makerundev_server.matching import nearby, same_activity, strava_id_in
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
 from makerundev_server.strava import Tokens, Unauthorized
+from makerundev_server.sync_state import (
+    CONNECTION_ID,
+    INTERRUPTED,
+    Phase,
+    advance,
+    begin_sync,
+    end_sync,
+    record_skip,
+    skipped_entry,
+)
 
 SETTINGS_ID = 1
-CONNECTION_ID = 1
 STRAVA = "strava"
-SKIPPED_KEPT = 50
-MATCH_SECONDS = 60.0
-MATCH_DISTANCE_M = 200.0
-MATCH_DISTANCE_SHARE = 0.05
 RUNNING_DYNAMICS = ("ground_contact_time", "vertical_oscillation", "step_length")
 
-Phase = Literal["newer", "backfill"]
 log = logging.getLogger(__name__)
 
 
@@ -56,6 +68,7 @@ class Store:
         self.streams = data_dir / "streams"
         self.originals.mkdir(parents=True, exist_ok=True)
         self.streams.mkdir(parents=True, exist_ok=True)
+        self.garmin = GarminStore(engine, self.writing)
 
     def import_file(self, filename: str, data: bytes) -> ImportResult:
         entry = unzip(data)
@@ -213,30 +226,28 @@ class Store:
             row = session.get(StravaConnectionRow, CONNECTION_ID)
             if row is None or row.access_token is None or row.syncing:
                 return False
-            row.syncing = True
-            row.sync_message = None
-            row.imported = 0
-            row.matched = 0
+            begin_sync(row)
             session.commit()
             return True
 
     def finish_strava_sync(self, message: str) -> None:
         with self.writing, Session(self.engine) as session:
             row = session.get(StravaConnectionRow, CONNECTION_ID)
-            if row is None:
-                return
-            row.syncing = False
-            row.sync_message = message
-            row.last_sync_at = dt.datetime.now(dt.UTC)
-            session.commit()
-
-    def reset_strava_sync(self) -> None:
-        with self.writing, Session(self.engine) as session:
-            row = session.get(StravaConnectionRow, CONNECTION_ID)
-            if row is not None and row.syncing:
-                row.syncing = False
-                row.sync_message = "The last sync was interrupted. Sync again to continue."
+            if row is not None:
+                end_sync(row, message)
                 session.commit()
+
+    def reset_syncs(self) -> None:
+        with self.writing, Session(self.engine) as session:
+            rows: list[SyncState | None] = [
+                session.get(StravaConnectionRow, CONNECTION_ID),
+                session.get(GarminConnectionRow, CONNECTION_ID),
+            ]
+            for row in rows:
+                if row is not None and row.syncing:
+                    row.syncing = False
+                    row.sync_message = INTERRUPTED
+            session.commit()
 
     def finish_strava_backfill(self) -> None:
         with self.writing, Session(self.engine) as session:
@@ -260,7 +271,7 @@ class Store:
                 file_row.external_source = STRAVA
                 file_row.external_id = strava_id
                 connection.matched += 1
-            _advance(connection, phase, start)
+            advance(connection, phase, start)
             session.commit()
             return True
 
@@ -286,7 +297,7 @@ class Store:
             connection = _connected(session)
             session.add(row)
             connection.imported += 1
-            _advance(connection, phase, activity.start_time)
+            advance(connection, phase, activity.start_time)
             session.flush()
             (self.originals / key).write_bytes(original)
             activity.records.write_parquet(self.streams / f"{key}.parquet")
@@ -295,16 +306,11 @@ class Store:
     def skip_strava(
         self, summary: Mapping[str, Any], start: dt.datetime, reason: str, phase: Phase
     ) -> None:
-        entry = {
-            "id": str(summary["id"]),
-            "name": str(summary.get("name") or "Strava activity")[:255],
-            "start_time": start.isoformat(),
-            "reason": reason[:255],
-        }
+        entry = skipped_entry(
+            str(summary["id"]), summary.get("name"), "Strava activity", start, reason
+        )
         with self.writing, Session(self.engine) as session:
-            connection = _connected(session)
-            connection.skipped = [entry, *connection.skipped][:SKIPPED_KEPT]
-            _advance(connection, phase, start)
+            record_skip(_connected(session), entry, phase, start)
             session.commit()
 
     def disconnect_strava(self) -> int:
@@ -397,33 +403,6 @@ def _connected(session: Session) -> StravaConnectionRow:
     return row
 
 
-def _advance(connection: StravaConnectionRow, phase: Phase, start: dt.datetime) -> None:
-    if phase == "backfill":
-        connection.backfill_before = start
-    if connection.newest_synced is None or start > connection.newest_synced:
-        connection.newest_synced = start
-
-
-def same_activity(
-    start: dt.datetime, distance_m: float, other_start: dt.datetime, other_distance_m: float
-) -> bool:
-    if abs((start - other_start).total_seconds()) > MATCH_SECONDS:
-        return False
-    allowed = max(MATCH_DISTANCE_M, MATCH_DISTANCE_SHARE * max(distance_m, other_distance_m))
-    return abs(distance_m - other_distance_m) <= allowed
-
-
-def _nearby(session: Session, start: dt.datetime) -> list[ActivityRow]:
-    window = dt.timedelta(seconds=MATCH_SECONDS)
-    return list(
-        session.scalars(
-            select(ActivityRow)
-            .where(ActivityRow.start_time.between(start - window, start + window))
-            .order_by(ActivityRow.id)
-        )
-    )
-
-
 def _file_match(
     session: Session, strava_id: str, start: dt.datetime, distance_m: float
 ) -> ActivityRow | None:
@@ -433,7 +412,7 @@ def _file_match(
     ).first()
     if named is not None:
         return named
-    for row in _nearby(session, start):
+    for row in nearby(session, start):
         if (
             row.sha256 is not None
             and row.external_id is None
@@ -447,14 +426,14 @@ def _synced_match(
     session: Session, filename: str, start: dt.datetime, distance_m: float
 ) -> ActivityRow | None:
     synced = (ActivityRow.sha256.is_(None), ActivityRow.external_source == STRAVA)
-    stem = filename.split(".", 1)[0]
-    if stem.isdigit():
+    strava_id = strava_id_in(filename)
+    if strava_id is not None:
         named = session.scalars(
-            select(ActivityRow).where(*synced, ActivityRow.external_id == stem)
+            select(ActivityRow).where(*synced, ActivityRow.external_id == strava_id)
         ).first()
         if named is not None:
             return named
-    for row in _nearby(session, start):
+    for row in nearby(session, start):
         if (
             row.sha256 is None
             and row.external_source == STRAVA

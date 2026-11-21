@@ -13,6 +13,7 @@ from sqlalchemy import (
     Float,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     create_engine,
     inspect,
@@ -89,15 +90,7 @@ class AthleteSettingsRow(Base):
     zone_thresholds: Mapped[list[float]] = mapped_column(JSON)
 
 
-class StravaConnectionRow(Base):
-    __tablename__ = "strava_connection"
-    __table_args__ = (CheckConstraint("id = 1", name="ck_strava_connection_single_row"),)
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
-    oauth_state: Mapped[str | None] = mapped_column(String(64))
-    access_token: Mapped[str | None] = mapped_column(String(255))
-    refresh_token: Mapped[str | None] = mapped_column(String(255))
-    expires_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+class SyncState:
     newest_synced: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     backfill_before: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     backfill_done: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -107,6 +100,27 @@ class StravaConnectionRow(Base):
     imported: Mapped[int] = mapped_column(Integer, default=0)
     matched: Mapped[int] = mapped_column(Integer, default=0)
     skipped: Mapped[list[dict[str, str]]] = mapped_column(JSON, default=list)
+
+
+class StravaConnectionRow(SyncState, Base):
+    __tablename__ = "strava_connection"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_strava_connection_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    oauth_state: Mapped[str | None] = mapped_column(String(64))
+    access_token: Mapped[str | None] = mapped_column(String(255))
+    refresh_token: Mapped[str | None] = mapped_column(String(255))
+    expires_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+
+
+class GarminConnectionRow(SyncState, Base):
+    __tablename__ = "garmin_connection"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_garmin_connection_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    api_key: Mapped[str] = mapped_column(Text)
+    token: Mapped[str | None] = mapped_column(Text)
+    token_expires_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
 
 
 MIGRATIONS = Path(__file__).parent / "migrations"

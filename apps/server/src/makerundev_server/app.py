@@ -16,8 +16,9 @@ from fastapi.templating import Jinja2Templates
 from makerundev import ActivityFileError, Lap, format
 from makerundev.metrics import best_efforts, splits, summarize, time_in_zones
 
-from makerundev_server import charts, config
+from makerundev_server import charts, config, garmin
 from makerundev_server.db import ActivityRow, connect
+from makerundev_server.garmin_sync import GarminSync
 from makerundev_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
@@ -35,15 +36,25 @@ STRAVA_NOTICES = {
     "failed": "Strava did not complete the connection. Check the client id and secret.",
     "disconnected": "Disconnected from Strava.",
 }
+GARMIN_NOTICES = {
+    "saved": "Key saved. Start a sync to bring your activities in.",
+    "empty": "Paste your Personal API key first.",
+    "rejected": "Garmin did not accept that key. Check it was copied whole and has not expired.",
+    "unreachable": "Garmin could not be reached to check the key. Try again later.",
+    "removed": "Key removed. Activities imported from Garmin stay.",
+}
 
 
 def create_app(
-    data_dir: Path | None = None, strava_transport: httpx2.BaseTransport | None = None
+    data_dir: Path | None = None,
+    strava_transport: httpx2.BaseTransport | None = None,
+    garmin_transport: httpx2.BaseTransport | None = None,
+    garmin_pause: float = garmin.PAUSE_S,
 ) -> FastAPI:
     root = data_dir or config.data_dir()
     root.mkdir(parents=True, exist_ok=True)
     store = Store(root, connect(root))
-    store.reset_strava_sync()
+    store.reset_syncs()
     templates = Jinja2Templates(directory=HERE / "templates")
     templates.env.filters.update(
         km=format.kilometres,
@@ -266,6 +277,55 @@ def create_app(
                 client.revoke(StravaSync(store, client).access_token())
         store.disconnect_strava()
         return to_strava("disconnected")
+
+    def garmin_client() -> garmin.GarminClient:
+        return garmin.GarminClient(garmin_transport, pause=garmin_pause)
+
+    def to_garmin(notice: str = "") -> RedirectResponse:
+        return RedirectResponse(f"/garmin?notice={notice}" if notice else "/garmin", 303)
+
+    @app.get("/garmin", response_class=HTMLResponse)
+    def garmin_page(request: Request, notice: str = "") -> HTMLResponse:
+        return templates.TemplateResponse(
+            request,
+            "garmin.html",
+            {
+                "connection": store.garmin.connection(),
+                "notice": GARMIN_NOTICES.get(notice),
+                "activity_url": garmin.ACTIVITY_URL,
+                "timezone": timezone(),
+            },
+        )
+
+    @app.post("/garmin/key", response_model=None)
+    async def garmin_key(request: Request) -> Response:
+        key = str((await request.form()).get("key", "")).strip()
+        if not key:
+            return to_garmin("empty")
+        try:
+            token = await run_in_threadpool(garmin_client().token, key)
+        except garmin.Unauthorized:
+            return to_garmin("rejected")
+        except (garmin.GarminError, httpx2.HTTPError):
+            return to_garmin("unreachable")
+        await run_in_threadpool(store.garmin.save_key, key, token)
+        return to_garmin("saved")
+
+    @app.post("/garmin/sync", response_model=None)
+    def garmin_sync() -> Response:
+        running = getattr(app.state, "garmin_sync", None)
+        if running is not None and running.is_alive():
+            return to_garmin()
+        if store.garmin.start_sync():
+            worker = threading.Thread(target=GarminSync(store, garmin_client()).run, daemon=True)
+            app.state.garmin_sync = worker
+            worker.start()
+        return to_garmin()
+
+    @app.post("/garmin/remove", response_model=None)
+    def garmin_remove() -> Response:
+        store.garmin.remove_key()
+        return to_garmin("removed")
 
     @app.get("/api/activities")
     def api_activities() -> list[dict[str, Any]]:

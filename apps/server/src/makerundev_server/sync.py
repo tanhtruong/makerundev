@@ -7,7 +7,7 @@ import httpx2
 from makerundev import ActivityFileError
 from makerundev.io.strava import read_strava
 
-from makerundev_server.store import Phase, Store
+from makerundev_server.store import Store
 from makerundev_server.strava import (
     RateLimited,
     Refused,
@@ -15,14 +15,12 @@ from makerundev_server.strava import (
     StravaError,
     Unauthorized,
 )
+from makerundev_server.sync_state import FAILED, REFRESH_MARGIN, UP_TO_DATE, Phase, utc
 
-REFRESH_MARGIN = dt.timedelta(hours=1)
-UP_TO_DATE = "Up to date."
 PAUSED_SHORT = "Paused at Strava's 15-minute rate limit. Sync again in a quarter of an hour."
 PAUSED_DAILY = "Paused at Strava's daily rate limit. Sync again after midnight UTC."
 REJECTED = "Strava no longer accepts this connection. Disconnect and connect again."
 UNREACHABLE = "Strava could not be reached. Sync again later."
-FAILED = "The sync stopped on an unexpected error. See the server log."
 
 log = logging.getLogger(__name__)
 
@@ -123,7 +121,4 @@ def _dated(listed: list[dict[str, Any]]) -> list[tuple[dt.datetime, dict[str, An
 
 
 def _start(summary: Mapping[str, Any]) -> dt.datetime:
-    parsed = dt.datetime.fromisoformat(str(summary["start_date"]))
-    if parsed.tzinfo is None:
-        return parsed.replace(tzinfo=dt.UTC)
-    return parsed.astimezone(dt.UTC)
+    return utc(str(summary["start_date"]))

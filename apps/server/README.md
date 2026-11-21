@@ -39,7 +39,7 @@ There is no login. Keep the app on `127.0.0.1` or behind a reverse proxy that ad
 
 The data directory holds:
 
-- `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
+- `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens, Garmin key and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
 - `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's stream as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
 
@@ -56,6 +56,18 @@ Create a Strava API application under [Settings → My API Application](https://
 - **Disconnect.** Revokes the app's access and deletes the tokens and every activity that came only from Strava. Activities matched to a file stay.
 - **Tokens.** They are stored unencrypted in the database in your data directory, and nowhere else.
 
+## Garmin sync
+
+Create a Personal API key in Garmin Connect on the web under **Settings → Personal API Key**, open the **Garmin** page and paste it. Saving exchanges the key for a 24-hour token at once, so a mistyped or expired key is turned away before it is stored. The page then offers **Sync now**.
+
+- **What a sync does.** It fetches activities newer than the newest one synced, then continues back through your history, newest first. It walks Garmin's list by date window, not by position, so activities added or deleted on Garmin during a sync do not make it skip others. Each activity's original file is downloaded and imported exactly like an upload: a ZIP is stored as the file inside, under its own name, and deduplicated by its SHA-256. A file whose name would be all digits is stored as `garmin-<id>.<ext>`, so it is never mistaken for a Strava id. It runs in the background; the page refreshes while it does.
+- **Pacing.** Garmin publishes no rate limits, so a sync waits a second between requests and stops when Garmin answers 429, saying when to try again if Garmin does. The next sync continues where it stopped.
+- **Already here.** An activity that starts within 60 s of one you already have from a file, and covers the same distance within 5% or 200 m, is not downloaded. One that came only from Strava is replaced by the Garmin file, which keeps the Strava link.
+- **What is not synced.** Manual entries have no file, and a download that cannot be read, such as a multi-sport ZIP holding several files or a file not sent as a ZIP, is skipped. Both are listed on the page and not tried again. Edits and deletions made on Garmin Connect after a sync are not picked up.
+- **An expired key.** Keys last 30 to 365 days. When Garmin stops accepting yours, the sync stops and the page explains how to create a new one; paste it in and sync again.
+- **Remove key.** Deletes the key, the token and the sync progress. Activities imported from Garmin stay, because they are ordinary files.
+- **The key.** It is stored unencrypted in the database in your data directory, and nowhere else. It is never shown on a page.
+
 ## Routes
 
 | Method and path | What it returns |
@@ -71,6 +83,10 @@ Create a Strava API application under [Settings → My API Application](https://
 | `GET /strava/callback` | Where Strava sends you back after authorising |
 | `POST /strava/sync` | Start a sync in the background |
 | `POST /strava/disconnect` | Revoke access and delete Strava-only activities |
+| `GET /garmin` | Garmin key form, sync status and skipped activities |
+| `POST /garmin/key` | Check a Personal API key with Garmin and save it (form field `key`) |
+| `POST /garmin/sync` | Start a sync in the background |
+| `POST /garmin/remove` | Delete the key and sync progress; imported activities stay |
 | `GET /api/activities` | All activities with their summaries and TRIMP, as JSON |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
 
