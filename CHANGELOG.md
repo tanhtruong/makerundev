@@ -6,6 +6,13 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `makerundev zones FILE --max-hr N` prints the time in each heart-rate zone with its bpm range and share of the time that has heart rate. `--thresholds` takes ascending percentages of max heart rate (`62.5,75,87.5`, any count), by default 60, 70, 80 and 90 %.
+- `makerundev trimp FILE --max-hr N --resting-hr N` prints the Banister TRIMP as a whole number; `--female` uses the female coefficients.
+- Both commands exit with status 1 and say so when the file has no heart rate.
+- `makerundev.metrics.DEFAULT_ZONE_THRESHOLDS`, the default zone thresholds the app and the CLI share, and `makerundev.format.zone_range(zone, boundaries_bpm)`, the bpm range label of a zone (`under 114 bpm`, `114-132 bpm`, `171 bpm and up`).
+
 ## [0.5.0] - 2026-11-21
 
 ### Added

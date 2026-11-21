@@ -1,3 +1,4 @@
+import pytest
 from makerundev.cli import app
 from typer.testing import CliRunner
 
@@ -14,3 +15,60 @@ def test_splits_prints_each_kilometre_with_its_moving_time_and_pace(tmp_path, ma
         " 2  1.00 km  4:10  4:10 /km",
         " 3  0.50 km  2:05  4:10 /km",
     ]
+
+
+def test_zones_prints_the_time_and_share_of_heart_rate_time_in_each_zone(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    rows = [
+        {"t": float(t), "distance": t * 3.0, "hr": 100 if t < 60 else 150 if t < 180 else 185}
+        for t in range(301)
+    ]
+    path.write_bytes(make_fit(rows))
+
+    result = CliRunner().invoke(app, ["zones", str(path), "--max-hr", "200"])
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "Zone 1  under 120 bpm   1:00  20%",
+        "Zone 2  120-139 bpm     0:00   0%",
+        "Zone 3  140-159 bpm     2:00  40%",
+        "Zone 4  160-179 bpm     0:00   0%",
+        "Zone 5  180 bpm and up  2:00  40%",
+    ]
+
+
+def test_trimp_prints_the_banister_score_as_a_whole_number(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    rows = [{"t": t * 2.0, "distance": t * 6.0, "hr": 120} for t in range(1801)]
+    path.write_bytes(make_fit(rows))
+
+    result = CliRunner().invoke(app, ["trimp", str(path), "--max-hr", "190", "--resting-hr", "50"])
+
+    assert result.exit_code == 0
+    assert result.output == "50\n"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [["zones", "--max-hr", "190"], ["trimp", "--max-hr", "190", "--resting-hr", "50"]],
+)
+def test_heart_rate_commands_fail_on_a_file_without_heart_rate(tmp_path, make_fit, arguments):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(t), "distance": t * 3.0} for t in range(60)]))
+
+    result = CliRunner().invoke(app, [arguments[0], str(path), *arguments[1:]])
+
+    assert result.exit_code == 1
+    assert result.stderr == f"{path}: no heart rate data\n"
+
+
+def test_zones_rejects_thresholds_that_do_not_ascend(tmp_path, make_fit):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(t), "hr": 150} for t in range(60)]))
+
+    result = CliRunner().invoke(
+        app, ["zones", str(path), "--max-hr", "190", "--thresholds", "60,80,70,90"]
+    )
+
+    assert result.exit_code == 2
+    assert "ascending" in result.stderr

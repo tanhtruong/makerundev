@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from makerundev.metrics import BANISTER_FEMALE, BANISTER_MALE
+from makerundev.metrics import BANISTER_FEMALE, BANISTER_MALE, DEFAULT_ZONE_THRESHOLDS
 
 
 class ZoneModel(StrEnum):
@@ -20,7 +20,6 @@ class TrimpCoefficients(StrEnum):
 
 COEFFICIENTS = {TrimpCoefficients.MALE: BANISTER_MALE, TrimpCoefficients.FEMALE: BANISTER_FEMALE}
 ZONE_COUNT = 5
-DEFAULT_ZONE_THRESHOLDS = (60.0, 70.0, 80.0, 90.0)
 MAX_HR_RANGE = (100, 250)
 RESTING_HR_RANGE = (20, 120)
 ZONE_FIELDS = tuple(f"zone_{zone}" for zone in range(2, ZONE_COUNT + 1))

@@ -1,3 +1,7 @@
+import math
+from collections.abc import Sequence
+
+
 def duration(seconds: float) -> str:
     total = round(seconds)
     hours, rest = divmod(total, 3600)
@@ -24,3 +28,12 @@ def distance_name(meters: float) -> str:
     if meters < 1000:
         return f"{meters:g} m"
     return f"{meters / 1000:g} km"
+
+
+def zone_range(zone: int, boundaries_bpm: Sequence[float]) -> str:
+    starts = [math.ceil(boundary) for boundary in boundaries_bpm]
+    if zone == 0:
+        return f"under {starts[0]} bpm"
+    if zone == len(starts):
+        return f"{starts[-1]} bpm and up"
+    return f"{starts[zone - 1]}-{starts[zone] - 1} bpm"
