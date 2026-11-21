@@ -109,7 +109,7 @@ Sync uses a Strava API application that you create yourself, so your activities 
 
 3. Open **Strava** in the app, choose **Connect with Strava**, then **Sync now**.
 
-Each sync brings in what is new and then works back through your history, newest first. Strava allows a new application 100 requests per 15 minutes and 1,000 per day, and each activity takes one, so a long history takes a few syncs; the page says when to come back. An activity you already imported from a file is recognised and not duplicated. The [server README](apps/server/README.md#strava-sync) has the details.
+Sync reads activity streams from the Strava API, not original activity files. Each sync brings in what is new and then works back through your history, newest first. Strava allows a new application 100 requests per 15 minutes and 1,000 per day, and each activity takes one, so a long history takes a few syncs; the page says when to come back. An activity you already imported from a file is recognised and not duplicated. The [server README](apps/server/README.md#strava-sync) has the details.
 
 ### Sync from Garmin Connect
 

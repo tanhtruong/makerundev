@@ -4,7 +4,7 @@
 
 **Record stream** - The per-sample telemetry of an activity, a polars DataFrame with the canonical columns and units listed in the README. Every source format is normalised into it; nothing downstream knows which format a file came from.
 
-**Source format** - The file type an activity was read from: `fit`, `gpx` or `tcx`.
+**Source format** - How an activity was read: `fit`, `gpx` or `tcx` for a file, or `strava` for a sync. Strava sync reads activity streams from the API instead of downloading the original file.
 
 **Interval** - The span between two consecutive records. Metrics are computed over intervals, not samples: an interval's duration and distance are the differences between its two records, and its heart rate, cadence and power are those of its first record.
 
