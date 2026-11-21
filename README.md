@@ -205,9 +205,8 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps and splits. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics and the route shape. Next, roughly in order:
 
-- **Running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
 - Running power without a power meter, a VO2max estimate from race results, critical speed
 - In the app: a map view, search and filters
 
