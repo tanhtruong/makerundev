@@ -15,7 +15,7 @@ How issues in `tanhtruong/makerundev` are labelled, scheduled and tracked on the
 A milestone is one release, named `<version> - <theme>` (`0.6.0 - CLI catch-up`) with a one-sentence description of what it ships.
 
 - Give an issue the milestone of the release it should ship in.
-- An issue stays unscheduled only while it waits on a decision: an ADR to merge (map view) or a model to choose (the metric roadmap). It carries `roadmap` and sits in Backlog; schedule it once the decision lands.
+- An issue stays unscheduled only while it waits on a decision: an ADR to merge or a model to choose (the metric roadmap). It carries `roadmap` and sits in Backlog; schedule it once the decision lands.
 - Pull requests carry no milestone; the issue they close does.
 - At `make publish` for `v<version>`: give closed issues from later milestones this milestone (they ship now), move this milestone's open issues to the next one, then close it.
 
