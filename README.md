@@ -199,7 +199,7 @@ The record stream has the same columns and units whatever the source file:
 Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava sync, laps and splits. Next, roughly in order:
 
 - **Running dynamics** (ground contact time, vertical oscillation, stride length) where the file has them
-- **Garmin Connect sync** as an optional, clearly unofficial extra
+- **Garmin Connect sync** with your own Garmin Personal API key
 - Running power without a power meter, a VO2max estimate from race results, critical speed
 - In the app: a map view, search and filters
 

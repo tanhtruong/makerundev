@@ -21,6 +21,7 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 - The app is server-rendered (Jinja, inline SVG). No front-end build step, no CDN assets.
 - The library must not depend on the server's stack.
 - Strava: the stream mapping is library code with no HTTP (`makerundev/io/strava.py`); OAuth, the HTTP client (`httpx2`) and the sync live in the server (ADR 6).
+- Garmin: the owner pastes their own Personal API key; the token, search and download calls live in the server on `httpx2`. A downloaded ZIP is unwrapped and imported as an ordinary file row, with no Garmin id stored (ADR 7).
 
 ## Tests
 
