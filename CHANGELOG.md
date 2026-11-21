@@ -18,6 +18,7 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev summary`, `splits` and `laps` take `--units km|mi`, or read it from `MAKERUNDEV_UNITS`. With `mi` they print distance in miles and pace per mile, `splits` splits every mile and `summary --long` prints grade-adjusted pace per mile. Climb stays in metres.
 - `makerundev.format.Unit` (`km`, `mi`), which `format.distance` and `format.pace` take, kilometres by default; `Unit.metres` is its length in metres. `makerundev.format.METRES_PER_MILE` is 1609.344.
 - `makerundev anonymize FILE OUTPUT` writes a copy of a GPX or TCX file that is safe to attach to a bug report. Every position, and the GPX bounds, moves by one random rotation of the globe of at least 1000 km, written with as many decimals as the most precise coordinate in the file; distances, times, heart rate, comments and every other byte stay as they were, so a parser bug still reproduces. It reads the same plain, gzip and ZIP input as `load()`, writes plain XML, refuses an OUTPUT that exists, and lists what else could identify you (names and notes, author and links, device serial, time zone). FIT files are refused for now. `makerundev.io.anonymize(data)` does the same in code and returns the new bytes, the number of positions and that list.
+- `makerundev-server` is published to PyPI with each release, so `uvx makerundev-server` runs the app without a clone. It requires the `makerundev` release of the same version.
 
 ### Changed
 

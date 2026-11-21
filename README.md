@@ -105,16 +105,26 @@ Prefer pip? `pip install makerundev` gives you the same `makerundev` command and
 
 The web app turns a folder of activity files into a private training log: every run with its charts, best efforts, time in zones and TRIMP, plus your fitness, fatigue and form over months.
 
+With [uv](https://docs.astral.sh/uv/), start it straight from PyPI:
+
+```bash
+uvx makerundev-server
+```
+
+It keeps the database and your files in `data/` under the folder you start it from; set `MAKERUNDEV_DATA_DIR` to keep them elsewhere. `pip install makerundev-server` gives you the same command.
+
+Or with Docker, from the image published with each release:
+
+```bash
+docker run --name makerundev -p 127.0.0.1:8000:8000 -v makerundev-data:/data ghcr.io/tanhtruong/makerundev-server
+```
+
+To work on the app, run it from a clone (`docker compose up` there builds the image from the checkout):
+
 ```bash
 git clone https://github.com/tanhtruong/makerundev.git && cd makerundev
 uv sync
 uv run makerundev-server
-```
-
-Or with Docker, which builds the image from the checkout:
-
-```bash
-docker compose up
 ```
 
 Then open http://127.0.0.1:8000 and:
@@ -138,7 +148,7 @@ Sync uses a Strava API application that you create yourself, so your activities 
 2. Start the app with the application's client id and secret:
 
    ```bash
-   MAKERUNDEV_STRAVA_CLIENT_ID=12345 MAKERUNDEV_STRAVA_CLIENT_SECRET=... uv run makerundev-server
+   MAKERUNDEV_STRAVA_CLIENT_ID=12345 MAKERUNDEV_STRAVA_CLIENT_SECRET=... uvx makerundev-server
    ```
 
 3. Open **Strava** in the app, choose **Connect with Strava**, then **Sync now**.

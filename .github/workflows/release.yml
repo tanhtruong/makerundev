@@ -22,11 +22,16 @@ jobs:
           fi
       - run: uv sync --locked
       - run: make check
-      - run: uv build --package makerundev
+      - run: uv build --package makerundev --out-dir dist/makerundev
+      - run: uv build --package makerundev-server --out-dir dist/makerundev-server
       - uses: actions/upload-artifact@v7
         with:
-          name: dist
-          path: dist/
+          name: makerundev
+          path: dist/makerundev/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: makerundev-server
+          path: dist/makerundev-server/
 
   pypi:
     needs: build
@@ -39,7 +44,22 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          name: dist
+          name: makerundev
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
+
+  pypi-server:
+    needs: pypi
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/makerundev-server/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: makerundev-server
           path: dist/
       - uses: pypa/gh-action-pypi-publish@v1.14.3
 

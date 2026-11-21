@@ -1,25 +1,31 @@
 # makerundev-server
 
-A self-hosted web app for your running data, built on the [`makerundev`](../../packages/makerundev) library. Import FIT, GPX and TCX files, browse your activities and see pace, heart-rate and elevation charts, time in heart-rate zones and training load. Everything stays on your machine: there are no accounts, no external services and no CDN assets.
+A self-hosted web app for your running data, built on the [`makerundev`](https://pypi.org/project/makerundev/) library. Import FIT, GPX and TCX files, browse your activities and see pace, heart-rate and elevation charts, time in heart-rate zones and training load. Everything stays on your machine: there are no accounts, no external services and no CDN assets.
 
 ## Run it
 
-From the repository root:
+With [uv](https://docs.astral.sh/uv/), straight from PyPI:
+
+```bash
+uvx makerundev-server
+```
+
+Then open http://127.0.0.1:8000. The database and your files are kept in `data/` under the folder you start it from, so start it from the same folder next time or set `MAKERUNDEV_DATA_DIR`. `pip install makerundev-server` installs the same `makerundev-server` command.
+
+With Docker, from the image published with each release:
+
+```bash
+docker run --name makerundev -p 127.0.0.1:8000:8000 -v makerundev-data:/data ghcr.io/tanhtruong/makerundev-server
+```
+
+From a clone of the repository, to work on it:
 
 ```bash
 uv sync
 uv run makerundev-server
 ```
 
-Then open http://127.0.0.1:8000.
-
-With Docker:
-
-```bash
-docker compose up
-```
-
-The image is also published as `ghcr.io/tanhtruong/makerundev-server` with each release.
+`docker compose up` in the clone builds the image from the checkout instead.
 
 ## Configuration
 
@@ -45,7 +51,7 @@ The data directory holds:
 - `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's stream as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
 
-Importing the same file twice is detected by its hash and skipped. Uploads are capped at 64 MB per file. To back up, copy the whole directory; with Docker, `docker compose cp makerundev:/data ./makerundev-backup`.
+Importing the same file twice is detected by its hash and skipped. Uploads are capped at 64 MB per file. To back up, copy the whole directory; with Docker, `docker cp makerundev:/data ./makerundev-backup` (`docker compose cp` from a clone).
 
 ## Strava sync
 
@@ -94,7 +100,7 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 
 ## Development
 
-The app is FastAPI with Jinja templates and inline SVG charts; there is no front-end build step. `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](../../CONTRIBUTING.md) and [ADR 4](../../docs/adr/0004-server-rendered-self-hosted-app.md).
+The app is FastAPI with Jinja templates and inline SVG charts; there is no front-end build step. `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md) and [ADR 4](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0004-server-rendered-self-hosted-app.md).
 
 ### Changing the database schema
 

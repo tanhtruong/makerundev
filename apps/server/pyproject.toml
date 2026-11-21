@@ -2,10 +2,21 @@
 name = "makerundev-server"
 version = "0.5.0"
 description = "Self-hosted web app for your running data, built on makerundev."
+readme = "README.md"
 license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.12"
+keywords = ["running", "fit", "gpx", "tcx", "garmin", "strava", "training-load", "self-hosted"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Environment :: Web Environment",
+    "Framework :: FastAPI",
+    "Intended Audience :: End Users/Desktop",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
 dependencies = [
-    "makerundev",
+    "makerundev==0.5.0",
     "alembic>=1.20.1",
     "fastapi>=0.165",
     "jinja2>=3.1.6",
@@ -15,6 +26,12 @@ dependencies = [
     "uvicorn>=0.54",
     "httpx2>=2.16",
 ]
+
+[project.urls]
+Homepage = "https://github.com/tanhtruong/makerundev"
+Documentation = "https://github.com/tanhtruong/makerundev/tree/main/apps/server#readme"
+Issues = "https://github.com/tanhtruong/makerundev/issues"
+Source = "https://github.com/tanhtruong/makerundev"
 
 [project.scripts]
 makerundev-server = "makerundev_server.main:run"
