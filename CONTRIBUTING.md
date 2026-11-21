@@ -22,6 +22,8 @@ make check
 - [`help wanted`](https://github.com/tanhtruong/makerundev/labels/help%20wanted) issues are larger and need some judgement.
 - [`roadmap`](https://github.com/tanhtruong/makerundev/labels/roadmap) issues are planned by the maintainer and are not open for pull requests yet. Comments on them are welcome.
 
+The **Ready** column of the [roadmap board](https://github.com/users/tanhtruong/projects/7) lists issues that are scoped and unblocked, grouped by the release they are planned for.
+
 Comment on an issue before you start, so two people don't build the same thing. For anything without an issue, open one or start a Discussion first.
 
 ## Reporting a parsing bug

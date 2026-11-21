@@ -23,6 +23,10 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 - Strava: the stream mapping is library code with no HTTP (`makerundev/io/strava.py`); OAuth, the HTTP client (`httpx2`) and the sync live in the server (ADR 6).
 - Garmin: the owner pastes their own Personal API key; the token, search and download calls live in the server on `httpx2`. A downloaded ZIP is unwrapped and imported as an ordinary file row, with no Garmin id stored (ADR 7).
 
+## Issues
+
+- Triage follows `docs/issues.md`: read it before opening, labelling or scheduling an issue, when a pull request closes one, and at `make publish`. Every open issue leaves with a type, area and contribution label, a milestone (or `roadmap` and a pending decision) and its fields on the roadmap board.
+
 ## Tests
 
 - FIT fixtures are generated in tests with `fit-tool` (`conftest.py` at the root), not checked in as binaries.

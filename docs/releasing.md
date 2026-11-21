@@ -20,6 +20,7 @@ You need a clean working tree and `gh` signed in with write access. The changelo
 2. Review and merge the pull request. If it merges on a later day, fix the date in `CHANGELOG.md` first.
 3. `make publish`. It reads the version and that version's changelog entry from `origin/main`, shows them, asks for confirmation, and creates the GitHub release `v<version>` on that exact commit with the entry as its notes. It refuses if the tag already exists. `uv run python scripts/release.py publish --dry-run` shows what it would publish.
 4. Watch the **Release** workflow. When it finishes, `pip install makerundev==<version>` and `docker pull ghcr.io/tanhtruong/makerundev-server:<version>` both work.
+5. Close the version's milestone as `docs/issues.md` describes.
 
 A version on PyPI can never be reused, so step 3 is the one that cannot be undone. The release script is `scripts/release.py`, tested in `scripts/tests/test_release.py`.
 
