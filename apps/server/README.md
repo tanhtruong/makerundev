@@ -40,7 +40,7 @@ There is no login. Keep the app on `127.0.0.1` or behind a reverse proxy that ad
 The data directory holds:
 
 - `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
-- `originals/` - each imported file as uploaded, named by its SHA-256, and each synced Strava activity's stream as gzipped JSON, named `strava-<id>`
+- `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's stream as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
 
 Importing the same file twice is detected by its hash and skipped. Uploads are capped at 64 MB per file. To back up, copy the whole directory; with Docker, `docker compose cp makerundev:/data ./makerundev-backup`.

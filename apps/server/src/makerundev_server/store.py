@@ -13,6 +13,7 @@ from typing import Any, Literal
 
 import polars as pl
 from makerundev import Activity, ActivityFileError, Lap, Sport, load
+from makerundev.io import unzip
 from makerundev.metrics import Summary, summarize, trimp
 from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
@@ -57,6 +58,9 @@ class Store:
         self.streams.mkdir(parents=True, exist_ok=True)
 
     def import_file(self, filename: str, data: bytes) -> ImportResult:
+        entry = unzip(data)
+        if entry is not None:
+            filename, data = entry
         digest = hashlib.sha256(data).hexdigest()
         with self.writing, Session(self.engine) as session:
             existing = session.scalar(select(ActivityRow.id).where(ActivityRow.sha256 == digest))

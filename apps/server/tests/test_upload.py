@@ -232,3 +232,42 @@ def test_gpx_activity_shows_no_running_dynamics_and_is_not_rewritten(tmp_path):
     assert "Distance" in stats(page)
     assert dynamics_tiles(page) == {}
     assert not set(DYNAMICS_COLUMNS) & set(pl.read_parquet(stream).columns)
+
+
+def test_uploaded_zip_is_stored_as_the_file_inside_and_dedupes_against_it(
+    tmp_path, steady_run_fit, make_zip
+):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    archive = make_zip(("25132893842_ACTIVITY.fit", steady_run_fit))
+    response = client.post(
+        "/activities", files=[("files", ("25132893842.zip", archive, "application/zip"))]
+    )
+    assert response.status_code == 200
+    again = client.post(
+        "/activities", files=[("files", ("run.fit", steady_run_fit, "application/octet-stream"))]
+    )
+    assert "run.fit: already imported" in again.text
+
+    store = Store(tmp_path, connect(tmp_path))
+    [row] = store.list()
+    digest = hashlib.sha256(steady_run_fit).hexdigest()
+    assert (row.filename, row.sha256, row.storage_key) == (
+        "25132893842_ACTIVITY.fit",
+        digest,
+        digest,
+    )
+    assert (tmp_path / "originals" / digest).read_bytes() == steady_run_fit
+
+
+def test_bulk_export_zip_is_refused_with_a_reason(tmp_path, steady_run_fit, make_zip):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    archive = make_zip(("a.fit", steady_run_fit), ("b.fit", steady_run_fit))
+    response = client.post(
+        "/activities", files=[("files", ("export.zip", archive, "application/zip"))]
+    )
+
+    assert response.status_code == 400
+    assert "export.zip: ZIP holds more than one activity file" in response.text
+    assert client.get("/api/activities").json() == []

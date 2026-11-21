@@ -1,11 +1,14 @@
 import datetime as dt
 import gzip
+import zipfile
 from pathlib import Path
 
+import makerundev.io
 import pytest
 from fit_tool.profile.profile_type import Sport as FitSport
 from fit_tool.profile.profile_type import SubSport
 from makerundev import ActivityFileError, Lap, Sport, load
+from makerundev.io import unzip
 
 FIXTURES = Path(__file__).parent / "fixtures"
 START = dt.datetime(2026, 3, 1, 7, 0, tzinfo=dt.UTC)
@@ -159,3 +162,111 @@ def test_unreadable_input_raises_activity_file_error(steady_run_fit):
         load(steady_run_fit[: len(steady_run_fit) // 2])
     with pytest.raises(ActivityFileError):
         load(b"<?xml version='1.0'?><gpx><trk><trkseg></trkseg></trk></gpx>")
+
+
+def test_single_activity_zip_is_read_as_the_file_inside(steady_run_fit, make_zip, tmp_path):
+    data = make_zip(
+        ("export/", b""),
+        ("export/readme.txt", b"Exported from Garmin Connect"),
+        ("export\\123_ACTIVITY.fit", steady_run_fit),
+    )
+
+    assert unzip(data) == ("123_ACTIVITY.fit", steady_run_fit)
+    path = tmp_path / "123.zip"
+    path.write_bytes(data)
+    assert load(path).records.equals(load(steady_run_fit).records)
+
+
+def test_zip_entry_is_recognised_by_its_root_element_not_its_name(make_zip):
+    gpx = (FIXTURES / "run.gpx").read_bytes()
+    tcx = (FIXTURES / "run.tcx").read_bytes()
+    declaration, body = gpx.split(b"?>", 1)
+    commented = declaration + b"?><!--" + b" " * 10_000 + b"-->" + body
+
+    assert unzip(make_zip(("notes.xml", b"<notes>about <gpx> files</notes>"), ("track", gpx))) == (
+        "track",
+        gpx,
+    )
+    assert unzip(make_zip(("commented.gpx", commented))) == ("commented.gpx", commented)
+    assert load(make_zip(("lap.data", tcx))).source_format == "tcx"
+
+
+def test_zip_must_hold_exactly_one_activity_file(steady_run_fit, make_zip):
+    with pytest.raises(ActivityFileError, match="no FIT, GPX or TCX"):
+        load(make_zip(("readme.txt", b"nothing here")))
+    with pytest.raises(ActivityFileError, match="more than one activity file"):
+        load(make_zip(("a.fit", steady_run_fit), ("b.fit", steady_run_fit)))
+
+
+def test_zip_may_hold_16_files_besides_its_directories(steady_run_fit, make_zip):
+    folders = [(f"{i}/", b"") for i in range(4)]
+    filler = [(f"{i}.txt", b"") for i in range(15)]
+
+    assert unzip(make_zip(*folders, ("run.fit", steady_run_fit), *filler)) is not None
+    with pytest.raises(ActivityFileError, match="more than 16 files"):
+        unzip(make_zip(("run.fit", steady_run_fit), *filler, ("extra.txt", b"")))
+
+
+def test_zip_directory_is_bounded_before_it_is_parsed(steady_run_fit, make_zip):
+    flood = [(f"{i:08}.txt", b"") for i in range(1200)]
+    with pytest.raises(ActivityFileError, match="directory is larger than 64 KB"):
+        unzip(make_zip(("run.fit", steady_run_fit), *flood))
+
+
+def test_zip64_archive_is_refused(steady_run_fit, make_zip):
+    data = make_zip(("run.fit", steady_run_fit))
+    end = data.rindex(b"PK\x05\x06")
+    locator = b"PK\x06\x07" + bytes(16)
+    with pytest.raises(ActivityFileError, match="ZIP64"):
+        unzip(data[:end] + locator + data[end:])
+
+
+def test_zip_with_an_encrypted_entry_is_refused(steady_run_fit, make_zip):
+    with pytest.raises(ActivityFileError, match="encrypted"):
+        unzip(flag_first_entry_encrypted(make_zip(("run.fit", steady_run_fit))))
+
+
+def flag_first_entry_encrypted(archive: bytes) -> bytes:
+    data = bytearray(archive)
+    data[data.index(b"PK\x03\x04") + 6] |= 0x1
+    data[data.index(b"PK\x01\x02") + 8] |= 0x1
+    return bytes(data)
+
+
+@pytest.mark.parametrize("method", [zipfile.ZIP_BZIP2, zipfile.ZIP_LZMA])
+def test_zip_entry_compressed_other_than_deflate_is_refused(steady_run_fit, make_zip, method):
+    with pytest.raises(ActivityFileError, match="compression method"):
+        unzip(make_zip(("run.fit", steady_run_fit), method=method))
+
+
+def test_decompressed_size_cap_is_named_in_the_error(steady_run_fit, make_zip, monkeypatch):
+    monkeypatch.setattr(makerundev.io, "MAX_DECOMPRESSED_BYTES", 1024 * 1024)
+    padding = bytes(1024 * 1024)
+
+    with pytest.raises(ActivityFileError, match="larger than 1 MB"):
+        unzip(make_zip(("run.fit", steady_run_fit), ("padding.bin", padding)))
+    with pytest.raises(ActivityFileError, match="larger than 1 MB"):
+        load(gzip.compress(steady_run_fit + padding))
+
+
+def test_damaged_zip_raises_activity_file_error(steady_run_fit, make_zip):
+    data = make_zip(("run.fit", steady_run_fit))
+    central = data.index(b"PK\x01\x02")
+    end = data.rindex(b"PK\x05\x06")
+
+    undecodable_name = bytearray(data)
+    undecodable_name[central + 9] |= 0x08
+    undecodable_name[central + 46 : central + 53] = b"\xff" * 7
+    lying_offset = bytearray(data)
+    lying_offset[end + 16 : end + 20] = (len(data) * 2).to_bytes(4, "little")
+    future_version = bytearray(data)
+    future_version[central + 6] = 99
+
+    for damaged in (
+        data[: len(data) // 2],
+        bytes(undecodable_name),
+        bytes(lying_offset),
+        bytes(future_version),
+    ):
+        with pytest.raises(ActivityFileError):
+            unzip(damaged)
