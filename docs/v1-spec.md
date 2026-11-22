@@ -36,11 +36,10 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - TRIMP (Banister, with male and female coefficients).
 - Aerobic decoupling.
 - Grade-adjusted pace (Minetti cost model).
+- Estimated power without a power meter (van Dijk and van Megen's model).
 - Training load: fitness, fatigue, form.
 - Critical speed and D′ from maximal efforts of 2 to 20 minutes.
 - VDOT (Daniels & Gilbert) from one maximal effort of 3 minutes to 5 hours.
-
-Next in line: running power from pace and grade when no power meter is present.
 
 ### Self-hosted app
 

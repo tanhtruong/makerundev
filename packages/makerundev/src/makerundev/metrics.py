@@ -7,9 +7,10 @@ from typing import Any
 import numpy as np
 import polars as pl
 
-from makerundev.model import Activity
+from makerundev.model import Activity, Sport
 
 FloatArray = np.ndarray[Any, np.dtype[np.float64]]
+IndexArray = np.ndarray[Any, np.dtype[np.intp]]
 
 MAX_GAP_S = 30.0
 MOVING_SPEED_MPS = 0.5
@@ -17,6 +18,11 @@ ELEVATION_THRESHOLD_M = 3.0
 GRADE_WINDOW_M = 60.0
 MAX_RUNNING_GRADE = 0.45
 MINETTI_COST = (155.4, -30.4, -43.3, 46.3, 19.5, 3.6)
+FLAT_RUNNING_COST_J_PER_KG_M = 0.98
+CLIMB_EFFICIENCY_PERCENT = (45.6, 1.16)
+GRAVITY_MPS2 = 9.81
+AIR_DENSITY_KG_M3 = 1.205
+DRAG_AREA_M2 = 0.24
 FITNESS_DAYS = 42
 FATIGUE_DAYS = 7
 BANISTER_MALE = (0.64, 1.92)
@@ -139,6 +145,43 @@ def grade_adjusted_pace(activity: Activity) -> float | None:
 def _grade_adjusted_pace(
     activity: Activity, steps: _Intervals, altitude: FloatArray
 ) -> float | None:
+    blocks = _moving_grades(activity, steps, altitude)
+    if blocks is None:
+        return None
+    equivalent_m = 0.0
+    seconds = 0.0
+    for block, grade in blocks:
+        cost = np.polyval(MINETTI_COST, grade)
+        equivalent_m += float(np.sum(steps.meters[block] * cost)) / MINETTI_COST[-1]
+        seconds += float(steps.seconds[block].sum())
+    return seconds * 1000 / equivalent_m
+
+
+def estimated_power(activity: Activity, body_mass_kg: float) -> float | None:
+    steps = _intervals(activity)
+    blocks = _moving_grades(activity, steps, _column(activity, "altitude"))
+    if blocks is None:
+        return None
+    on_treadmill = activity.sport is Sport.TREADMILL_RUNNING
+    drag = 0.0 if on_treadmill else AIR_DENSITY_KG_M3 * DRAG_AREA_M2 / 2
+    offset, slope = CLIMB_EFFICIENCY_PERCENT
+    joules = 0.0
+    seconds = 0.0
+    for block, grade in blocks:
+        meters = steps.meters[block]
+        durations = steps.seconds[block]
+        percent = grade * 100
+        cost = (
+            FLAT_RUNNING_COST_J_PER_KG_M + grade * GRAVITY_MPS2 * (offset + slope * percent) / 100
+        )
+        joules += float(np.sum(cost * body_mass_kg * meters + drag * meters**3 / durations**2))
+        seconds += float(durations.sum())
+    return joules / seconds
+
+
+def _moving_grades(
+    activity: Activity, steps: _Intervals, altitude: FloatArray
+) -> list[tuple[IndexArray, FloatArray]] | None:
     if not activity.sport.is_running:
         return None
     moving = np.flatnonzero(steps.moving)
@@ -146,15 +189,13 @@ def _grade_adjusted_pace(
         return None
     if not (np.isfinite(altitude[moving]) & np.isfinite(altitude[moving + 1])).all():
         return None
-    equivalent_m = 0.0
+    blocks = []
     for block in np.split(moving, np.flatnonzero(np.diff(moving) > 1) + 1):
-        meters = steps.meters[block]
-        distance = np.concatenate(([0.0], np.cumsum(meters)))
+        distance = np.concatenate(([0.0], np.cumsum(steps.meters[block])))
         heights = altitude[np.append(block, block[-1] + 1)]
         grade = np.clip(_window_grade(distance, heights), -MAX_RUNNING_GRADE, MAX_RUNNING_GRADE)
-        cost = np.polyval(MINETTI_COST, grade)
-        equivalent_m += float(np.sum(meters * cost)) / MINETTI_COST[-1]
-    return float(steps.seconds[moving].sum()) * 1000 / equivalent_m
+        blocks.append((block, grade))
+    return blocks
 
 
 def _window_grade(distance: FloatArray, heights: FloatArray) -> FloatArray:

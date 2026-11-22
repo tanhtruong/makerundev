@@ -8,6 +8,7 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
+- `makerundev.metrics.estimated_power(activity, body_mass_kg)`, the running power a power meter would report, in watts, estimated from speed, grade and body mass with van Dijk and van Megen's model: about 234 W for a 70 kg runner at 5:00/km on the flat. It is `None` wherever grade-adjusted pace is, and measured power and `Summary.avg_power` are unchanged.
 - Heart-rate zones can be a percentage of heart-rate reserve (Karvonen): pick the zone model in Settings, and each zone starts at resting + (max − resting) × the threshold. Settings also show the heart rate each zone starts at. Existing settings stay on % of max heart rate, so time in zones does not change until the model is switched.
 - Activities synced from Strava have laps. Each activity now takes two Strava requests, its streams and its details, so a first sync of a long history takes about twice as many syncs. Activities synced before this release get their laps over the next syncs, after anything new and the backfill.
 - `makerundev.io.strava.strava_laps(activity)` maps the laps of a Strava detailed activity onto `Lap`, and `read_strava` reads them when the activity it is given has them.
