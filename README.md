@@ -170,6 +170,7 @@ Each activity comes in as the original file your watch recorded, as if you had u
 | --- | --- |
 | Distance, elapsed and moving time, pace | The basics, with pauses and GPS dropouts kept out of moving time |
 | Grade-adjusted pace | Your pace as if the route were flat, from the Minetti energy-cost model |
+| Estimated power | The watts a running power meter would show, from your speed, the gradient and your body mass, with or without a meter |
 | Climb and descent | Elevation gain and loss, with altimeter noise filtered out |
 | Best efforts | Your fastest 400 m, 1 km, mile, 5 km, 10 km, half and marathon within any run |
 | Splits | Moving time and pace for every kilometre or mile, and for the distance left over at the end |

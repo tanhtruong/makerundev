@@ -10,6 +10,7 @@ from makerundev.metrics import (
     best_efforts,
     critical_speed,
     elevation_change,
+    estimated_power,
     grade_adjusted_pace,
     splits,
     summarize,
@@ -272,6 +273,19 @@ def test_grade_adjusted_pace_is_only_defined_for_moving_runs():
         sport=Sport.WALKING,
     )
     assert grade_adjusted_pace(walking) is None
+
+
+@pytest.mark.parametrize(
+    ("grade", "watts"),
+    [(0.0, 234.02), (0.1, 364.95), (-0.1, 156.20), (0.5, 1241.41), (None, None)],
+)
+def test_estimated_power_matches_hand_computed_constant_grades(grade, watts):
+    rows = [
+        {"t": i * 3, "distance": i * 10, **({} if grade is None else {"altitude": grade * i * 10})}
+        for i in range(101)
+    ]
+    power = estimated_power(run(rows), body_mass_kg=70)
+    assert power == (watts if watts is None else pytest.approx(watts, abs=0.01))
 
 
 RUNNING_DYNAMICS = {
