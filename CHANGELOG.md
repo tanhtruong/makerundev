@@ -8,6 +8,7 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
+- Body mass in Settings, optional, from 30 to 200 kg. Once it is set, the activity page of a run shows estimated power in W and W/kg, with `-` when the run has no altitude. The activity page also shows average power when the file recorded power, with its W/kg once body mass is set. Estimated power is worked out when the page opens, so changing body mass changes it for every past run without a recompute, and runs imported before this release show it too.
 - `makerundev.metrics.estimated_power(activity, body_mass_kg)`, the running power a power meter would report, in watts, estimated from speed, grade and body mass with van Dijk and van Megen's model: about 234 W for a 70 kg runner at 5:00/km on the flat. It is `None` wherever grade-adjusted pace is, and measured power and `Summary.avg_power` are unchanged.
 - Heart-rate zones can be a percentage of heart-rate reserve (Karvonen): pick the zone model in Settings, and each zone starts at resting + (max − resting) × the threshold. Settings also show the heart rate each zone starts at. Existing settings stay on % of max heart rate, so time in zones does not change until the model is switched.
 - Activities synced from Strava have laps. Each activity now takes two Strava requests, its streams and its details, so a first sync of a long history takes about twice as many syncs. Activities synced before this release get their laps over the next syncs, after anything new and the backfill.

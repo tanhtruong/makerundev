@@ -131,7 +131,7 @@ uv run makerundev-server
 Then open http://127.0.0.1:8000 and:
 
 1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
-2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them.
+2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them. Add your body mass too, and every run shows its estimated power next to any power your watch recorded.
 3. **Open Training load** to see fitness, fatigue and form built from your daily TRIMP.
 
 <picture>
@@ -251,9 +251,8 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics, the route shape, critical speed and VDOT. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics, the route shape, critical speed, VDOT and running power without a power meter. Next, roughly in order:
 
-- Running power without a power meter
 - In the app: a map view, search and filters
 
 Not planned: social feeds, segment leaderboards, hosting other people's data or generating training plans. The [v1 spec](docs/v1-spec.md) has the full scope and reasoning.

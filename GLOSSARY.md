@@ -83,7 +83,7 @@ VDOT is the VO2max that would produce the effort at average running economy. A r
 
 **Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates.
 
-**Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, and timezone, kept by the app. The timezone decides which local day an activity counts toward in training load.
+**Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, timezone and body mass, kept by the app. The timezone decides which local day an activity counts toward in training load. Body mass, in kilograms, is optional and feeds estimated power; like heart rate it is one current value, so changing it changes estimated power for every past run.
 
 **TRIMP** - Banister's training impulse: minutes weighted by heart-rate reserve, a single number for how hard a session was.
 

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ activity.name or activity.filename }} - makerundev{% endblock %}
 {% block content %}
+{% macro power(watts, body_mass_kg) %}{% if watts is none %}-{% else %}{{ "%.0f W" | format(watts) }}{% if body_mass_kg is not none %}<span>{{ "%.2f W/kg" | format(watts / body_mass_kg) }}</span>{% endif %}{% endif %}{% endmacro %}
 <p class="crumb"><a href="/">All activities</a></p>
 <h1>{{ activity.sport.replace("_", " ") | capitalize }} on {{ activity.start_time | local(timezone, "%Y-%m-%d %H:%M %Z") }}</h1>
 <p class="meta">{% if activity.name and activity.name != activity.filename %}{{ activity.name }} · {% endif %}{{ activity.filename }}{% if activity.device %} · {{ activity.device }}{% endif %}{% if strava_url %} · <a class="strava-link" href="{{ strava_url }}" rel="noopener">View on Strava</a>{% endif %}</p>
@@ -10,6 +11,8 @@
   <div><dt>Moving time</dt><dd>{{ activity.moving_s | duration }}</dd></div>
   <div><dt>Pace</dt><dd>{{ activity.pace_s_per_km | pace }}</dd></div>
   {% if is_running %}<div><dt>Grade-adjusted pace</dt><dd>{{ grade_adjusted_pace | pace }}</dd></div>{% endif %}
+  {% if avg_power is not none %}<div><dt>Avg power</dt><dd>{{ power(avg_power, body_mass_kg) }}</dd></div>{% endif %}
+  {% if is_running and body_mass_kg is not none %}<div><dt>Estimated power</dt><dd>{{ power(estimated_power, body_mass_kg) }}</dd></div>{% endif %}
   <div><dt>Avg heart rate</dt><dd>{{ "%.0f bpm" | format(activity.avg_heart_rate) if activity.avg_heart_rate else "-" }}</dd></div>
   {% if is_running %}<div><dt>Aerobic decoupling</dt><dd>{{ decoupling | decoupling }}</dd></div>{% endif %}
   <div><dt>Climb</dt><dd>{{ "%.0f m" | format(activity.elevation_gain_m) }}</dd></div>

@@ -98,6 +98,7 @@ class AthleteSettingsRow(Base):
     timezone: Mapped[str] = mapped_column(String(64))
     zone_model: Mapped[str] = mapped_column(String(32))
     zone_thresholds: Mapped[list[float]] = mapped_column(JSON)
+    body_mass_kg: Mapped[float | None] = mapped_column(Float)
 
 
 class SyncState:
