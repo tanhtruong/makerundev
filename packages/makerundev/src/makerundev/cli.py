@@ -60,10 +60,9 @@ def summary(files: Files, long: Long = False, units: Units = format.Unit.KM) -> 
             f"+{result.elevation_gain_m:.0f} m"
         )
         if long:
-            decoupling = aerobic_decoupling(activity)
             line += (
                 f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km, units)}"
-                f"  decoupling {'-' if decoupling is None else f'{decoupling:+.1f}%'}"
+                f"  decoupling {format.decoupling(aerobic_decoupling(activity))}"
             )
         typer.echo(line)
     if failed:

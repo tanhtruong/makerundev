@@ -349,6 +349,8 @@ def trimp(
 
 
 def aerobic_decoupling(activity: Activity) -> float | None:
+    if not activity.sport.is_running:
+        return None
     steps = _intervals(activity)
     heart_rate = _column(activity, "heart_rate")[:-1]
     mask = steps.moving & ~np.isnan(heart_rate)

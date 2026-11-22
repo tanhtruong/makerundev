@@ -27,6 +27,10 @@ def pace(seconds_per_km: float | None, unit: Unit = Unit.KM) -> str:
     return f"{duration(seconds_per_km * (unit.metres / 1000))} /{unit}"
 
 
+def decoupling(percent: float | None) -> str:
+    return "-" if percent is None else f"{percent:+.1f}%"
+
+
 def distance(meters: float, unit: Unit = Unit.KM) -> str:
     return f"{meters / unit.metres:.2f} {unit}"
 
