@@ -30,6 +30,7 @@ COEFFICIENTS = {TrimpCoefficients.MALE: BANISTER_MALE, TrimpCoefficients.FEMALE:
 ZONE_COUNT = 5
 MAX_HR_RANGE = (100, 250)
 RESTING_HR_RANGE = (20, 120)
+BODY_MASS_RANGE_KG = (30, 200)
 ZONE_FIELDS = tuple(f"zone_{zone}" for zone in range(2, ZONE_COUNT + 1))
 FORM_FIELDS = (
     "max_hr",
@@ -37,6 +38,7 @@ FORM_FIELDS = (
     "trimp_coefficients",
     "timezone",
     "zone_model",
+    "body_mass_kg",
     *ZONE_FIELDS,
 )
 
@@ -62,6 +64,7 @@ class AthleteSettings:
     timezone: str = "UTC"
     zone_model: ZoneModel = DEFAULT_ZONE_MODEL
     zone_thresholds: tuple[float, ...] = field(default=DEFAULT_ZONE_THRESHOLDS)
+    body_mass_kg: float | None = None
 
     @property
     def coefficients(self) -> tuple[float, float]:
@@ -84,6 +87,9 @@ def form_values(settings: AthleteSettings | None) -> dict[str, str]:
         "trimp_coefficients": settings.trimp_coefficients if settings else TrimpCoefficients.MALE,
         "timezone": settings.timezone if settings else default_timezone(),
         "zone_model": settings.zone_model if settings else DEFAULT_ZONE_MODEL,
+        "body_mass_kg": _number(settings.body_mass_kg)
+        if settings and settings.body_mass_kg is not None
+        else "",
     }
     thresholds = settings.zone_thresholds if settings else DEFAULT_ZONE_THRESHOLDS
     values.update(zip(ZONE_FIELDS, map(_number, thresholds), strict=False))
@@ -124,6 +130,17 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
         errors["zone_model"] = "Choose a zone model."
         zone_model = DEFAULT_ZONE_MODEL
 
+    body_mass_kg: float | None = None
+    if mass := values.get("body_mass_kg", "").strip():
+        low, high = BODY_MASS_RANGE_KG
+        try:
+            body_mass_kg = float(mass)
+        except ValueError:
+            errors["body_mass_kg"] = "Enter a body mass in kilograms."
+        else:
+            if not low <= body_mass_kg <= high:
+                errors["body_mass_kg"] = f"Enter a body mass from {low} to {high} kg."
+
     timezone = values.get("timezone", "").strip()
     if timezone not in timezones():
         errors["timezone"] = "Enter a timezone name such as Europe/Copenhagen."
@@ -151,5 +168,6 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
         timezone=timezone,
         zone_model=zone_model,
         zone_thresholds=tuple(thresholds),
+        body_mass_kg=body_mass_kg,
     )
     return settings, {}

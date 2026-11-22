@@ -129,8 +129,9 @@ def test_strava_only_activities_get_the_strava_name_they_were_stored_under(tmp_p
 def test_athlete_settings_hold_at_most_one_row(tmp_path):
     connect(tmp_path)
     insert = (
-        "INSERT INTO athlete_settings VALUES "
-        "(2, 190, 50, 'male', 'UTC', 'max_hr_percent', '[60, 70, 80, 90]')"
+        "INSERT INTO athlete_settings"
+        " (id, max_hr, resting_hr, trimp_coefficients, timezone, zone_model, zone_thresholds)"
+        " VALUES (2, 190, 50, 'male', 'UTC', 'max_hr_percent', '[60, 70, 80, 90]')"
     )
 
     with sqlite3.connect(tmp_path / "makerundev.db") as db, pytest.raises(sqlite3.IntegrityError):

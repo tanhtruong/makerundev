@@ -156,7 +156,8 @@ DYNAMICS_TILES = {
 def stats(page: str) -> dict[str, str]:
     block = re.search(r'<dl class="stats">(.*?)</dl>', page, re.S)
     assert block is not None
-    return dict(re.findall(r"<dt>(.*?)</dt><dd>(.*?)</dd>", block[1]))
+    tiles = re.findall(r"<dt>(.*?)</dt><dd>(.*?)</dd>", block[1])
+    return {name: " ".join(re.sub(r"<[^>]+>", " ", value).split()) for name, value in tiles}
 
 
 def dynamics_tiles(page: str) -> dict[str, str]:
@@ -199,6 +200,36 @@ def test_activity_page_shows_grade_adjusted_pace_and_decoupling_for_runs_only(tm
     assert ride_stats["Pace"] == "5:00 /km"
     assert "Grade-adjusted pace" not in ride_stats
     assert "Aerobic decoupling" not in ride_stats
+
+
+def test_activity_page_shows_estimated_power_once_body_mass_is_set(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    flat = [
+        {"t": float(i), "distance": round(i * 10 / 3, 2), "altitude": 10.0, "power": 250}
+        for i in range(601)
+    ]
+    no_altitude = [{"t": float(i), "distance": round(i * 10 / 3, 2)} for i in range(601)]
+    run_id = upload(client, "flat.fit", make_fit(flat))
+    bare_id = upload(client, "bare.fit", make_fit(no_altitude))
+    ride_id = upload(client, "ride.fit", make_fit(flat, sport=Sport.CYCLING))
+
+    before = stats(client.get(f"/activities/{run_id}").text)
+    assert before["Avg power"] == "250 W"
+    assert "Estimated power" not in before
+
+    Store(tmp_path, connect(tmp_path)).save_athlete_settings(
+        AthleteSettings(max_hr=190, resting_hr=50, body_mass_kg=70.0)
+    )
+    run_stats, bare_stats, ride_stats = (
+        stats(client.get(f"/activities/{activity_id}").text)
+        for activity_id in (run_id, bare_id, ride_id)
+    )
+
+    assert run_stats["Estimated power"] == "234 W 3.34 W/kg"
+    assert run_stats["Avg power"] == "250 W 3.57 W/kg"
+    assert bare_stats["Estimated power"] == "-"
+    assert "Avg power" not in bare_stats
+    assert "Estimated power" not in ride_stats
 
 
 def strip_dynamics(tmp_path, data: bytes) -> Path:

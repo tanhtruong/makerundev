@@ -44,9 +44,9 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 ### Self-hosted app
 
 - Import one or many files; duplicates (same bytes) are skipped.
-- Activity list and activity page with pace, heart rate and elevation charts, the route shape, splits, laps, running dynamics averages, best efforts, time in zones and TRIMP.
+- Activity list and activity page with pace, heart rate and elevation charts, the route shape, splits, laps, running dynamics averages, best efforts, average power, estimated power, time in zones and TRIMP.
 - Training load page: fitness, fatigue and form over time from daily TRIMP.
-- Athlete settings: max and resting heart rate, TRIMP coefficients, zones and timezone; TRIMP is stored per activity and recomputed when its inputs change.
+- Athlete settings: max and resting heart rate, TRIMP coefficients, zones, timezone and body mass; TRIMP is stored per activity and recomputed when its inputs change, while estimated power is worked out when the page opens.
 - Strava sync page: connect, sync by hand, see what was skipped, disconnect.
 - Garmin sync page: save a Personal API key, sync by hand, see what was skipped, remove the key.
 - JSON API: `GET /api/activities`, `GET /api/activities/{id}/records`.

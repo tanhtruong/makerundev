@@ -17,6 +17,7 @@ from makerundev import ActivityFileError, Lap, format
 from makerundev.metrics import (
     aerobic_decoupling,
     best_efforts,
+    estimated_power,
     splits,
     summarize,
     time_in_zones,
@@ -133,6 +134,7 @@ def create_app(
         records = activity.records
         summary = summarize(activity)
         settings = store.athlete_settings()
+        body_mass_kg = settings.body_mass_kg if settings else None
         zones = []
         if settings is not None:
             boundaries = settings.zone_boundaries_bpm()
@@ -148,6 +150,11 @@ def create_app(
                 "is_running": activity.sport.is_running,
                 "grade_adjusted_pace": summary.grade_adjusted_pace_s_per_km,
                 "decoupling": aerobic_decoupling(activity),
+                "avg_power": summary.avg_power,
+                "body_mass_kg": body_mass_kg,
+                "estimated_power": estimated_power(activity, body_mass_kg)
+                if body_mass_kg is not None
+                else None,
                 "efforts": best_efforts(activity),
                 "splits": _unless_single(splits(activity)),
                 "laps": _lap_rows(store.laps(row)),

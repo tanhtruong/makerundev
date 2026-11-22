@@ -2,16 +2,16 @@
 {% block title %}Settings - makerundev{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-<p class="meta">Your heart-rate numbers. Time in zones and TRIMP are computed from them.</p>
+<p class="meta">Your heart rate and body mass. Zones, TRIMP and estimated power are computed from them.</p>
 
 {% if notice %}<p class="notice" role="status">{{ notice }}</p>{% endif %}
 {% if errors %}<p class="notice error" role="alert">Some values need fixing. Nothing was saved.</p>{% endif %}
 
-{% macro field(name, label, hint=None, suffix=None, mode="numeric") %}
+{% macro field(name, label, hint=None, suffix=None, mode="numeric", required=True) %}
 <div class="field{% if errors[name] %} invalid{% endif %}">
   <label for="{{ name }}">{{ label }}</label>
   <span class="input">
-    <input id="{{ name }}" name="{{ name }}" value="{{ values[name] }}" inputmode="{{ mode }}" required
+    <input id="{{ name }}" name="{{ name }}" value="{{ values[name] }}" inputmode="{{ mode }}"{% if required %} required{% endif %}
       {% if errors[name] or hint %}aria-describedby="{{ name }}-note"{% endif %}>
     {% if suffix %}<span class="suffix">{{ suffix }}</span>{% endif %}
   </span>
@@ -34,6 +34,11 @@
       </select>
       <span class="note">{{ errors.trimp_coefficients or "Banister's weighting of heart-rate reserve." }}</span>
     </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Body</legend>
+    {{ field("body_mass_kg", "Body mass", "Used for estimated power. Leave blank if you don't want it.", "kg", "decimal", required=False) }}
   </fieldset>
 
   <fieldset>

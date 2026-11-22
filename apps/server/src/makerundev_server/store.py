@@ -202,6 +202,7 @@ class Store:
                     timezone=settings.timezone,
                     zone_model=settings.zone_model.value,
                     zone_thresholds=list(settings.zone_thresholds),
+                    body_mass_kg=settings.body_mass_kg,
                 )
             )
             session.commit()
@@ -502,6 +503,7 @@ def _settings(session: Session) -> AthleteSettings | None:
         timezone=row.timezone,
         zone_model=ZoneModel(row.zone_model),
         zone_thresholds=tuple(row.zone_thresholds),
+        body_mass_kg=row.body_mass_kg,
     )
 
 

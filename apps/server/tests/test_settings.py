@@ -59,6 +59,7 @@ def test_saved_settings_persist_across_restarts(tmp_path):
         TestClient(create_app(data_dir=tmp_path)),
         zone_model="hr_reserve_percent",
         zone_3="72.1234567",
+        body_mass_kg="68.5",
     )
 
     assert response.status_code == 303
@@ -68,6 +69,7 @@ def test_saved_settings_persist_across_restarts(tmp_path):
     assert 'name="max_hr" value="190"' in page.text
     assert 'name="resting_hr" value="50"' in page.text
     assert 'name="zone_3" value="72.1234567"' in page.text
+    assert 'name="body_mass_kg" value="68.5"' in page.text
     assert 'name="zone_2" value="60"' in page.text
     assert 'value="Europe/Copenhagen"' in page.text
     assert '<option value="male" selected>' in page.text
@@ -93,7 +95,7 @@ def test_trimp_is_recomputed_only_when_an_input_to_it_changes(tmp_path, steady_r
     upload(client, "run.fit", steady_run_fit)
     save(client)
 
-    unchanged = save(client, zone_2="65", timezone="UTC")
+    unchanged = save(client, zone_2="65", timezone="UTC", body_mass_kg="70")
     assert unchanged.headers["location"] == "/settings?recomputed=0&unreadable=0"
 
     changed = save(client, trimp_coefficients="female")
@@ -101,6 +103,15 @@ def test_trimp_is_recomputed_only_when_an_input_to_it_changes(tmp_path, steady_r
     assert stored_trimp(tmp_path) == [
         pytest.approx(1000 / 60 * RESERVE * 0.86 * math.exp(1.67 * RESERVE))
     ]
+
+
+def test_a_blank_body_mass_clears_the_saved_one(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+    save(client, body_mass_kg="68.5")
+
+    save(client, body_mass_kg="")
+
+    assert 'name="body_mass_kg" value=""' in client.get("/settings").text
 
 
 def test_activity_without_heart_rate_stores_no_trimp(tmp_path, make_fit):
@@ -155,6 +166,9 @@ def test_an_out_of_range_zone_does_not_flag_the_next_one(tmp_path):
         ({"timezone": "Mars/Olympus"}, "timezone", "Enter a timezone name"),
         ({"trimp_coefficients": "other"}, "trimp_coefficients", "Choose male or female"),
         ({"zone_model": "other"}, "zone_model", "Choose a zone model."),
+        ({"body_mass_kg": "29.9"}, "body_mass_kg", "Enter a body mass from 30 to 200 kg."),
+        ({"body_mass_kg": "200.1"}, "body_mass_kg", "Enter a body mass from 30 to 200 kg."),
+        ({"body_mass_kg": "heavy"}, "body_mass_kg", "Enter a body mass in kilograms."),
     ],
 )
 def test_invalid_settings_are_shown_back_and_not_saved(tmp_path, changes, field, message):
