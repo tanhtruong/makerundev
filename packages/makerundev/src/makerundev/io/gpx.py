@@ -32,7 +32,8 @@ def read_gpx(root: Element) -> Activity:
         for segment in children(track, "trkseg")
         for point in children(segment, "trkpt")
     ]
-    return Activity.from_rows(rows, sport=sport, source_format="gpx")
+    name = (text(tracks[0], "name") if tracks else None) or text(root, "metadata", "name")
+    return Activity.from_rows(rows, sport=sport, source_format="gpx", name=name)
 
 
 def _point(point: Element, cadence_factor: int) -> dict[str, Any]:

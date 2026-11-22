@@ -115,6 +115,7 @@ def test_gpx_track_gets_distance_and_speed_from_positions():
     activity = load(FIXTURES / "run.gpx")
 
     assert activity.source_format == "gpx"
+    assert activity.name == "Morning Run"
     assert activity.laps == ()
     assert activity.sport is Sport.RUNNING
     assert activity.start_time == START
@@ -122,6 +123,24 @@ def test_gpx_track_gets_distance_and_speed_from_positions():
     assert activity.records["cadence"].to_list() == [168, 170, 172]
     assert activity.records["distance"].to_list() == pytest.approx([0.0, 111.19, 222.39], abs=0.05)
     assert activity.records["speed"][1] == pytest.approx(111.19 / 30, abs=0.01)
+
+
+@pytest.mark.parametrize(
+    ("header", "first_track", "name"),
+    [
+        ("<metadata><name>Exported</name></metadata>", "<name> </name>", "Exported"),
+        ("", "", None),
+    ],
+)
+def test_gpx_name_falls_back_from_the_first_track_to_the_metadata(header, first_track, name):
+    point = '<trkpt lat="55.67" lon="12.56"><time>2026-03-01T07:00:00Z</time></trkpt>'
+    gpx = (
+        f'<gpx xmlns="http://www.topografix.com/GPX/1/1">{header}'
+        f"<trk>{first_track}<trkseg>{point}</trkseg></trk>"
+        f"<trk><name>Second track</name><trkseg>{point}</trkseg></trk></gpx>"
+    )
+
+    assert load(gpx.encode()).name == name
 
 
 def test_tcx_trackpoints_are_read_with_extensions():

@@ -396,6 +396,7 @@ def _row(store: Store, activity_id: int) -> ActivityRow:
 def _as_dict(row: ActivityRow) -> dict[str, Any]:
     return {
         "id": row.id,
+        "name": row.name,
         "filename": row.filename,
         "sport": row.sport,
         "device": row.device,

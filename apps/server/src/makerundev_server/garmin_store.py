@@ -76,15 +76,21 @@ class GarminStore:
             _connected(session).backfill_done = True
             session.commit()
 
-    def claim(self, start: dt.datetime, distance_m: float, phase: Phase) -> bool:
+    def claim(self, start: dt.datetime, distance_m: float, name: str | None, phase: Phase) -> bool:
         with self.writing, Session(self.engine) as session:
             connection = _connected(session)
-            if not any(
-                row.sha256 is not None
-                and same_activity(start, distance_m, row.start_time, row.distance_m)
-                for row in nearby(session, start)
-            ):
+            match = next(
+                (
+                    row
+                    for row in nearby(session, start)
+                    if row.sha256 is not None
+                    and same_activity(start, distance_m, row.start_time, row.distance_m)
+                ),
+                None,
+            )
+            if match is None:
                 return False
+            match.name = match.name or name
             connection.matched += 1
             advance(connection, phase, start)
             session.commit()

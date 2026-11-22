@@ -46,6 +46,7 @@ def test_streams_are_mapped_onto_the_record_stream_in_canonical_units():
     activity = read_strava(summary(), streams())
 
     assert activity.source_format == "strava"
+    assert activity.name == "Morning Run"
     assert activity.sport is Sport.RUNNING
     assert activity.start_time == START
     assert activity.device is None

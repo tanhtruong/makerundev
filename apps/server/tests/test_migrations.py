@@ -2,13 +2,16 @@ import datetime as dt
 import sqlite3
 
 import pytest
+from alembic import command
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from fastapi.testclient import TestClient
 from makerundev.model import normalize_records
 from makerundev_server import create_app
 from makerundev_server.db import MIGRATIONS, Base, connect
+from sqlalchemy import create_engine
 
 SCHEMA_0_1_0 = """
 CREATE TABLE activities (
@@ -86,6 +89,41 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
     )
     with sqlite3.connect(tmp_path / "pacelab.db") as db, pytest.raises(sqlite3.IntegrityError):
         db.execute(duplicate)
+
+
+def test_strava_only_activities_get_the_strava_name_they_were_stored_under(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'makerundev.db'}")
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0006")
+    insert = (
+        "INSERT INTO activities (sha256, storage_key, external_source, external_id, filename,"
+        " source_format, sport, start_time, distance_m, elapsed_s, moving_s, elevation_gain_m,"
+        " imported_at) VALUES (?, ?, ?, ?, ?, 'fit', 'running', '2026-02-01 06:30:00',"
+        " 1.0, 1.0, 1.0, 0.0, '2026-02-01 08:00:00')"
+    )
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(insert, (None, "strava-1", "strava", "1", "Lunch Run"))
+        db.execute(insert, ("cd", "cd", "strava", "2", "watch.fit"))
+        db.execute(insert, ("ef", "ef", None, None, "other.gpx"))
+        db.execute(insert, (None, "strava-3", "strava", "3", "Strava activity"))
+        db.execute(insert, (None, "strava-4", "strava", "4", " Hill reps\t"))
+        db.execute(insert, (None, "strava-5", "strava", "5", "  "))
+
+    connect(tmp_path)
+
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        names = db.execute("SELECT storage_key, name FROM activities ORDER BY id").fetchall()
+    assert names == [
+        ("strava-1", "Lunch Run"),
+        ("cd", None),
+        ("ef", None),
+        ("strava-3", None),
+        ("strava-4", "Hill reps"),
+        ("strava-5", None),
+    ]
 
 
 def test_athlete_settings_hold_at_most_one_row(tmp_path):

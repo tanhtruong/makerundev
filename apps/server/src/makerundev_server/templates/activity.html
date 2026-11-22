@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ activity.filename }} - makerundev{% endblock %}
+{% block title %}{{ activity.name or activity.filename }} - makerundev{% endblock %}
 {% block content %}
 <p class="crumb"><a href="/">All activities</a></p>
 <h1>{{ activity.sport.replace("_", " ") | capitalize }} on {{ activity.start_time | local(timezone, "%Y-%m-%d %H:%M %Z") }}</h1>
-<p class="meta">{{ activity.filename }}{% if activity.device %} · {{ activity.device }}{% endif %}{% if strava_url %} · <a class="strava-link" href="{{ strava_url }}" rel="noopener">View on Strava</a>{% endif %}</p>
+<p class="meta">{% if activity.name and activity.name != activity.filename %}{{ activity.name }} · {% endif %}{{ activity.filename }}{% if activity.device %} · {{ activity.device }}{% endif %}{% if strava_url %} · <a class="strava-link" href="{{ strava_url }}" rel="noopener">View on Strava</a>{% endif %}</p>
 
 <dl class="stats">
   <div><dt>Distance</dt><dd>{{ activity.distance_m | km }}</dd></div>

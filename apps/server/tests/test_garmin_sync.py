@@ -1,7 +1,7 @@
 import datetime as dt
 import hashlib
 
-from garmin_fake import KEY, FakeGarmin, app_with, listing, save_key, sync
+from garmin_fake import KEY, FakeGarmin, app_with, listing, run_start, save_key, sync
 from makerundev.io.strava import read_strava
 from makerundev_server import garmin
 from makerundev_server.garmin import Token
@@ -27,10 +27,12 @@ def test_a_saved_key_syncs_every_activity_as_a_file_newest_first(tmp_path, make_
 
     assert fake.downloads == ["3", "2", "1"]
     activities = client.get("/api/activities").json()
-    assert [(a["filename"], a["external_source"], a["start_time"]) for a in activities] == [
-        ("garmin-3.fit", None, "2026-03-03T07:00:00+00:00"),
-        ("2_ACTIVITY.fit", None, "2026-03-02T07:00:00+00:00"),
-        ("1_ACTIVITY.fit", None, "2026-03-01T07:00:00+00:00"),
+    assert [
+        (a["filename"], a["name"], a["external_source"], a["start_time"]) for a in activities
+    ] == [
+        ("garmin-3.fit", "Run 3", None, "2026-03-03T07:00:00+00:00"),
+        ("2_ACTIVITY.fit", "Run 2", None, "2026-03-02T07:00:00+00:00"),
+        ("1_ACTIVITY.fit", "Run 1", None, "2026-03-01T07:00:00+00:00"),
     ]
     assert {row.sha256 for row in store.list()} == {sha256(fake.fit(day)) for day in (1, 2, 3)}
     page = client.get("/garmin").text
@@ -52,9 +54,12 @@ def test_runs_already_here_are_not_downloaded_and_strava_only_ones_are_replaced(
     fake = FakeGarmin(make_fit, make_zip)
     fake.run(1, 1)
     fake.run(2, 2)
+    fake.run(3, 3)
     client, store = app_with(tmp_path, fake)
     upload(client, "watch.fit", fake.fit(1, heart_rate=150))
+    upload(client, "unnamed.fit", fake.fit(3, heart_rate=150))
     store.save_strava_tokens(Tokens("access", "refresh", FAR))
+    assert store.claim_strava(summary(8, 1), run_start(1), "backfill")
     strava_run = summary(7, 2)
     store.add_strava(strava_run, streams(), read_strava(strava_run, streams()), "backfill")
     save_key(client)
@@ -63,15 +68,36 @@ def test_runs_already_here_are_not_downloaded_and_strava_only_ones_are_replaced(
 
     assert fake.downloads == ["2"]
     rows = {row.start_time.day: row for row in store.list()}
-    assert sorted(rows) == [1, 2]
-    assert rows[1].filename == "watch.fit"
-    assert (rows[2].filename, rows[2].sha256, rows[2].external_id) == (
+    assert sorted(rows) == [1, 2, 3]
+    assert (rows[1].filename, rows[1].name) == ("watch.fit", "Run 8")
+    assert (rows[2].filename, rows[2].name, rows[2].sha256, rows[2].external_id) == (
         "2_ACTIVITY.fit",
+        "Run 7",
         sha256(fake.fit(2)),
         "7",
     )
+    assert (rows[3].filename, rows[3].name) == ("unnamed.fit", "Run 3")
     connection = store.garmin.connection()
-    assert (connection.imported, connection.matched) == (1, 1)
+    assert (connection.imported, connection.matched) == (1, 2)
+
+
+def test_the_garmin_name_wins_over_the_name_in_the_downloaded_file(tmp_path, make_fit, make_zip):
+    fake = FakeGarmin(make_fit, make_zip)
+    fake.run(1, 1)
+    gpx = (
+        '<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">'
+        "<trk><name>Track name</name><trkseg>"
+        '<trkpt lat="55.67" lon="12.56"><time>2026-03-01T07:00:00Z</time></trkpt>'
+        '<trkpt lat="55.68" lon="12.56"><time>2026-03-01T07:05:00Z</time></trkpt>'
+        "</trkseg></trk></gpx>"
+    )
+    fake.files["1"] = make_zip(("1_ACTIVITY.gpx", gpx.encode()))
+    client, store = app_with(tmp_path, fake)
+    save_key(client)
+
+    assert sync(store, fake) == UP_TO_DATE
+
+    assert [(row.source_format, row.name) for row in store.list()] == [("gpx", "Run 1")]
 
 
 def test_a_throttled_sync_stops_and_the_next_one_resumes_where_it_stopped(
