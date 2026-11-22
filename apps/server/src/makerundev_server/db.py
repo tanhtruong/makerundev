@@ -42,6 +42,15 @@ class UtcDateTime(TypeDecorator[dt.datetime]):
         return value.replace(tzinfo=dt.UTC) if value is not None else None
 
 
+NAME_LENGTH = 255
+
+
+def activity_name(value: object) -> str | None:
+    if value is None:
+        return None
+    return str(value).strip()[:NAME_LENGTH].strip() or None
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -59,6 +68,7 @@ class ActivityRow(Base):
     external_source: Mapped[str | None] = mapped_column(String(16))
     external_id: Mapped[str | None] = mapped_column(String(32))
     filename: Mapped[str] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(String(NAME_LENGTH))
     source_format: Mapped[str] = mapped_column(String(8))
     sport: Mapped[str] = mapped_column(String(32))
     device: Mapped[str | None] = mapped_column(String(128))

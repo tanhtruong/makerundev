@@ -10,6 +10,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 - Heart-rate zones can be a percentage of heart-rate reserve (Karvonen): pick the zone model in Settings, and each zone starts at resting + (max − resting) × the threshold. Settings also show the heart rate each zone starts at. Existing settings stay on % of max heart rate, so time in zones does not change until the model is switched.
 - `makerundev.format.zone_starts(boundaries_bpm)`, the whole-bpm heart rate each zone from zone 2 starts at, rounded up as `zone_range` labels them.
+- Activities keep their name. The app shows the Strava name, the Garmin Connect name or a GPX file's track name in the activity list and on the activity page, and `GET /api/activities` returns it as `name` (`null` when there is none) next to `filename`. A Strava name is no longer lost when a Garmin file replaces the synced activity, and is now kept when Strava matches a file uploaded first. Names that were overwritten before this release cannot be recovered, and a GPX file imported before it keeps showing its file name.
+- `makerundev.Activity.name`, the activity's name: a GPX file's first track name or, without one, its metadata name; the Strava activity's name for `read_strava`; `None` for FIT and TCX.
 - `makerundev.metrics.critical_speed(efforts)` fits critical speed (m/s) and D′ (m) to a `{distance_m: time_s}` mapping such as `best_efforts` returns, using efforts of 2 to 20 minutes, and returns `makerundev.metrics.CriticalSpeed` or `None`.
 
 ## [0.6.0] - 2026-11-22

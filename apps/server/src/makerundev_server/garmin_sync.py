@@ -11,6 +11,7 @@ from makerundev.io import unzip
 from sqlalchemy.exc import SQLAlchemyError
 
 from makerundev_server import garmin
+from makerundev_server.db import activity_name
 from makerundev_server.matching import strava_id_in
 from makerundev_server.store import Store
 from makerundev_server.sync_state import FAILED, REFRESH_MARGIN, UP_TO_DATE, Phase, utc
@@ -36,6 +37,7 @@ class GarminListing:
     start: dt.datetime
     distance_m: float
     manual: bool
+    name: str | None
 
 
 class GarminSync:
@@ -120,7 +122,7 @@ class GarminSync:
                 return
 
     def _one(self, item: GarminListing, phase: Phase) -> None:
-        if self.store.garmin.claim(item.start, item.distance_m, phase):
+        if self.store.garmin.claim(item.start, item.distance_m, item.name, phase):
             return
         if item.manual:
             self.store.garmin.skip(item.entry, item.start, MANUAL, phase)
@@ -134,7 +136,7 @@ class GarminSync:
         if self.store.garmin.connection() is None:
             raise garmin.Unauthorized("no Garmin key")
         try:
-            result = self.store.import_file(name, body)
+            result = self.store.import_file(name, body, item.name)
         except ActivityFileError as error:
             self.store.garmin.skip(item.entry, item.start, str(error), phase)
             return
@@ -158,6 +160,7 @@ def _listings(page: list[dict[str, Any]]) -> list[GarminListing]:
                     start=utc(str(entry["startTimeGMT"])),
                     distance_m=float(entry.get("distance") or 0.0),
                     manual=bool(entry.get("manualActivity") or entry.get("isManualActivity")),
+                    name=activity_name(entry.get("activityName")),
                 )
             )
         except (KeyError, TypeError, ValueError):

@@ -60,7 +60,10 @@ def read_strava(activity: Mapping[str, Any], streams: Streams) -> Activity:
         for key, column in COLUMNS.items():
             row[column] = _at(data.get(key), index)
         rows.append(row)
-    return Activity.from_rows(rows, sport=sport, source_format="strava", start_time=start)
+    name = str(activity.get("name") or "").strip() or None
+    return Activity.from_rows(
+        rows, sport=sport, source_format="strava", start_time=start, name=name
+    )
 
 
 def _stream_data(streams: Streams) -> dict[str, list[Any]]:

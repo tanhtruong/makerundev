@@ -213,13 +213,23 @@ def test_activity_whose_original_no_longer_matches_gets_empty_running_dynamics(t
 
 GPX = b"""<?xml version="1.0"?>
 <gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
-  <trk><type>running</type><trkseg>
+  <trk><name>Harbour loop</name><type>running</type><trkseg>
     <trkpt lat="55.6700" lon="12.5600"><time>2026-03-01T07:00:00Z</time></trkpt>
     <trkpt lat="55.6710" lon="12.5600"><time>2026-03-01T07:00:30Z</time></trkpt>
     <trkpt lat="55.6720" lon="12.5600"><time>2026-03-01T07:01:00Z</time></trkpt>
   </trkseg></trk>
 </gpx>
 """
+
+
+def test_gpx_activity_is_listed_by_its_track_name(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+    upload(client, "run.gpx", GPX)
+
+    [activity] = client.get("/api/activities").json()
+
+    assert (activity["name"], activity["filename"]) == ("Harbour loop", "run.gpx")
+    assert table_cells(client.get("/").text, "activities")[1] == "Harbour loop"
 
 
 def test_gpx_activity_shows_no_running_dynamics_and_is_not_rewritten(tmp_path):

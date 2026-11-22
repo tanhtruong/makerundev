@@ -25,6 +25,7 @@ from makerundev_server.db import (
     GarminConnectionRow,
     StravaConnectionRow,
     SyncState,
+    activity_name,
 )
 from makerundev_server.garmin_store import GarminStore
 from makerundev_server.matching import nearby, same_activity, strava_id_in
@@ -70,7 +71,7 @@ class Store:
         self.streams.mkdir(parents=True, exist_ok=True)
         self.garmin = GarminStore(engine, self.writing)
 
-    def import_file(self, filename: str, data: bytes) -> ImportResult:
+    def import_file(self, filename: str, data: bytes, name: str | None = None) -> ImportResult:
         entry = unzip(data)
         if entry is not None:
             filename, data = entry
@@ -81,13 +82,14 @@ class Store:
                 return ImportResult(existing, created=False)
             activity = load(data)
             summary = summarize(activity)
-            name = Path(filename).name[:255] or "upload"
-            synced = _synced_match(session, name, activity.start_time, summary.distance_m)
+            basename = Path(filename).name[:255] or "upload"
+            synced = _synced_match(session, basename, activity.start_time, summary.distance_m)
             replaced = synced.storage_key if synced is not None else None
             row = synced if synced is not None else ActivityRow()
             row.sha256 = digest
             row.storage_key = digest
-            row.filename = name
+            row.filename = basename
+            row.name = row.name or activity_name(name) or activity_name(activity.name)
             _describe(row, activity, summary, _settings(session))
             session.add(row)
             session.flush()
@@ -270,6 +272,7 @@ class Store:
                     return False
                 file_row.external_source = STRAVA
                 file_row.external_id = strava_id
+                file_row.name = activity_name(summary.get("name")) or file_row.name
                 connection.matched += 1
             advance(connection, phase, start)
             session.commit()
@@ -292,6 +295,7 @@ class Store:
                 external_source=STRAVA,
                 external_id=strava_id,
                 filename=str(summary.get("name") or "Strava activity")[:255],
+                name=activity_name(activity.name),
             )
             _describe(row, activity, described, _settings(session))
             connection = _connected(session)

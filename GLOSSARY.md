@@ -1,6 +1,8 @@
 # Glossary
 
-**Activity** - One recorded workout: its sport, start time, source device and record stream. Built by `makerundev.load` from a file, or by `Activity.from_rows`.
+**Activity** - One recorded workout: its sport, start time, source device, name and record stream. Built by `makerundev.load` from a file, or by `Activity.from_rows`.
+
+**Activity name** - The title a runner knows an activity by, such as "Morning Run". Read from a GPX file's first track, or its metadata when the track has none; FIT and TCX files carry none. The app also takes it from Strava and from the Garmin Connect listing. Strava's name wins over any other; a Garmin name wins over the one in the file it downloads; otherwise an activity keeps the first name it was given. An activity without a name is shown by its file name.
 
 **Record stream** - The per-sample telemetry of an activity, a polars DataFrame with the canonical columns and units listed in the README. Every source format is normalised into it; nothing downstream knows which format a file came from.
 

@@ -66,6 +66,7 @@ class Activity:
     source_format: SourceFormat = "rows"
     device: str | None = None
     laps: tuple[Lap, ...] = ()
+    name: str | None = None
 
     @classmethod
     def from_rows(
@@ -76,6 +77,7 @@ class Activity:
         device: str | None = None,
         start_time: dt.datetime | None = None,
         laps: Iterable[Lap] = (),
+        name: str | None = None,
     ) -> "Activity":
         records = normalize_records(rows)
         first: dt.datetime = records["timestamp"][0]
@@ -86,6 +88,7 @@ class Activity:
             source_format=source_format,
             device=device,
             laps=tuple(sorted(laps, key=lambda lap: lap.start_time)),
+            name=name,
         )
 
 

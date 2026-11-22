@@ -30,7 +30,7 @@
     {% for a in activities %}
     <tr>
       <td><a href="/activities/{{ a.id }}">{{ a.start_time | local(timezone) }}</a></td>
-      <td class="file">{{ a.filename }}</td>
+      <td class="file">{{ a.name or a.filename }}</td>
       <td>{{ a.sport.replace("_", " ") }}</td>
       <td class="num">{{ a.distance_m | km }}</td>
       <td class="num">{{ a.moving_s | duration }}</td>
