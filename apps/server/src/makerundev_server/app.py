@@ -14,7 +14,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from makerundev import ActivityFileError, Lap, format
-from makerundev.metrics import best_efforts, splits, summarize, time_in_zones
+from makerundev.metrics import (
+    aerobic_decoupling,
+    best_efforts,
+    splits,
+    summarize,
+    time_in_zones,
+)
 
 from makerundev_server import charts, config, garmin
 from makerundev_server.cross_site import CrossSiteGuard
@@ -69,6 +75,7 @@ def create_app(
         km=format.distance,
         duration=format.duration,
         pace=format.pace,
+        decoupling=format.decoupling,
         distance_name=format.distance_name,
         signed=_signed,
         local=_local,
@@ -138,6 +145,9 @@ def create_app(
                 "strava_url": ACTIVITY_URL.format(row.external_id)
                 if row.external_source == "strava"
                 else None,
+                "is_running": activity.sport.is_running,
+                "grade_adjusted_pace": summary.grade_adjusted_pace_s_per_km,
+                "decoupling": aerobic_decoupling(activity),
                 "efforts": best_efforts(activity),
                 "splits": _unless_single(splits(activity)),
                 "laps": _lap_rows(store.laps(row)),

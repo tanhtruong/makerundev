@@ -7,6 +7,7 @@ from pathlib import Path
 import polars as pl
 import pytest
 from fastapi.testclient import TestClient
+from fit_tool.profile.profile_type import Sport
 from makerundev_server import create_app
 from makerundev_server.db import connect
 from makerundev_server.settings import AthleteSettings
@@ -164,8 +165,40 @@ def dynamics_tiles(page: str) -> dict[str, str]:
 
 def upload(client: TestClient, filename: str, data: bytes) -> int:
     client.post("/activities", files=[("files", (filename, data, "application/octet-stream"))])
-    activity_id: int = client.get("/api/activities").json()[0]["id"]
+    activity_id: int = next(
+        row["id"] for row in client.get("/api/activities").json() if row["filename"] == filename
+    )
     return activity_id
+
+
+def test_activity_page_shows_grade_adjusted_pace_and_decoupling_for_runs_only(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    hill = [
+        {
+            "t": i * 3.0,
+            "distance": i * 10.0,
+            "altitude": 200 + i * 1.0,
+            "hr": 140 if i < 150 else 147,
+        }
+        for i in range(301)
+    ]
+    bare = [{"t": float(i), "distance": i * 4.0} for i in range(626)]
+
+    hill_id = upload(client, "hill.fit", make_fit(hill))
+    bare_id = upload(client, "bare.fit", make_fit(bare))
+    ride_id = upload(client, "ride.fit", make_fit(hill, sport=Sport.CYCLING))
+    hill_stats, bare_stats, ride_stats = (
+        stats(client.get(f"/activities/{activity_id}").text)
+        for activity_id in (hill_id, bare_id, ride_id)
+    )
+
+    assert hill_stats["Grade-adjusted pace"] == "3:01 /km"
+    assert hill_stats["Aerobic decoupling"] == "+4.8%"
+    assert bare_stats["Grade-adjusted pace"] == "-"
+    assert bare_stats["Aerobic decoupling"] == "-"
+    assert ride_stats["Pace"] == "5:00 /km"
+    assert "Grade-adjusted pace" not in ride_stats
+    assert "Aerobic decoupling" not in ride_stats
 
 
 def strip_dynamics(tmp_path, data: bytes) -> Path:

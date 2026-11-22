@@ -77,7 +77,7 @@ VDOT is the VO2max that would produce the effort at average running economy. A r
 
 **TRIMP** - Banister's training impulse: minutes weighted by heart-rate reserve, a single number for how hard a session was.
 
-**Aerobic decoupling** - How much efficiency (speed per heartbeat) fell from the first half of the moving time to the second, as a percentage. Under 5 % on a long steady run is read as good aerobic endurance.
+**Aerobic decoupling** - How much efficiency (speed per heartbeat) fell from the first half of the moving time to the second, as a percentage. Under 5 % on a long steady run is read as good aerobic endurance. Running activities only, like grade-adjusted pace.
 
 **Training load** - Daily stress numbers (for example TRIMP per day) fed into the fitness/fatigue model.
 

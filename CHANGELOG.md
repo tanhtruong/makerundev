@@ -16,6 +16,12 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev.Activity.name`, the activity's name: a GPX file's first track name or, without one, its metadata name; the Strava activity's name for `read_strava`; `None` for FIT and TCX.
 - `makerundev.metrics.critical_speed(efforts)` fits critical speed (m/s) and D′ (m) to a `{distance_m: time_s}` mapping such as `best_efforts` returns, using efforts of 2 to 20 minutes, and returns `makerundev.metrics.CriticalSpeed` or `None`.
 - `makerundev.metrics.vdot(distance_m, time_s)`, Jack Daniels' VDOT from one maximal effort, by the Daniels & Gilbert formula. Efforts outside 3 minutes to 5 hours (`makerundev.metrics.VDOT_WINDOW_S`, both ends included), a distance that is not positive or not finite, a NaN time and an effort too slow to give a positive VDOT give `None`. VDOT is the VO2max at average running economy, not the VO2max a watch estimates.
+- The activity page shows grade-adjusted pace after Pace and aerobic decoupling after Avg heart rate, for running activities, with `-` when the run has no altitude or no heart rate. Both are worked out from the stored stream when the page opens, so activities imported before this release show them too.
+- `makerundev.format.decoupling(percent)`, aerobic decoupling as the CLI and the app print it: `+4.8%`, or `-` for `None`.
+
+### Changed
+
+- `makerundev.metrics.aerobic_decoupling` returns `None` for sports other than running, like grade-adjusted pace, and `makerundev summary --long` prints `decoupling -` for them as 0.6.0 described. Rides, swims and walks that gave a percentage before now give none; runs are unchanged.
 
 ## [0.6.0] - 2026-11-22
 

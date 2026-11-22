@@ -9,7 +9,9 @@
   <div><dt>Distance</dt><dd>{{ activity.distance_m | km }}</dd></div>
   <div><dt>Moving time</dt><dd>{{ activity.moving_s | duration }}</dd></div>
   <div><dt>Pace</dt><dd>{{ activity.pace_s_per_km | pace }}</dd></div>
+  {% if is_running %}<div><dt>Grade-adjusted pace</dt><dd>{{ grade_adjusted_pace | pace }}</dd></div>{% endif %}
   <div><dt>Avg heart rate</dt><dd>{{ "%.0f bpm" | format(activity.avg_heart_rate) if activity.avg_heart_rate else "-" }}</dd></div>
+  {% if is_running %}<div><dt>Aerobic decoupling</dt><dd>{{ decoupling | decoupling }}</dd></div>{% endif %}
   <div><dt>Climb</dt><dd>{{ "%.0f m" | format(activity.elevation_gain_m) }}</dd></div>
   <div><dt>Elapsed</dt><dd>{{ activity.elapsed_s | duration }}</dd></div>
   {% if ground_contact_time is not none %}<div><dt>Ground contact</dt><dd>{{ "%.0f ms" | format(ground_contact_time) }}</dd></div>{% endif %}
