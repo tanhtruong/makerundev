@@ -48,7 +48,7 @@ So that another website cannot make your browser change anything here, every req
 The data directory holds:
 
 - `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens, Garmin key and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
-- `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's stream as gzipped JSON, named `strava-<id>`
+- `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's summary, laps and streams as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
 
 Importing the same file twice is detected by its hash and skipped. Uploads are capped at 64 MB per file. To back up, copy the whole directory; with Docker, `docker cp makerundev:/data ./makerundev-backup` (`docker compose cp` from a clone).
@@ -58,9 +58,10 @@ Importing the same file twice is detected by its hash and skipped. Uploads are c
 Create a Strava API application under [Settings → My API Application](https://www.strava.com/settings/api), set its **Authorization Callback Domain** to the host you open the app on (`127.0.0.1` and `localhost` are always allowed by Strava), and start the app with `MAKERUNDEV_STRAVA_CLIENT_ID` and `MAKERUNDEV_STRAVA_CLIENT_SECRET`. The **Strava** page then offers **Connect with Strava** and **Sync now**. Behind a reverse proxy, make sure it passes the original host and scheme, because the OAuth redirect address is built from the request.
 
 - **What a sync does.** It fetches activities newer than the newest one synced, then continues back through your history, newest first, with one request per activity for its streams. It runs in the background; the page refreshes while it does.
-- **Rate limits.** Strava allows a new application 100 read requests per 15 minutes and 1,000 per day. A sync stops before either runs out and the next one continues where it stopped.
+- **Rate limits.** Strava allows a new application 100 read requests per 15 minutes and 1,000 per day. Each activity takes two, its streams and its details with the laps. A sync stops before either limit runs out and the next one continues where it stopped.
+- **Laps.** Each activity comes with the laps your watch recorded. Activities synced before laps were get theirs over the next syncs, after what is new and the backfill.
 - **Files win.** A Strava activity is matched to one you imported from a file by the Strava id in a bulk-export filename, or by starting within 60 s and covering the same distance within 5% or 200 m, whichever is larger. The file's data is kept and gains a "View on Strava" link. Importing the file after a sync replaces the synced stream.
-- **What is not synced.** Activities without streams, such as manual entries, are listed on the page and not tried again. The device name is not fetched. Edits and deletions made on Strava after an activity was synced are not picked up.
+- **What is not synced.** Activities without streams, such as manual entries, are listed on the page and not tried again. The device name is not read. Edits and deletions made on Strava after an activity was synced are not picked up.
 - **Disconnect.** Revokes the app's access and deletes the tokens and every activity that came only from Strava. Activities matched to a file stay.
 - **Tokens.** They are stored unencrypted in the database in your data directory, and nowhere else.
 

@@ -1,17 +1,23 @@
 import datetime as dt
 import gzip
 import json
+import re
+import sqlite3
 
 import httpx2
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.settings import AthleteSettings
 from makerundev_server.sync import PAUSED_DAILY, PAUSED_SHORT, REJECTED, UP_TO_DATE
-from strava_fake import FakeStrava, connected, summary, sync
+from strava_fake import FakeStrava, connected, lap, summary, sync
 
 
 def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     fake = FakeStrava([summary(1, 1), summary(2, 2), summary(3, 3)])
+    fake.laps["3"] = [
+        lap("2026-03-03T07:00:00Z", 300, 1000.0),
+        lap("2026-03-03T07:05:00Z", 700, 2000.0),
+    ]
     client, store = connected(tmp_path, fake)
     store.save_athlete_settings(AthleteSettings(max_hr=190, resting_hr=50))
 
@@ -36,10 +42,23 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     page = client.get(f"/activities/{newest['id']}")
     assert 'href="https://www.strava.com/activities/3"' in page.text
     assert "View on Strava" in page.text
+    assert lap_rows(page.text) == [
+        ["1", "5:00", "1.00 km", "5:00 /km"],
+        ["2", "11:40", "2.00 km", "5:50 /km"],
+    ]
     original = json.loads(gzip.decompress((tmp_path / "originals" / "strava-3").read_bytes()))
     assert original["activity"]["id"] == 3
+    assert [item["distance"] for item in original["activity"]["laps"]] == [1000.0, 2000.0]
     connection = store.strava_connection()
     assert (connection.imported, connection.matched, connection.backfill_done) == (3, 0, True)
+
+
+def lap_rows(page: str) -> list[list[str]]:
+    if '<table class="laps">' not in page:
+        return []
+    table = page.split('<table class="laps">')[1].split("</table>")[0]
+    body = table.split("<tbody>")[1]
+    return [re.findall(r'<td class="num">([^<]*)</td>', row) for row in body.split("</tr>")[:-1]]
 
 
 def test_a_later_sync_only_asks_for_what_is_new(tmp_path):
@@ -62,10 +81,10 @@ def test_sync_pauses_before_the_rate_limit_and_resumes_where_it_stopped(tmp_path
 
     assert sync(store, fake) == PAUSED_SHORT
 
-    assert fake.usage[0] == 6
-    assert fake.stream_requests() == ["8", "7", "6", "5", "4"]
+    assert fake.usage[0] == 5
+    assert fake.stream_requests() == ["8", "7"]
     assert store.strava_connection().backfill_done is False
-    fake.usage = [0, fake.usage[1]]
+    fake.limit = (100, 1000)
 
     assert sync(store, fake) == UP_TO_DATE
 
@@ -79,7 +98,7 @@ def test_sync_pauses_for_the_day_when_the_daily_limit_is_close(tmp_path):
 
     assert sync(store, fake) == PAUSED_DAILY
 
-    assert fake.stream_requests() == ["2"]
+    assert fake.stream_requests() == []
 
 
 def test_a_429_from_strava_pauses_the_sync(tmp_path):
@@ -199,3 +218,55 @@ def test_an_activity_without_a_start_time_does_not_stop_the_sync(tmp_path):
     assert sync(store, fake) == UP_TO_DATE
 
     assert [a["external_id"] for a in client.get("/api/activities").json()] == ["2", "1"]
+
+
+def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_next_time(tmp_path):
+    fake = FakeStrava([summary(1, 1)])
+    fake.laps["1"] = [
+        lap("2026-03-01T07:00:00Z", 300, 1000.0),
+        lap("2026-03-01T07:05:00Z", 700, 2000.0),
+    ]
+    fake.throttled_detail.add("1")
+    client, store = connected(tmp_path, fake)
+
+    assert sync(store, fake) == PAUSED_SHORT
+
+    assert fake.stream_requests() == ["1"]
+    assert client.get("/api/activities").json() == []
+    fake.throttled_detail.clear()
+
+    assert sync(store, fake) == UP_TO_DATE
+
+    [activity] = client.get("/api/activities").json()
+    assert len(lap_rows(client.get(f"/activities/{activity['id']}").text)) == 2
+
+
+def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path):
+    fake = FakeStrava([summary(1, 1), summary(2, 2)])
+    client, store = connected(tmp_path, fake)
+    sync(store, fake)
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute("UPDATE activities SET laps = NULL")
+    fake.laps["1"] = [
+        lap("2026-03-01T07:00:00Z", 300, 1000.0),
+        lap("2026-03-01T07:05:00Z", 700, 2000.0),
+    ]
+    fake.without_detail.add("2")
+    fake.requests.clear()
+    ids = {a["external_id"]: a["id"] for a in client.get("/api/activities").json()}
+    assert lap_rows(client.get(f"/activities/{ids['1']}").text) == []
+
+    assert sync(store, fake) == UP_TO_DATE
+
+    assert fake.stream_requests() == []
+    assert sorted(fake.detail_requests()) == ["1", "2"]
+    assert len(lap_rows(client.get(f"/activities/{ids['1']}").text)) == 2
+    original = json.loads(gzip.decompress((tmp_path / "originals" / "strava-1").read_bytes()))
+    assert len(original["activity"]["laps"]) == 2
+    assert len(original["streams"]["time"]["data"]) == 1001
+    assert lap_rows(client.get(f"/activities/{ids['2']}").text) == []
+    fake.requests.clear()
+
+    assert sync(store, fake) == UP_TO_DATE
+
+    assert fake.detail_requests() == []
