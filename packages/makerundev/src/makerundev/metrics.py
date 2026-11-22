@@ -22,6 +22,7 @@ BANISTER_MALE = (0.64, 1.92)
 BANISTER_FEMALE = (0.86, 1.67)
 DEFAULT_ZONE_THRESHOLDS = (60.0, 70.0, 80.0, 90.0)
 DEFAULT_EFFORT_DISTANCES_M = (400.0, 1000.0, 1609.344, 5000.0, 10000.0, 21097.5, 42195.0)
+CRITICAL_SPEED_WINDOW_S = (120.0, 1200.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +49,12 @@ class Split:
     elapsed_s: float
     moving_s: float
     pace_s_per_km: float | None
+
+
+@dataclass(frozen=True, slots=True)
+class CriticalSpeed:
+    speed_mps: float
+    d_prime_m: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -212,6 +219,21 @@ def best_efforts(
         finish = _at_distance(distance, elapsed, ends[starts])
         efforts[target] = float(np.min(finish - elapsed[starts]))
     return efforts
+
+
+def critical_speed(efforts: Mapping[float, float]) -> CriticalSpeed | None:
+    shortest, longest = CRITICAL_SPEED_WINDOW_S
+    kept = {d: t for d, t in efforts.items() if shortest <= t <= longest}
+    times = np.array(list(kept.values()), dtype=np.float64)
+    distances = np.array(list(kept.keys()), dtype=np.float64)
+    if np.unique(times).size < 2:
+        return None
+    offsets = times - times.mean()
+    speed = float(np.sum(offsets * (distances - distances.mean())) / np.sum(offsets * offsets))
+    d_prime = float(distances.mean() - speed * times.mean())
+    if speed <= 0 or d_prime <= 0:
+        return None
+    return CriticalSpeed(speed_mps=speed, d_prime_m=d_prime)
 
 
 def splits(activity: Activity, every_m: float = 1000.0) -> list[Split]:

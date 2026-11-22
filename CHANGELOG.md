@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- `makerundev.metrics.critical_speed(efforts)` fits critical speed (m/s) and D′ (m) to a `{distance_m: time_s}` mapping such as `best_efforts` returns, using efforts of 2 to 20 minutes, and returns `makerundev.metrics.CriticalSpeed` or `None`.
+
 ## [0.6.0] - 2026-11-22
 
 ### Added

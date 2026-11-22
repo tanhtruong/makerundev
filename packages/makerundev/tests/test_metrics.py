@@ -5,8 +5,10 @@ import numpy as np
 import pytest
 from makerundev import Activity, Sport
 from makerundev.metrics import (
+    CriticalSpeed,
     aerobic_decoupling,
     best_efforts,
+    critical_speed,
     elevation_change,
     grade_adjusted_pace,
     splits,
@@ -61,6 +63,28 @@ def test_best_efforts_interpolate_and_skip_distances_longer_than_the_run():
     efforts = best_efforts(run(rows), distances_m=(400.0, 1000.0, 1609.344, 5000.0))
 
     assert efforts == pytest.approx({400.0: 80.0, 1000.0: 200.0, 1609.344: 352.336})
+
+
+def test_critical_speed_fits_efforts_of_two_to_twenty_minutes_by_least_squares():
+    efforts = {500.0: 119.0, 600.0: 120.0, 2900.0: 660.0, 4920.0: 1200.0, 5100.0: 1201.0}
+
+    fit = critical_speed(efforts)
+
+    assert fit == CriticalSpeed(speed_mps=pytest.approx(4.0), d_prime_m=pytest.approx(500 / 3))
+
+
+@pytest.mark.parametrize(
+    "efforts",
+    [
+        {400.0: 70.0, 1000.0: 240.0, 10000.0: 2400.0},
+        {1000.0: 200.0, 900.0: 400.0},
+        {800.0: 200.0, 1800.0: 400.0},
+        {1200.0: 300.0, 1300.0: 300.0},
+    ],
+    ids=["one-effort-in-window", "non-positive-speed", "non-positive-d-prime", "same-duration"],
+)
+def test_critical_speed_is_unavailable_without_a_meaningful_fit(efforts):
+    assert critical_speed(efforts) is None
 
 
 def test_splits_interpolate_boundaries_and_leave_pauses_out_of_moving_time():

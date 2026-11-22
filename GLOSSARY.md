@@ -53,6 +53,10 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **Best effort** - The fastest time over a fixed distance anywhere within an activity, interpolated between samples.
 
+**Critical speed** - The speed a runner can hold for a long time without fatigue building rapidly, in m/s: the slope of the straight line through the distance and time of maximal efforts lasting 2 to 20 minutes, both ends included, fitted by least squares. Unavailable with fewer than two such efforts of different durations, or when the line gives a speed or D′ that is not positive.
+
+**D′** (D prime) - The distance a runner can cover faster than critical speed before exhaustion, in metres: where the same line crosses zero time.
+
 **Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app and the CLI, thresholds are percentages of max heart rate, by default 60, 70, 80 and 90 % (the starts of zones 2 to 5).
 
 **Zone model** - How zone thresholds are expressed and turned into heart rates. The app supports `max_hr_percent` (five zones, thresholds as % of max heart rate); others, such as % of heart-rate reserve, may follow.
