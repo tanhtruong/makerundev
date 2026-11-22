@@ -37,8 +37,10 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - Aerobic decoupling.
 - Grade-adjusted pace (Minetti cost model).
 - Training load: fitness, fatigue, form.
+- Critical speed and D′ from maximal efforts of 2 to 20 minutes.
+- VDOT (Daniels & Gilbert) from one maximal effort of 3 minutes to 5 hours.
 
-Next in line: running power from pace and grade when no power meter is present, VO2max estimate from race results, critical speed.
+Next in line: running power from pace and grade when no power meter is present.
 
 ### Self-hosted app
 

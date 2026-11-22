@@ -39,6 +39,12 @@ Metric definitions are part of the public contract. A change needs:
 3. A note in the pull request on how results shift for existing users.
 4. An entry under `[Unreleased]` in `CHANGELOG.md` saying the same.
 
+Naming follows three rules:
+
+- A metric that comes from one model is named after it, such as VDOT or critical speed, not after the physiological quantity the model estimates.
+- An estimated value never shares a name or a column with a measured one.
+- A generically named metric, such as climb or grade-adjusted pace, moves to a better model in place, following this section, with no versioned functions.
+
 ## Pull requests
 
 1. Start a branch in your fork from the latest `main`:
