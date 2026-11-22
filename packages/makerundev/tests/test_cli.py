@@ -171,7 +171,7 @@ def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and
 
 def test_efforts_prints_the_fastest_time_over_each_distance_the_run_covers(tmp_path, make_fit):
     path = tmp_path / "run.fit"
-    path.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(626)]))
+    path.write_bytes(make_fit([{"t": float(i), "distance": i * 4.0} for i in range(801)]))
 
     result = CliRunner().invoke(app, ["efforts", str(path)])
 
@@ -180,6 +180,7 @@ def test_efforts_prints_the_fastest_time_over_each_distance_the_run_covers(tmp_p
         "         400 m  1:40",
         "          1 km  4:10",
         "        1 mile  6:42",
+        "          3 km  12:30",
     ]
 
 

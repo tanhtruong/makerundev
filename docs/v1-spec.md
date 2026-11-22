@@ -29,7 +29,7 @@ Give runners full, private access to the telemetry their watch records, with met
 All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 
 - Summary: distance, elapsed and moving time, pace, average and max heart rate, average cadence and power, climb and descent.
-- Best efforts: 400 m, 1 km, 1 mile, 5 km, 10 km, half marathon, marathon.
+- Best efforts: 400 m, 1 km, 1 mile, 3 km, 5 km, 10 km, half marathon, marathon.
 - Splits: moving time and pace per kilometre, the last split being whatever distance remains.
 - Running dynamics averages: ground contact time, vertical oscillation and step length, where the FIT file has them.
 - Time in heart-rate zones.

@@ -23,6 +23,7 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Changed
 
+- Best efforts include 3 km: `makerundev.metrics.best_efforts` returns a `3000.0` key, and `makerundev efforts` and the activity page list it, for any run at least 3 km long. It gives critical speed a third effort inside its 2 to 20 minutes for most runners, who otherwise have only the 1 km and the mile there. The other distances and their times are unchanged.
 - `makerundev.metrics.aerobic_decoupling` returns `None` for sports other than running, like grade-adjusted pace, and `makerundev summary --long` prints `decoupling -` for them as 0.6.0 described. Rides, swims and walks that gave a percentage before now give none; runs are unchanged.
 
 ## [0.6.0] - 2026-11-22
