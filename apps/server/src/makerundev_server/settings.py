@@ -11,6 +11,14 @@ from makerundev.metrics import BANISTER_FEMALE, BANISTER_MALE, DEFAULT_ZONE_THRE
 
 class ZoneModel(StrEnum):
     MAX_HR_PERCENT = "max_hr_percent"
+    HR_RESERVE_PERCENT = "hr_reserve_percent"
+
+
+DEFAULT_ZONE_MODEL = ZoneModel.MAX_HR_PERCENT
+ZONE_MODEL_LABELS: dict[str, str] = {
+    ZoneModel.MAX_HR_PERCENT: "max heart rate",
+    ZoneModel.HR_RESERVE_PERCENT: "heart-rate reserve",
+}
 
 
 class TrimpCoefficients(StrEnum):
@@ -23,7 +31,14 @@ ZONE_COUNT = 5
 MAX_HR_RANGE = (100, 250)
 RESTING_HR_RANGE = (20, 120)
 ZONE_FIELDS = tuple(f"zone_{zone}" for zone in range(2, ZONE_COUNT + 1))
-FORM_FIELDS = ("max_hr", "resting_hr", "trimp_coefficients", "timezone", *ZONE_FIELDS)
+FORM_FIELDS = (
+    "max_hr",
+    "resting_hr",
+    "trimp_coefficients",
+    "timezone",
+    "zone_model",
+    *ZONE_FIELDS,
+)
 
 
 @functools.cache
@@ -45,7 +60,7 @@ class AthleteSettings:
     resting_hr: int
     trimp_coefficients: TrimpCoefficients = TrimpCoefficients.MALE
     timezone: str = "UTC"
-    zone_model: ZoneModel = ZoneModel.MAX_HR_PERCENT
+    zone_model: ZoneModel = DEFAULT_ZONE_MODEL
     zone_thresholds: tuple[float, ...] = field(default=DEFAULT_ZONE_THRESHOLDS)
 
     @property
@@ -53,7 +68,10 @@ class AthleteSettings:
         return COEFFICIENTS[self.trimp_coefficients]
 
     def zone_boundaries_bpm(self) -> list[float]:
-        return [self.max_hr * threshold / 100 for threshold in self.zone_thresholds]
+        floor, span = 0, self.max_hr
+        if self.zone_model is ZoneModel.HR_RESERVE_PERCENT:
+            floor, span = self.resting_hr, self.max_hr - self.resting_hr
+        return [floor + span * threshold / 100 for threshold in self.zone_thresholds]
 
     def trimp_inputs(self) -> tuple[int, int, TrimpCoefficients]:
         return self.max_hr, self.resting_hr, self.trimp_coefficients
@@ -65,6 +83,7 @@ def form_values(settings: AthleteSettings | None) -> dict[str, str]:
         "resting_hr": str(settings.resting_hr) if settings else "",
         "trimp_coefficients": settings.trimp_coefficients if settings else TrimpCoefficients.MALE,
         "timezone": settings.timezone if settings else default_timezone(),
+        "zone_model": settings.zone_model if settings else DEFAULT_ZONE_MODEL,
     }
     thresholds = settings.zone_thresholds if settings else DEFAULT_ZONE_THRESHOLDS
     values.update(zip(ZONE_FIELDS, map(_number, thresholds), strict=False))
@@ -99,6 +118,12 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
         errors["trimp_coefficients"] = "Choose male or female coefficients."
         coefficients = TrimpCoefficients.MALE
 
+    try:
+        zone_model = ZoneModel(values.get("zone_model", ""))
+    except ValueError:
+        errors["zone_model"] = "Choose a zone model."
+        zone_model = DEFAULT_ZONE_MODEL
+
     timezone = values.get("timezone", "").strip()
     if timezone not in timezones():
         errors["timezone"] = "Enter a timezone name such as Europe/Copenhagen."
@@ -124,6 +149,7 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
         resting_hr=resting_hr,
         trimp_coefficients=coefficients,
         timezone=timezone,
+        zone_model=zone_model,
         zone_thresholds=tuple(thresholds),
     )
     return settings, {}

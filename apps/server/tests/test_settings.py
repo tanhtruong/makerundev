@@ -12,6 +12,7 @@ FORM = {
     "resting_hr": "50",
     "trimp_coefficients": "male",
     "timezone": "Europe/Copenhagen",
+    "zone_model": "max_hr_percent",
     "zone_2": "60",
     "zone_3": "70",
     "zone_4": "80",
@@ -54,7 +55,11 @@ def test_settings_start_unset_with_default_zones_and_a_max_heart_rate_hint(
 
 
 def test_saved_settings_persist_across_restarts(tmp_path):
-    response = save(TestClient(create_app(data_dir=tmp_path)), zone_3="72.1234567")
+    response = save(
+        TestClient(create_app(data_dir=tmp_path)),
+        zone_model="hr_reserve_percent",
+        zone_3="72.1234567",
+    )
 
     assert response.status_code == 303
     assert response.headers["location"] == "/settings?recomputed=0&unreadable=0"
@@ -66,6 +71,9 @@ def test_saved_settings_persist_across_restarts(tmp_path):
     assert 'name="zone_2" value="60"' in page.text
     assert 'value="Europe/Copenhagen"' in page.text
     assert '<option value="male" selected>' in page.text
+    assert '<option value="hr_reserve_percent" selected>' in page.text
+    assert 'id="zone_2-note">134 bpm<' in page.text
+    assert 'id="zone_3-note">151 bpm<' in page.text
 
 
 def test_first_save_computes_trimp_for_activities_imported_before(tmp_path, steady_run_fit):
@@ -146,6 +154,7 @@ def test_an_out_of_range_zone_does_not_flag_the_next_one(tmp_path):
         ({"zone_5": "100"}, "zone_5", "Enter a percentage between 0 and 100."),
         ({"timezone": "Mars/Olympus"}, "timezone", "Enter a timezone name"),
         ({"trimp_coefficients": "other"}, "trimp_coefficients", "Choose male or female"),
+        ({"zone_model": "other"}, "zone_model", "Choose a zone model."),
     ],
 )
 def test_invalid_settings_are_shown_back_and_not_saved(tmp_path, changes, field, message):
@@ -157,6 +166,6 @@ def test_invalid_settings_are_shown_back_and_not_saved(tmp_path, changes, field,
     assert message in response.text
     assert "Nothing was saved." in response.text
     for name, value in changes.items():
-        if name != "trimp_coefficients":
+        if name not in ("trimp_coefficients", "zone_model"):
             assert f'name="{name}" value="{value}"' in response.text
     assert 'name="max_hr" value=""' in client.get("/settings").text

@@ -7,6 +7,7 @@ FORM = {
     "resting_hr": "50",
     "trimp_coefficients": "male",
     "timezone": "UTC",
+    "zone_model": "max_hr_percent",
     "zone_2": "60",
     "zone_3": "70",
     "zone_4": "80",

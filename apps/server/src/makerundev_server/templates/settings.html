@@ -38,9 +38,18 @@
 
   <fieldset>
     <legend>Zones</legend>
-    <p class="meta">Where each zone starts, as a percentage of max heart rate. Zone 1 is everything below zone 2.</p>
+    <p class="meta">Where each zone starts, as a percentage of {{ zone_label }}. Zone 1 is everything below zone 2.</p>
+    <div class="field{% if errors.zone_model %} invalid{% endif %}">
+      <label for="zone_model">Zone model</label>
+      <select id="zone_model" name="zone_model" aria-describedby="zone_model-note">
+        {% for option, label in zone_models.items() %}
+        <option value="{{ option }}"{% if values.zone_model == option %} selected{% endif %}>% of {{ label }}</option>
+        {% endfor %}
+      </select>
+      <span class="note" id="zone_model-note">{{ errors.zone_model or "A zone starts at max × % or, for reserve, at resting + (max − resting) × %." }}</span>
+    </div>
     {% for name in zone_fields %}
-    {{ field(name, "Zone %s starts at" | format(loop.index + 1), None, "% of max", "decimal") }}
+    {{ field(name, "Zone %s starts at" | format(loop.index + 1), ("%d bpm" | format(zone_starts[loop.index0])) if zone_starts else None, "%", "decimal") }}
     {% endfor %}
   </fieldset>
 
