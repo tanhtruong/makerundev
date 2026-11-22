@@ -37,6 +37,16 @@ grade-adjusted pace = moving time / (sum of interval distance * C(g) / C(0)), pe
 
 Defined for running sports only. Unavailable when an activity has no moving intervals or any moving interval lacks altitude at either end.
 
+**Estimated power** - The running power a power meter would report, estimated from speed, grade and body mass, in watts: the average over a run's moving intervals, each weighted by its duration, like average power. It uses the model from van Dijk & van Megen, *The Secret of Running* (2017), as the authors describe it on [TrainingPeaks](https://trainingpeaks.com/blog/running-with-power-what-it-can-tell-us-about-our-human-limits) and [Stryd's blog](https://blog.stryd.com/2019/12/17/the-cost-of-running-up-and-down-hills/):
+
+```text
+P       = ECOR(i) · m · v + ½ · ρ · cdA · v³
+ECOR(i) = 0.98 + (i / 100) · 9.81 · (45.6 + 1.16 i) / 100   (J/kg/m)
+ρ = 1.205 kg/m³, cdA = 0.24 m²
+```
+
+`v` is a moving interval's speed in m/s, `m` the runner's body mass in kg and `i` the interval's grade in percent, taken as for grade-adjusted pace. The air term assumes still air and a fixed frontal area, so no height is needed; a treadmill run has no air term, since the runner does not move through the air. Defined for running sports only, and unavailable whenever grade-adjusted pace is. It is a model estimate: never stored as power and never part of average power. Stryd and Garmin each define running power their own way, so a meter's number differs from this one, and from the other meter's.
+
 **Cadence** - Steps per minute, both feet. FIT, GPX and TCX files store running cadence per foot; the parsers double it.
 
 **Running dynamics** - Ground contact time, vertical oscillation and step length, measured per record by a watch or heart-rate strap with an accelerometer. Read from FIT files as the device recorded them, zeros included; other sources have none.
