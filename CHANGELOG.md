@@ -8,6 +8,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ### Added
 
+- Heart-rate zones can be a percentage of heart-rate reserve (Karvonen): pick the zone model in Settings, and each zone starts at resting + (max − resting) × the threshold. Settings also show the heart rate each zone starts at. Existing settings stay on % of max heart rate, so time in zones does not change until the model is switched.
+- `makerundev.format.zone_starts(boundaries_bpm)`, the whole-bpm heart rate each zone from zone 2 starts at, rounded up as `zone_range` labels them.
 - `makerundev.metrics.critical_speed(efforts)` fits critical speed (m/s) and D′ (m) to a `{distance_m: time_s}` mapping such as `best_efforts` returns, using efforts of 2 to 20 minutes, and returns `makerundev.metrics.CriticalSpeed` or `None`.
 
 ## [0.6.0] - 2026-11-22

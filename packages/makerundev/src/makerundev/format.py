@@ -45,8 +45,12 @@ def distance_name(meters: float) -> str:
     return f"{meters / 1000:g} km"
 
 
+def zone_starts(boundaries_bpm: Sequence[float]) -> list[int]:
+    return [math.ceil(boundary) for boundary in boundaries_bpm]
+
+
 def zone_range(zone: int, boundaries_bpm: Sequence[float]) -> str:
-    starts = [math.ceil(boundary) for boundary in boundaries_bpm]
+    starts = zone_starts(boundaries_bpm)
     if zone == 0:
         return f"under {starts[0]} bpm"
     if zone == len(starts):

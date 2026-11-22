@@ -20,7 +20,15 @@ from makerundev_server import charts, config, garmin
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import ActivityRow, connect
 from makerundev_server.garmin_sync import GarminSync
-from makerundev_server.settings import FORM_FIELDS, ZONE_FIELDS, form_values, parse_form, timezones
+from makerundev_server.settings import (
+    DEFAULT_ZONE_MODEL,
+    FORM_FIELDS,
+    ZONE_FIELDS,
+    ZONE_MODEL_LABELS,
+    form_values,
+    parse_form,
+    timezones,
+)
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
 from makerundev_server.sync import StravaSync
@@ -154,6 +162,8 @@ def create_app(
         notice: str | None = None,
         status_code: int = 200,
     ) -> HTMLResponse:
+        saved = store.athlete_settings()
+        starts = format.zone_starts(saved.zone_boundaries_bpm()) if saved and not errors else []
         return templates.TemplateResponse(
             request,
             "settings.html",
@@ -162,6 +172,11 @@ def create_app(
                 "errors": errors,
                 "notice": notice,
                 "zone_fields": ZONE_FIELDS,
+                "zone_models": ZONE_MODEL_LABELS,
+                "zone_label": ZONE_MODEL_LABELS.get(
+                    values["zone_model"], ZONE_MODEL_LABELS[DEFAULT_ZONE_MODEL]
+                ),
+                "zone_starts": starts,
                 "timezones": sorted(timezones()),
                 "highest_heart_rate": store.highest_heart_rate(),
             },

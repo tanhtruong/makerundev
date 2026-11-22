@@ -1,5 +1,6 @@
 import datetime as dt
 import itertools
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,6 +15,7 @@ SETTINGS = {
     "resting_hr": "50",
     "trimp_coefficients": "male",
     "timezone": "Europe/Copenhagen",
+    "zone_model": "max_hr_percent",
     "zone_2": "60",
     "zone_3": "70",
     "zone_4": "80",
@@ -116,6 +118,18 @@ def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
     assert "Zone 1 <span>under 114 bpm</span>" in page.text
     assert "Zone 5 <span>171 bpm and up</span>" in page.text
     assert "100%" in page.text
+
+
+def test_heart_rate_reserve_zones_start_from_resting_heart_rate(tmp_path, steady_run_fit):
+    client = client_with(tmp_path, ("run.fit", steady_run_fit), settings=False)
+    client.post("/settings", data=SETTINGS | {"zone_model": "hr_reserve_percent"})
+    activity = client.get("/api/activities").json()[0]
+
+    page = client.get(f"/activities/{activity['id']}")
+
+    assert "Zone 1 <span>under 134 bpm</span>" in page.text
+    assert "Zone 4 <span>162-175 bpm</span>" in page.text
+    assert re.search(r"Zone 2 <span>134-147 bpm</span>(?:(?!</tr>).)*>100%<", page.text, re.S)
 
 
 def test_activity_page_asks_for_settings_before_zones(tmp_path, steady_run_fit):

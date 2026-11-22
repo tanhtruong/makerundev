@@ -57,9 +57,9 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **D′** (D prime) - The distance a runner can cover faster than critical speed before exhaustion, in metres: where the same line crosses zero time.
 
-**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. In the app and the CLI, thresholds are percentages of max heart rate, by default 60, 70, 80 and 90 % (the starts of zones 2 to 5).
+**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. Thresholds default to 60, 70, 80 and 90 % (the starts of zones 2 to 5). In the app they are percentages of max heart rate or of heart-rate reserve, as the zone model says; in the CLI, of max heart rate.
 
-**Zone model** - How zone thresholds are expressed and turned into heart rates. The app supports `max_hr_percent` (five zones, thresholds as % of max heart rate); others, such as % of heart-rate reserve, may follow.
+**Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates.
 
 **Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, and timezone, kept by the app. The timezone decides which local day an activity counts toward in training load.
 
