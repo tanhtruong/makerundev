@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-22
+
 ### Added
 
 - `makerundev summary --long` (`-l`) adds grade-adjusted pace and aerobic decoupling to the end of each line, as `GAP 5:03 /km  decoupling +3.1%`, with `-` for a value the file cannot give (a sport other than running, no altitude or no heart rate).
@@ -98,7 +100,8 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tanhtruong/makerundev/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tanhtruong/makerundev/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tanhtruong/makerundev/compare/v0.2.0...v0.3.0
