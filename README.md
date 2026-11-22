@@ -64,6 +64,7 @@ uvx makerundev efforts race.fit
          400 m  1:34
           1 km  3:56
         1 mile  6:21
+          3 km  11:52
           5 km  19:53
          10 km  39:48
  Half marathon  1:24:04
@@ -172,7 +173,7 @@ Each activity comes in as the original file your watch recorded, as if you had u
 | Grade-adjusted pace | Your pace as if the route were flat, from the Minetti energy-cost model |
 | Estimated power | The watts a running power meter would show, from your speed, the gradient and your body mass, with or without a meter |
 | Climb and descent | Elevation gain and loss, with altimeter noise filtered out |
-| Best efforts | Your fastest 400 m, 1 km, mile, 5 km, 10 km, half and marathon within any run |
+| Best efforts | Your fastest 400 m, 1 km, mile, 3 km, 5 km, 10 km, half and marathon within any run |
 | Splits | Moving time and pace for every kilometre or mile, and for the distance left over at the end |
 | Laps | The laps your watch recorded, with each lap's time, distance and pace |
 | Time in heart-rate zones | How long you spent in each zone, from thresholds you choose |
@@ -210,7 +211,7 @@ activity.records
 summarize(activity)
 # 306.8 (s/km, or None when altitude is missing)
 grade_adjusted_pace(activity)
-# {400.0: 121.6, 1000.0: 306.0, 1609.344: 493.9, 5000.0: 1539.6, 10000.0: 3088.2}
+# {400.0: 121.6, 1000.0: 306.0, 1609.344: 493.9, 3000.0: 920.4, 5000.0: 1539.6, 10000.0: 3088.2}
 best_efforts(activity)
 # [Split(distance_m=1000.0, elapsed_s=312.0, moving_s=312.0, pace_s_per_km=312.0), ...]
 splits(activity)
