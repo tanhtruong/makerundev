@@ -151,3 +151,28 @@ def test_activities_without_a_file_are_told_apart_by_their_external_identity(tmp
         db.execute(insert, ("strava-2", "2"))
         with pytest.raises(sqlite3.IntegrityError):
             db.execute(insert, ("strava-3", "2"))
+
+
+def test_activities_synced_from_strava_before_laps_are_marked_to_fetch_their_laps(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'makerundev.db'}")
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0007")
+    insert = (
+        "INSERT INTO activities (sha256, storage_key, external_source, external_id, filename,"
+        " source_format, sport, start_time, distance_m, elapsed_s, moving_s, elevation_gain_m,"
+        " laps, imported_at) VALUES (?, ?, 'strava', ?, 'Run', 'strava', 'running',"
+        " '2026-02-01 06:30:00', 1.0, 1.0, 1.0, 0.0, ?, '2026-02-01 08:00:00')"
+    )
+    file_laps = '[{"start_time": "2026-02-01T06:30:00+00:00", "elapsed_s": 1.0, "distance_m": 1.0}]'
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(insert, (None, "strava-1", "1", "[]"))
+        db.execute(insert, ("ab", "ab", "2", file_laps))
+
+    connect(tmp_path)
+
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        laps = db.execute("SELECT storage_key, laps FROM activities ORDER BY id").fetchall()
+    assert laps == [("strava-1", None), ("ab", file_laps)]

@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx2
 from makerundev import ActivityFileError
-from makerundev.io.strava import read_strava
+from makerundev.io.strava import read_strava, strava_laps
 
 from makerundev_server.store import Store
 from makerundev_server.strava import (
@@ -35,6 +35,7 @@ class StravaSync:
         try:
             self._newer()
             self._backfill()
+            self._laps()
             message = UP_TO_DATE
         except RateLimited as limit:
             message = PAUSED_DAILY if limit.daily else PAUSED_SHORT
@@ -94,6 +95,7 @@ class StravaSync:
         if summary.get("manual"):
             self.store.skip_strava(summary, start, "a manual entry, with no streams", phase)
             return
+        self.client.ensure(2)
         try:
             streams = self.client.streams(self.access_token(), str(summary["id"]))
         except Refused as refused:
@@ -102,12 +104,29 @@ class StravaSync:
         if streams is None:
             self.store.skip_strava(summary, start, "no streams on Strava", phase)
             return
+        detail = self._detail(str(summary["id"]))
+        kept = dict(summary) if detail is None else {**summary, "laps": detail.get("laps")}
         try:
-            activity = read_strava(summary, streams)
+            activity = read_strava(kept, streams)
         except ActivityFileError as error:
             self.store.skip_strava(summary, start, str(error), phase)
             return
-        self.store.add_strava(summary, streams, activity, phase)
+        self.store.add_strava(kept, streams, activity, phase)
+
+    def _laps(self) -> None:
+        for row_id, strava_id in self.store.strava_without_laps():
+            detail = self._detail(strava_id)
+            if detail is None:
+                self.store.save_strava_laps(row_id, None, ())
+            else:
+                listed = detail.get("laps")
+                self.store.save_strava_laps(row_id, listed, strava_laps(detail))
+
+    def _detail(self, strava_id: str) -> dict[str, Any] | None:
+        try:
+            return self.client.activity(self.access_token(), strava_id)
+        except Refused:
+            return None
 
 
 def _dated(listed: list[dict[str, Any]]) -> list[tuple[dt.datetime, dict[str, Any]]]:

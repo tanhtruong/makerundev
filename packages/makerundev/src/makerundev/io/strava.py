@@ -3,7 +3,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from makerundev.errors import ActivityFileError
-from makerundev.model import Activity, Sport
+from makerundev.model import Activity, Lap, Sport
 
 STREAM_KEYS = (
     "time",
@@ -62,8 +62,41 @@ def read_strava(activity: Mapping[str, Any], streams: Streams) -> Activity:
         rows.append(row)
     name = str(activity.get("name") or "").strip() or None
     return Activity.from_rows(
-        rows, sport=sport, source_format="strava", start_time=start, name=name
+        rows,
+        sport=sport,
+        source_format="strava",
+        start_time=start,
+        name=name,
+        laps=strava_laps(activity),
     )
+
+
+def strava_laps(activity: Mapping[str, Any]) -> tuple[Lap, ...]:
+    listed = activity.get("laps")
+    if not isinstance(listed, list):
+        return ()
+    laps = []
+    for lap in listed:
+        if not isinstance(lap, Mapping):
+            continue
+        try:
+            start = _start(lap)
+        except ActivityFileError:
+            continue
+        laps.append(
+            Lap(
+                start_time=start,
+                elapsed_s=_number(lap.get("elapsed_time")),
+                distance_m=_number(lap.get("distance")),
+            )
+        )
+    return tuple(sorted(laps, key=lambda lap: lap.start_time))
+
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return None
+    return float(value)
 
 
 def _stream_data(streams: Streams) -> dict[str, list[Any]]:

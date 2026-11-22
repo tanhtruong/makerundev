@@ -9,6 +9,8 @@ A change to a metric definition is always listed, with how results shift for exi
 ### Added
 
 - Heart-rate zones can be a percentage of heart-rate reserve (Karvonen): pick the zone model in Settings, and each zone starts at resting + (max − resting) × the threshold. Settings also show the heart rate each zone starts at. Existing settings stay on % of max heart rate, so time in zones does not change until the model is switched.
+- Activities synced from Strava have laps. Each activity now takes two Strava requests, its streams and its details, so a first sync of a long history takes about twice as many syncs. Activities synced before this release get their laps over the next syncs, after anything new and the backfill.
+- `makerundev.io.strava.strava_laps(activity)` maps the laps of a Strava detailed activity onto `Lap`, and `read_strava` reads them when the activity it is given has them.
 - `makerundev.format.zone_starts(boundaries_bpm)`, the whole-bpm heart rate each zone from zone 2 starts at, rounded up as `zone_range` labels them.
 - Activities keep their name. The app shows the Strava name, the Garmin Connect name or a GPX file's track name in the activity list and on the activity page, and `GET /api/activities` returns it as `name` (`null` when there is none) next to `filename`. A Strava name is no longer lost when a Garmin file replaces the synced activity, and is now kept when Strava matches a file uploaded first. Names that were overwritten before this release cannot be recovered, and a GPX file imported before it keeps showing its file name.
 - `makerundev.Activity.name`, the activity's name: a GPX file's first track name or, without one, its metadata name; the Strava activity's name for `read_strava`; `None` for FIT and TCX.

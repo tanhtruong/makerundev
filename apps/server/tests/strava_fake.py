@@ -49,6 +49,9 @@ class FakeStrava:
         self.token_grants: list[dict[str, str]] = []
         self.broken_streams: dict[str, dict] = {}
         self.refused: set[str] = set()
+        self.laps: dict[str, list[dict]] = {}
+        self.without_detail: set[str] = set()
+        self.throttled_detail: set[str] = set()
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
@@ -82,9 +85,22 @@ class FakeStrava:
         strava_id = path.split("/")[4]
         if strava_id in self.refused:
             return httpx2.Response(403, json={"message": "Forbidden"}, headers=self.rate())
+        if path.endswith(f"/activities/{strava_id}"):
+            return self.detail(strava_id)
         if strava_id in self.without_streams:
             return httpx2.Response(404, json={"message": "Not Found"}, headers=self.rate())
         body = self.broken_streams.get(strava_id, streams())
+        return httpx2.Response(200, json=body, headers=self.rate())
+
+    def detail(self, strava_id: str) -> httpx2.Response:
+        found = [a for a in self.activities if str(a["id"]) == strava_id]
+        if strava_id in self.throttled_detail:
+            return httpx2.Response(
+                429, json={"message": "Rate Limit Exceeded"}, headers=self.rate()
+            )
+        if strava_id in self.without_detail or not found:
+            return httpx2.Response(404, json={"message": "Not Found"}, headers=self.rate())
+        body = found[0] | {"laps": self.laps.get(strava_id, [])}
         return httpx2.Response(200, json=body, headers=self.rate())
 
     def rate(self) -> dict[str, str]:
@@ -109,6 +125,17 @@ class FakeStrava:
 
     def stream_requests(self) -> list[str]:
         return [path.split("/")[2] for path in self.requests if path.endswith("/streams")]
+
+    def detail_requests(self) -> list[str]:
+        return [
+            path.split("/")[2]
+            for path in self.requests
+            if path.startswith("/activities/") and path.count("/") == 2
+        ]
+
+
+def lap(start: str, elapsed_time: float, distance: float) -> dict:
+    return {"start_date": start, "elapsed_time": elapsed_time, "distance": distance}
 
 
 def connected(tmp_path, fake, expires_at=FAR):

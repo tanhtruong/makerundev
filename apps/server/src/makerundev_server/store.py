@@ -150,6 +150,8 @@ class Store:
     def laps(self, row: ActivityRow) -> tuple[Lap, ...]:
         if row.laps is not None:
             return _decode_laps(row.laps)
+        if row.sha256 is None:
+            return ()
         with self.writing, Session(self.engine) as session:
             stored = session.get(ActivityRow, row.id)
             if stored is None:
@@ -307,6 +309,39 @@ class Store:
             activity.records.write_parquet(self.streams / f"{key}.parquet")
             session.commit()
 
+    def strava_without_laps(self) -> tuple[tuple[int, str], ...]:
+        with Session(self.engine) as session:
+            missing = session.execute(
+                select(ActivityRow.id, ActivityRow.external_id)
+                .where(
+                    ActivityRow.external_source == STRAVA,
+                    ActivityRow.sha256.is_(None),
+                    ActivityRow.laps.is_(None),
+                    ActivityRow.external_id.is_not(None),
+                )
+                .order_by(ActivityRow.start_time.desc())
+            )
+            return tuple((row_id, str(strava_id)) for row_id, strava_id in missing)
+
+    def save_strava_laps(self, row_id: int, listed: Any, laps: tuple[Lap, ...]) -> None:
+        with self.writing, Session(self.engine) as session:
+            row = session.get(ActivityRow, row_id)
+            if row is None or row.laps is not None:
+                return
+            if listed is not None:
+                self._keep_strava_laps(row, listed)
+            row.laps = _encode_laps(laps)
+            session.commit()
+
+    def _keep_strava_laps(self, row: ActivityRow, listed: Any) -> None:
+        path = self.originals / row.storage_key
+        try:
+            original = json.loads(gzip.decompress(path.read_bytes()))
+            original["activity"]["laps"] = listed
+            _replace_bytes(gzip.compress(json.dumps(original).encode()), path)
+        except (OSError, ValueError) as error:
+            log.warning("cannot store the laps of activity %s in its original: %s", row.id, error)
+
     def skip_strava(
         self, summary: Mapping[str, Any], start: dt.datetime, reason: str, phase: Phase
     ) -> None:
@@ -363,6 +398,15 @@ def _replace_parquet(records: pl.DataFrame, path: Path) -> None:
     temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
     try:
         records.write_parquet(temporary)
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _replace_bytes(data: bytes, path: Path) -> None:
+    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        temporary.write_bytes(data)
         os.replace(temporary, path)
     finally:
         temporary.unlink(missing_ok=True)

@@ -107,16 +107,21 @@ class StravaClient:
         listed: list[dict[str, Any]] = response.json()
         return listed
 
+    def activity(self, access_token: str, activity_id: str) -> dict[str, Any] | None:
+        return self._found(self._get(access_token, f"/activities/{activity_id}", {}))
+
     def streams(self, access_token: str, activity_id: str) -> dict[str, Any] | None:
         params = {"keys": ",".join(STREAM_KEYS), "key_by_type": "true"}
-        response = self._get(access_token, f"/activities/{activity_id}/streams", params)
+        return self._found(self._get(access_token, f"/activities/{activity_id}/streams", params))
+
+    def _found(self, response: httpx2.Response) -> dict[str, Any] | None:
         if response.status_code == 404:
             return None
         if 400 <= response.status_code < 500:
             raise Refused(response.status_code)
         response.raise_for_status()
-        streams: dict[str, Any] = response.json()
-        return streams
+        body: dict[str, Any] = response.json()
+        return body
 
     def _token(self, grant: dict[str, str]) -> Tokens:
         data = {
@@ -134,13 +139,17 @@ class StravaClient:
             expires_at=dt.datetime.fromtimestamp(body["expires_at"], dt.UTC),
         )
 
+    def ensure(self, requests: int) -> None:
+        if self.remaining is None:
+            return
+        short, daily = (left - (requests - 1) for left in self.remaining)
+        if daily < DAILY_RESERVE:
+            raise RateLimited(daily=True)
+        if short < SHORT_RESERVE:
+            raise RateLimited(daily=False)
+
     def _get(self, access_token: str, path: str, params: dict[str, Any]) -> httpx2.Response:
-        if self.remaining is not None:
-            short, daily = self.remaining
-            if daily < DAILY_RESERVE:
-                raise RateLimited(daily=True)
-            if short < SHORT_RESERVE:
-                raise RateLimited(daily=False)
+        self.ensure(1)
         response = self.http.get(
             API_URL + path, params=params, headers={"Authorization": f"Bearer {access_token}"}
         )

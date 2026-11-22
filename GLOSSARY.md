@@ -20,7 +20,7 @@
 
 **Elapsed time** - Last record's time minus first record's time.
 
-**Lap** - A segment the device recorded, by auto-lap or the lap button: its start time, duration (pauses included) and distance, taken as the device reported them and not checked against the record stream. Read from FIT and TCX; a lap without a start time is dropped.
+**Lap** - A segment the device recorded, by auto-lap or the lap button: its start time, duration (pauses included) and distance, taken as the device reported them and not checked against the record stream. Read from FIT and TCX, and from the laps of a Strava activity; a lap without a start time is dropped.
 
 **Lap pace** - A lap's duration per kilometre. Unlike pace, it includes pauses, because a lap carries only the duration the device reported.
 

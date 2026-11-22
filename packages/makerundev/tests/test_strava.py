@@ -3,7 +3,7 @@ import datetime as dt
 import pytest
 from makerundev import ActivityFileError, Sport, load
 from makerundev.io.strava import read_strava
-from makerundev.model import STREAM_SCHEMA
+from makerundev.model import STREAM_SCHEMA, Lap
 
 START = dt.datetime(2026, 3, 1, 7, 0, tzinfo=dt.UTC)
 
@@ -155,3 +155,23 @@ def test_an_activity_without_a_time_stream_is_rejected(without_time):
 def test_an_unreadable_start_date_is_rejected():
     with pytest.raises(ActivityFileError, match="start_date"):
         read_strava(summary(start_date=None), streams())
+
+
+def test_laps_of_a_detailed_activity_become_laps_in_order():
+    laps = [
+        {"start_date": "2026-03-01T07:00:00Z", "elapsed_time": 300, "distance": 1000.0},
+        {"start_date": "2026-03-01T09:05:00+02:00", "elapsed_time": 290.5},
+        {"start_date": None, "elapsed_time": 10, "distance": 30.0},
+        None,
+        {"start_date": "2026-03-01T07:10:00Z", "elapsed_time": True, "distance": "5"},
+    ]
+
+    activity = read_strava(summary(laps=laps), streams())
+
+    assert activity.laps == (
+        Lap(start_time=START, elapsed_s=300.0, distance_m=1000.0),
+        Lap(start_time=START + dt.timedelta(minutes=5), elapsed_s=290.5, distance_m=None),
+        Lap(start_time=START + dt.timedelta(minutes=10), elapsed_s=None, distance_m=None),
+    )
+    assert [lap.start_time.tzinfo for lap in activity.laps] == [dt.UTC] * 3
+    assert read_strava(summary(laps=3), streams()).laps == ()
