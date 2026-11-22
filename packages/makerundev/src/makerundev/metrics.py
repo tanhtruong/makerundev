@@ -1,4 +1,5 @@
 import datetime as dt
+import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -23,6 +24,7 @@ BANISTER_FEMALE = (0.86, 1.67)
 DEFAULT_ZONE_THRESHOLDS = (60.0, 70.0, 80.0, 90.0)
 DEFAULT_EFFORT_DISTANCES_M = (400.0, 1000.0, 1609.344, 5000.0, 10000.0, 21097.5, 42195.0)
 CRITICAL_SPEED_WINDOW_S = (120.0, 1200.0)
+VDOT_WINDOW_S = (180.0, 18000.0)
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,6 +236,20 @@ def critical_speed(efforts: Mapping[float, float]) -> CriticalSpeed | None:
     if speed <= 0 or d_prime <= 0:
         return None
     return CriticalSpeed(speed_mps=speed, d_prime_m=d_prime)
+
+
+def vdot(distance_m: float, time_s: float) -> float | None:
+    shortest, longest = VDOT_WINDOW_S
+    if not (distance_m > 0 and math.isfinite(distance_m) and shortest <= time_s <= longest):
+        return None
+    minutes = time_s / 60
+    speed_m_per_min = distance_m / minutes
+    oxygen_cost = -4.60 + 0.182258 * speed_m_per_min + 0.000104 * speed_m_per_min**2
+    sustained_fraction = (
+        0.8 + 0.1894393 * math.exp(-0.012778 * minutes) + 0.2989558 * math.exp(-0.1932605 * minutes)
+    )
+    result = oxygen_cost / sustained_fraction
+    return result if result > 0 else None
 
 
 def splits(activity: Activity, every_m: float = 1000.0) -> list[Split]:

@@ -16,6 +16,7 @@ from makerundev.metrics import (
     time_in_zones,
     training_load,
     trimp,
+    vdot,
 )
 
 START = dt.datetime(2026, 3, 1, 7, 0, tzinfo=dt.UTC)
@@ -85,6 +86,48 @@ def test_critical_speed_fits_efforts_of_two_to_twenty_minutes_by_least_squares()
 )
 def test_critical_speed_is_unavailable_without_a_meaningful_fit(efforts):
     assert critical_speed(efforts) is None
+
+
+@pytest.mark.parametrize(
+    ("distance_m", "time_s"),
+    [(5000.0, 1197.0), (10000.0, 2481.0), (21097.5, 5495.0), (42195.0, 11449.0)],
+    ids=["5k", "10k", "half-marathon", "marathon"],
+)
+def test_vdot_matches_the_vdot_50_row_of_daniels_tables(distance_m, time_s):
+    assert vdot(distance_m, time_s) == pytest.approx(50.0, abs=0.05)
+
+
+def test_vdot_follows_daniels_and_gilbert_for_efforts_of_three_minutes_to_five_hours():
+    assert vdot(5000.0, 1200.0) == pytest.approx(49.806, abs=0.001)
+    assert vdot(1000.0, 180.0) is not None
+    assert vdot(42195.0, 18000.0) is not None
+
+
+@pytest.mark.parametrize(
+    ("distance_m", "time_s"),
+    [
+        (400.0, 72.0),
+        (1000.0, 179.9),
+        (42195.0, 18000.1),
+        (0.0, 1200.0),
+        (-50000.0, 1200.0),
+        (math.inf, 1200.0),
+        (5000.0, math.nan),
+        (1000.0, 17000.0),
+    ],
+    ids=[
+        "400m",
+        "under-three-minutes",
+        "over-five-hours",
+        "no-distance",
+        "negative-distance",
+        "infinite-distance",
+        "nan-time",
+        "walking",
+    ],
+)
+def test_vdot_is_unavailable_outside_its_model(distance_m, time_s):
+    assert vdot(distance_m, time_s) is None
 
 
 def test_splits_interpolate_boundaries_and_leave_pauses_out_of_moving_time():

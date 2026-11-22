@@ -249,9 +249,9 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics and the route shape. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics, the route shape, critical speed and VDOT. Next, roughly in order:
 
-- Running power without a power meter, a VO2max estimate from race results, critical speed
+- Running power without a power meter
 - In the app: a map view, search and filters
 
 Not planned: social feeds, segment leaderboards, hosting other people's data or generating training plans. The [v1 spec](docs/v1-spec.md) has the full scope and reasoning.

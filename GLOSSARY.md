@@ -59,6 +59,16 @@ Defined for running sports only. Unavailable when an activity has no moving inte
 
 **D′** (D prime) - The distance a runner can cover faster than critical speed before exhaustion, in metres: where the same line crosses zero time.
 
+**VDOT** - Jack Daniels' running performance index, from one maximal effort lasting 3 minutes to 5 hours, both ends included. With `v` the effort's speed in m/min and `t` its duration in minutes, Daniels & Gilbert (*Oxygen Power*, 1979) give its oxygen cost and the fraction of VO2max a runner can sustain for `t` minutes:
+
+```text
+VO2  = -4.60 + 0.182258 v + 0.000104 v²
+F    = 0.8 + 0.1894393 e^(-0.012778 t) + 0.2989558 e^(-0.1932605 t)
+VDOT = VO2 / F
+```
+
+VDOT is the VO2max that would produce the effort at average running economy. A runner with better or worse economy has a different VO2max for the same VDOT, and it is not the VO2max Garmin or other vendors show. `F` exceeds 1 below about 11 minutes, as Daniels' model expects. Unavailable outside the 3-minute to 5-hour window, about the span of Daniels' tables (shorter efforts lean on anaerobic capacity), for an effort too slow to give a positive VDOT, and for a distance that is not positive or not finite or a time that is not a number.
+
 **Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. Thresholds default to 60, 70, 80 and 90 % (the starts of zones 2 to 5). In the app they are percentages of max heart rate or of heart-rate reserve, as the zone model says; in the CLI, of max heart rate.
 
 **Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates.
