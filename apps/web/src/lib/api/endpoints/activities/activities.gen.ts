@@ -4,20 +4,27 @@
  * makerundev
  * OpenAPI spec version: pre-1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
+import type { ActivityDetail } from "../../model/activity-detail.gen";
+
 import type { ActivityPage } from "../../model/activity-page.gen";
+
+import type { Exclusion } from "../../model/exclusion.gen";
 
 import type { HTTPValidationError } from "../../model/httpvalidation-error.gen";
 
@@ -30,6 +37,27 @@ import type { Problem } from "../../model/problem.gen";
 import { apiFetch } from "../../../api-client";
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+const getHeaders = (...sources: (RequestInit["headers"] | Record<string, string | undefined>)[]) => {
+  const seen = new Set<string>();
+  const layers: [string, string | readonly string[]][][] = [];
+  for (const source of sources.reverse()) {
+    if (!source) continue;
+    const entries =
+      source instanceof Headers
+        ? source.entries()
+        : Symbol.iterator in source
+          ? Array.from(source as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string])
+          : Object.entries<string | readonly string[] | undefined>(source);
+    const layer: [string, string | readonly string[]][] = [];
+    for (const [name, value] of entries) {
+      if (value !== undefined && !seen.has(name.toLowerCase())) layer.push([name, value]);
+    }
+    for (const [name] of layer) seen.add(name.toLowerCase());
+    layers.push(layer);
+  }
+  return Object.fromEntries(layers.reverse().flat()) as Extract<RequestInit["headers"], Record<string, unknown>>;
+};
 
 const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
   const result = { queryKey } as T & { queryKey: K };
@@ -165,6 +193,201 @@ export function useListActivities<TData = Awaited<ReturnType<typeof listActiviti
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getGetActivityUrl = (activityId: number) => {
+  return `/api/activities/${activityId}`;
+};
+
+/**
+ * @summary Get Activity
+ */
+export const getActivity = async (
+  activityId: number,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ActivityDetail> => {
+  return apiFetch<ActivityDetail>(getGetActivityUrl(activityId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetActivityQueryKey = (activityId: number) => {
+  return [`/api/activities/${activityId}`] as const;
+};
+
+export const getGetActivityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActivity>>,
+  TError = Problem | HTTPValidationError,
+>(
+  activityId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetActivityQueryKey(activityId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActivity>>> = ({ signal }) =>
+    getActivity(activityId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: activityId !== null && activityId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetActivityQueryResult = NonNullable<Awaited<ReturnType<typeof getActivity>>>;
+export type GetActivityQueryError = Problem | HTTPValidationError;
+
+/** @summary Get Activity */
+export function useGetActivity<TData = Awaited<ReturnType<typeof getActivity>>, TError = Problem | HTTPValidationError>(
+  activityId: number,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getActivity>>,
+          TError,
+          Awaited<ReturnType<typeof getActivity>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/** @summary Get Activity */
+export function useGetActivity<TData = Awaited<ReturnType<typeof getActivity>>, TError = Problem | HTTPValidationError>(
+  activityId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getActivity>>,
+          TError,
+          Awaited<ReturnType<typeof getActivity>>
+        >,
+        "initialData"
+      >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/** @summary Get Activity */
+export function useGetActivity<TData = Awaited<ReturnType<typeof getActivity>>, TError = Problem | HTTPValidationError>(
+  activityId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/** @summary Get Activity */
+export function useGetActivity<TData = Awaited<ReturnType<typeof getActivity>>, TError = Problem | HTTPValidationError>(
+  activityId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActivity>>, TError, TData>>;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetActivityQueryOptions(activityId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getSetActivityExclusionUrl = (activityId: number) => {
+  return `/api/activities/${activityId}/exclusion`;
+};
+
+/**
+ * @summary Set Activity Exclusion
+ */
+export const setActivityExclusion = async (
+  activityId: number,
+  exclusion: Exclusion,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<Exclusion> => {
+  return apiFetch<Exclusion>(getSetActivityExclusionUrl(activityId), {
+    ...options,
+    method: "PUT",
+    headers: getHeaders({ "Content-Type": "application/json" }, options?.headers),
+    body: JSON.stringify(exclusion),
+  });
+};
+
+export const getSetActivityExclusionMutationKey = () => ["setActivityExclusion"] as const;
+
+export const getSetActivityExclusionMutationOptions = <
+  TError = Problem | HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setActivityExclusion>>,
+    TError,
+    SetActivityExclusionMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setActivityExclusion>>,
+  TError,
+  SetActivityExclusionMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetActivityExclusionMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setActivityExclusion>>,
+    SetActivityExclusionMutationVariables
+  > = (props) => {
+    const { activityId, data } = props ?? {};
+
+    return setActivityExclusion(activityId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetActivityExclusionMutationResult = NonNullable<Awaited<ReturnType<typeof setActivityExclusion>>>;
+export type SetActivityExclusionMutationBody = Exclusion;
+export type SetActivityExclusionMutationError = Problem | HTTPValidationError;
+export type SetActivityExclusionMutationVariables = { activityId: number; data: Exclusion };
+
+/** @summary Set Activity Exclusion */
+export const useSetActivityExclusion = <TError = Problem | HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setActivityExclusion>>,
+      TError,
+      SetActivityExclusionMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof setActivityExclusion>>,
+  TError,
+  SetActivityExclusionMutationVariables,
+  TContext
+> => {
+  return useMutation(getSetActivityExclusionMutationOptions(options), queryClient);
+};
 export const getListActivityRecordsUrl = (activityId: number) => {
   return `/api/activities/${activityId}/records`;
 };

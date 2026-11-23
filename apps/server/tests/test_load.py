@@ -5,7 +5,7 @@ import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
-from fit_tool.profile.profile_type import SubSport
+from fit_tool.profile.profile_type import Sport, SubSport
 from makerundev.metrics import training_load
 from makerundev_server import create_app
 from makerundev_server.charts import WIDTH, load_chart, zone_bars
@@ -99,6 +99,43 @@ def test_excluding_the_source_activity_moves_vdot_to_the_next_best_effort(
     text = performance(client)
     assert "VDOT 47.5 5 km in 20:50, tempo.fit, 5 Mar" in text
     assert "1 activity in the last 6 weeks is excluded" in text
+
+
+def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(
+        tmp_path,
+        ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
+        ("reps.fit", steady(make_fit, 1000, 200, 3)),
+    )
+    reps = ids(client)["reps.fit"]
+
+    response = client.put(f"/api/activities/{reps}/exclusion", json={"excluded": True})
+
+    assert (response.status_code, response.json()) == (200, {"excluded": True})
+    assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is True
+    assert "VDOT 47.5 5 km in 20:50, tempo.fit, 5 Mar" in performance(client)
+
+    client.put(f"/api/activities/{reps}/exclusion", json={"excluded": False})
+
+    assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is False
+    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in performance(client)
+
+
+def test_a_sport_that_does_not_count_cannot_be_excluded(tmp_path, make_fit):
+    client = client_with(
+        tmp_path, ("ride.fit", steady(make_fit, 5000, 600, 3, sport=Sport.CYCLING))
+    )
+    ride = ids(client)["ride.fit"]
+
+    response = client.put(f"/api/activities/{ride}/exclusion", json={"excluded": True})
+
+    assert (response.status_code, response.json()) == (
+        409,
+        {"detail": "activity does not count towards performance"},
+    )
+    assert client.get(f"/api/activities/{ride}").json()["excluded_from_performance"] is False
 
 
 def test_an_activity_stored_without_efforts_gets_them_when_the_load_page_opens(

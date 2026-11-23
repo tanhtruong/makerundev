@@ -61,6 +61,130 @@
         }
       }
     },
+    "/api/activities/{activity_id}": {
+      "get": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Get Activity",
+        "operationId": "getActivity",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivityDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No activity has this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/activities/{activity_id}/exclusion": {
+      "put": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Set Activity Exclusion",
+        "operationId": "setActivityExclusion",
+        "parameters": [
+          {
+            "name": "activity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Activity Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Exclusion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exclusion"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No activity has this id",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The sport does not count towards performance",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/activities/{activity_id}/records": {
       "get": {
         "tags": [
@@ -121,6 +245,341 @@
   },
   "components": {
     "schemas": {
+      "ActivityDetail": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "sport": {
+            "$ref": "#/components/schemas/Sport"
+          },
+          "device": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device"
+          },
+          "source_format": {
+            "type": "string",
+            "enum": [
+              "fit",
+              "gpx",
+              "tcx",
+              "strava",
+              "rows"
+            ],
+            "title": "Source Format"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          },
+          "moving_s": {
+            "type": "number",
+            "title": "Moving S"
+          },
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace S Per Km"
+          },
+          "avg_heart_rate_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Heart Rate Bpm"
+          },
+          "max_heart_rate_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Heart Rate Bpm"
+          },
+          "elevation_gain_m": {
+            "type": "number",
+            "title": "Elevation Gain M"
+          },
+          "trimp": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trimp"
+          },
+          "external_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Source"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "strava_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Strava Url"
+          },
+          "is_running": {
+            "type": "boolean",
+            "title": "Is Running"
+          },
+          "settings_set": {
+            "type": "boolean",
+            "title": "Settings Set"
+          },
+          "body_mass_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Mass Kg"
+          },
+          "counts_for_performance": {
+            "type": "boolean",
+            "title": "Counts For Performance"
+          },
+          "excluded_from_performance": {
+            "type": "boolean",
+            "title": "Excluded From Performance"
+          },
+          "grade_adjusted_pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grade Adjusted Pace S Per Km"
+          },
+          "aerobic_decoupling_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aerobic Decoupling Percent"
+          },
+          "avg_power_w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Power W"
+          },
+          "avg_power_w_per_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avg Power W Per Kg"
+          },
+          "estimated_power_w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Power W"
+          },
+          "estimated_power_w_per_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Power W Per Kg"
+          },
+          "running_dynamics": {
+            "$ref": "#/components/schemas/RunningDynamics"
+          },
+          "splits": {
+            "items": {
+              "$ref": "#/components/schemas/Split"
+            },
+            "type": "array",
+            "title": "Splits"
+          },
+          "laps": {
+            "items": {
+              "$ref": "#/components/schemas/Lap"
+            },
+            "type": "array",
+            "title": "Laps"
+          },
+          "best_efforts": {
+            "items": {
+              "$ref": "#/components/schemas/BestEffort"
+            },
+            "type": "array",
+            "title": "Best Efforts"
+          },
+          "zones": {
+            "items": {
+              "$ref": "#/components/schemas/Zone"
+            },
+            "type": "array",
+            "title": "Zones"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesRow"
+            },
+            "type": "array",
+            "title": "Series"
+          },
+          "series_bounds": {
+            "$ref": "#/components/schemas/SeriesBounds"
+          },
+          "route": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/RoutePoint"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "filename",
+          "sport",
+          "device",
+          "source_format",
+          "start_time",
+          "distance_m",
+          "elapsed_s",
+          "moving_s",
+          "pace_s_per_km",
+          "avg_heart_rate_bpm",
+          "max_heart_rate_bpm",
+          "elevation_gain_m",
+          "trimp",
+          "external_source",
+          "external_id",
+          "strava_url",
+          "is_running",
+          "settings_set",
+          "body_mass_kg",
+          "counts_for_performance",
+          "excluded_from_performance",
+          "grade_adjusted_pace_s_per_km",
+          "aerobic_decoupling_percent",
+          "avg_power_w",
+          "avg_power_w_per_kg",
+          "estimated_power_w",
+          "estimated_power_w_per_kg",
+          "running_dynamics",
+          "splits",
+          "laps",
+          "best_efforts",
+          "zones",
+          "series",
+          "series_bounds",
+          "route"
+        ],
+        "title": "ActivityDetail"
+      },
       "ActivityPage": {
         "properties": {
           "items": {
@@ -298,6 +757,55 @@
         ],
         "title": "ActivitySummary"
       },
+      "BestEffort": {
+        "properties": {
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "elapsed_s"
+        ],
+        "title": "BestEffort"
+      },
+      "Bounds": {
+        "properties": {
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low",
+          "high"
+        ],
+        "title": "Bounds"
+      },
+      "Exclusion": {
+        "properties": {
+          "excluded": {
+            "type": "boolean",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "excluded"
+        ],
+        "title": "Exclusion"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -311,6 +819,55 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "Lap": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed S"
+          },
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace S Per Km"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "distance_m",
+          "elapsed_s",
+          "pace_s_per_km"
+        ],
+        "title": "Lap"
+      },
       "Problem": {
         "properties": {
           "detail": {
@@ -323,6 +880,198 @@
           "detail"
         ],
         "title": "Problem"
+      },
+      "RoutePoint": {
+        "properties": {
+          "latitude_deg": {
+            "type": "number",
+            "title": "Latitude Deg"
+          },
+          "longitude_deg": {
+            "type": "number",
+            "title": "Longitude Deg"
+          }
+        },
+        "type": "object",
+        "required": [
+          "latitude_deg",
+          "longitude_deg"
+        ],
+        "title": "RoutePoint"
+      },
+      "RunningDynamics": {
+        "properties": {
+          "ground_contact_time_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ground Contact Time Ms"
+          },
+          "vertical_oscillation_mm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vertical Oscillation Mm"
+          },
+          "step_length_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step Length M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ground_contact_time_ms",
+          "vertical_oscillation_mm",
+          "step_length_m"
+        ],
+        "title": "RunningDynamics"
+      },
+      "SeriesBounds": {
+        "properties": {
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Bounds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "heart_rate_bpm": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Bounds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "altitude_m": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Bounds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pace_s_per_km",
+          "heart_rate_bpm",
+          "altitude_m"
+        ],
+        "title": "SeriesBounds"
+      },
+      "SeriesRow": {
+        "properties": {
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          },
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace S Per Km"
+          },
+          "heart_rate_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heart Rate Bpm"
+          },
+          "altitude_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "elapsed_s",
+          "pace_s_per_km",
+          "heart_rate_bpm",
+          "altitude_m"
+        ],
+        "title": "SeriesRow"
+      },
+      "Split": {
+        "properties": {
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          },
+          "moving_s": {
+            "type": "number",
+            "title": "Moving S"
+          },
+          "pace_s_per_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pace S Per Km"
+          }
+        },
+        "type": "object",
+        "required": [
+          "distance_m",
+          "elapsed_s",
+          "moving_s",
+          "pace_s_per_km"
+        ],
+        "title": "Split"
       },
       "Sport": {
         "type": "string",
@@ -377,6 +1126,53 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Zone": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "low_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Bpm"
+          },
+          "high_bpm": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High Bpm"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          },
+          "share": {
+            "type": "number",
+            "title": "Share"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "low_bpm",
+          "high_bpm",
+          "elapsed_s",
+          "share"
+        ],
+        "title": "Zone"
       }
     }
   }
