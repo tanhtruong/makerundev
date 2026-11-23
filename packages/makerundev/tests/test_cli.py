@@ -125,7 +125,7 @@ def test_laps_prints_each_recorded_lap_with_its_distance_time_and_pace(tmp_path,
     ]
 
 
-def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and_decoupling(
+def test_summary_prints_each_readable_file_and_long_adds_gap_decoupling_and_estimated_power(
     tmp_path, make_fit
 ):
     hill = tmp_path / "hill.fit"
@@ -150,6 +150,10 @@ def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and
     long = CliRunner().invoke(app, ["summary", "--long", str(hill), str(bare)])
     default = CliRunner().invoke(app, ["summary", str(broken), str(hill)])
     miles = CliRunner().invoke(app, ["summary", "--long", "--units", "mi", str(hill)])
+    power = CliRunner().invoke(
+        app, ["summary", "--long", "--body-mass", "70", str(hill), str(bare)]
+    )
+    without_long = CliRunner().invoke(app, ["summary", "--body-mass", "70", str(hill)])
 
     assert long.exit_code == 0
     assert long.output.splitlines() == [
@@ -167,6 +171,15 @@ def test_summary_prints_each_readable_file_and_long_adds_grade_adjusted_pace_and
         "hill.fit  2026-03-01 07:00  running  1.86 mi  15:00  8:03 /mi  144 bpm  +300 m"
         "  GAP 4:51 /mi  decoupling +4.8%",
     ]
+    assert power.exit_code == 0
+    assert power.output.splitlines() == [
+        "hill.fit  2026-03-01 07:00  running  3.00 km  15:00  5:00 /km  144 bpm  +300 m"
+        "  GAP 3:01 /km  decoupling +4.8%  est. power 365 W",
+        "bare.fit  2026-03-01 07:00  running  2.50 km  10:25  4:10 /km  -  +0 m"
+        "  GAP -  decoupling -  est. power -",
+    ]
+    assert without_long.exit_code == 2
+    assert without_long.stdout == ""
 
 
 def test_efforts_prints_the_fastest_time_over_each_distance_the_run_covers(tmp_path, make_fit):

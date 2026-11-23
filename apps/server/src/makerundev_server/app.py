@@ -77,6 +77,7 @@ def create_app(
         duration=format.duration,
         pace=format.pace,
         decoupling=format.decoupling,
+        power=format.power,
         distance_name=format.distance_name,
         signed=_signed,
         local=_local,
