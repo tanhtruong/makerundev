@@ -366,7 +366,7 @@ wheels = [
 
 [[package]]
 name = "makerundev"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "packages/makerundev" }
 dependencies = [
     { name = "defusedxml" },
@@ -387,7 +387,7 @@ requires-dist = [
 
 [[package]]
 name = "makerundev-server"
-version = "0.6.0"
+version = "0.7.0"
 source = { editable = "apps/server" }
 dependencies = [
     { name = "alembic" },

@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-23
+
 ### Added
 
 - The training load page opens with "Performance, last 6 weeks": current VDOT, from the best qualifying effort, and current critical speed with D′, fitted on the fastest time at each best-effort distance, both from running and trail running activities of the last 42 local days. VDOT names the effort it came from and critical speed lists the efforts it used, each linking to its activity. The section shows before heart-rate settings are saved (in UTC until a timezone is), and a value that cannot be worked out says why. Each run's activity page has an "Exclude from VDOT and critical speed" button for a run whose distance is wrong, such as a GPS spike; it changes nothing else. The app now stores each activity's best efforts, and activities imported before this release get theirs the first time the training load page needs them.
@@ -122,7 +124,8 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/tanhtruong/makerundev/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tanhtruong/makerundev/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tanhtruong/makerundev/compare/v0.3.0...v0.4.0
