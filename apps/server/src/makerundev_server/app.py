@@ -27,6 +27,7 @@ from makerundev_server import charts, config, garmin
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import ActivityRow, connect
 from makerundev_server.garmin_sync import GarminSync
+from makerundev_server.performance import COUNTED_SPORTS, current_performance
 from makerundev_server.settings import (
     DEFAULT_ZONE_MODEL,
     FORM_FIELDS,
@@ -149,6 +150,7 @@ def create_app(
                 if row.external_source == "strava"
                 else None,
                 "is_running": activity.sport.is_running,
+                "counts_for_performance": row.sport in COUNTED_SPORTS,
                 "grade_adjusted_pace": summary.grade_adjusted_pace_s_per_km,
                 "decoupling": aerobic_decoupling(activity),
                 "avg_power": summary.avg_power,
@@ -172,6 +174,13 @@ def create_app(
                 "chart": {"width": charts.WIDTH, "height": charts.HEIGHT},
             },
         )
+
+    @app.post("/activities/{activity_id}/exclusion", response_model=None)
+    async def exclusion(request: Request, activity_id: int) -> Response:
+        excluded = (await request.form()).get("excluded") == "true"
+        if not await run_in_threadpool(store.performance.exclude, activity_id, excluded):
+            raise HTTPException(status_code=404, detail="activity not found")
+        return RedirectResponse(f"/activities/{activity_id}", status_code=303)
 
     def settings_page(
         request: Request,
@@ -225,16 +234,17 @@ def create_app(
     def load(request: Request, days: str = DEFAULT_RANGE) -> HTMLResponse:
         selected = days if days in RANGES else DEFAULT_RANGE
         settings = store.athlete_settings()
-        view = None
-        if settings is not None:
-            today = today_in(settings.timezone)
-            view = load_view(store.list(), settings.timezone, today, RANGES[selected])
+        timezone_name = settings.timezone if settings else "UTC"
+        today = today_in(timezone_name)
+        rows = store.list()
+        view = load_view(rows, timezone_name, today, RANGES[selected]) if settings else None
         return templates.TemplateResponse(
             request,
             "load.html",
             {
                 "settings_set": settings is not None,
                 "view": view,
+                "current": current_performance(rows, timezone_name, today, store.performance.fill),
                 "plot": charts.load_chart(view.days) if view else None,
                 "ranges": RANGES,
                 "selected": selected,

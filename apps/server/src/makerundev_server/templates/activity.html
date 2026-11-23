@@ -113,4 +113,17 @@
   </tbody>
 </table>
 {% endif %}
+
+{% if counts_for_performance %}
+<form class="exclusion" method="post" action="/activities/{{ activity.id }}/exclusion">
+  {% if activity.excluded_from_performance %}
+  <p class="meta">Excluded from VDOT and critical speed on the training load page.</p>
+  <input type="hidden" name="excluded" value="false">
+  <button type="submit" class="quiet">Include in VDOT and critical speed</button>
+  {% else %}
+  <input type="hidden" name="excluded" value="true">
+  <button type="submit" class="quiet">Exclude from VDOT and critical speed</button>
+  {% endif %}
+</form>
+{% endif %}
 {% endblock %}

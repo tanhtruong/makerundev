@@ -29,6 +29,7 @@ from makerundev_server.db import (
 )
 from makerundev_server.garmin_store import GarminStore
 from makerundev_server.matching import nearby, same_activity, strava_id_in
+from makerundev_server.performance_store import PerformanceStore, stored_efforts
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
 from makerundev_server.strava import Tokens, Unauthorized
 from makerundev_server.sync_state import (
@@ -70,6 +71,7 @@ class Store:
         self.originals.mkdir(parents=True, exist_ok=True)
         self.streams.mkdir(parents=True, exist_ok=True)
         self.garmin = GarminStore(engine, self.writing)
+        self.performance = PerformanceStore(engine, self.writing, self.activity)
 
     def import_file(self, filename: str, data: bytes, name: str | None = None) -> ImportResult:
         entry = unzip(data)
@@ -393,6 +395,7 @@ def _describe(
     row.elevation_gain_m = summary.elevation_gain_m
     row.trimp = _trimp(activity, settings) if settings else None
     row.laps = _encode_laps(activity.laps)
+    row.best_efforts = stored_efforts(activity)
 
 
 def _replace_parquet(records: pl.DataFrame, path: Path) -> None:

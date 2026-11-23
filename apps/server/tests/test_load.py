@@ -1,9 +1,11 @@
 import datetime as dt
 import itertools
 import re
+import sqlite3
 
 import pytest
 from fastapi.testclient import TestClient
+from fit_tool.profile.profile_type import SubSport
 from makerundev.metrics import training_load
 from makerundev_server import create_app
 from makerundev_server.charts import WIDTH, load_chart, zone_bars
@@ -34,6 +36,79 @@ def client_with(tmp_path, *files: tuple[str, bytes], settings: bool = True) -> T
     for name, data in files:
         client.post("/activities", files=[("files", (name, data, "application/octet-stream"))])
     return client
+
+
+def steady(make_fit, metres: float, seconds: int, day: int, **kwargs) -> bytes:
+    rows = [{"t": float(i), "distance": metres * i / seconds} for i in range(seconds + 1)]
+    return make_fit(rows, start=dt.datetime(2026, 3, day, 7, tzinfo=dt.UTC), **kwargs)
+
+
+def performance(client: TestClient) -> str:
+    page = client.get("/load").text
+    found = re.search(r'<section class="performance".*?</section>', page, re.S)
+    assert found is not None
+    return " ".join(re.sub(r"<[^>]+>", " ", found.group()).split())
+
+
+def ids(client: TestClient) -> dict[str, int]:
+    return {row["filename"]: row["id"] for row in client.get("/api/activities").json()}
+
+
+@pytest.fixture
+def march_10(monkeypatch):
+    monkeypatch.setattr("makerundev_server.app.today_in", lambda _timezone: dt.date(2026, 3, 10))
+
+
+def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(
+        tmp_path,
+        ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
+        ("reps.fit", steady(make_fit, 1000, 200, 3)),
+        ("strides.fit", steady(make_fit, 400, 60, 8)),
+        ("treadmill.fit", steady(make_fit, 5000, 1000, 7, sub_sport=SubSport.TREADMILL)),
+    )
+
+    text = performance(client)
+
+    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in text
+    assert f'<a href="/activities/{ids(client)["reps.fit"]}">' in client.get("/load").text
+    assert "Critical speed 4:32 /km D\u2032 213 m" in text
+    assert (
+        "Critical speed fitted on 1 km in 3:20, reps.fit, 3 Mar 1 mile in 6:42, tempo.fit, 5 Mar"
+        " 3 km in 12:30, tempo.fit, 5 Mar" in text
+    )
+
+
+def test_excluding_the_source_activity_moves_vdot_to_the_next_best_effort(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(
+        tmp_path,
+        ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
+        ("reps.fit", steady(make_fit, 1000, 200, 3)),
+    )
+    reps = ids(client)["reps.fit"]
+
+    response = client.post(
+        f"/activities/{reps}/exclusion", data={"excluded": "true"}, follow_redirects=False
+    )
+
+    assert (response.status_code, response.headers["location"]) == (303, f"/activities/{reps}")
+    text = performance(client)
+    assert "VDOT 47.5 5 km in 20:50, tempo.fit, 5 Mar" in text
+    assert "1 activity in the last 6 weeks is excluded" in text
+
+
+def test_an_activity_stored_without_efforts_gets_them_when_the_load_page_opens(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(tmp_path, ("reps.fit", steady(make_fit, 1000, 200, 3)))
+    with sqlite3.connect(tmp_path / "makerundev.db") as database:
+        database.execute("UPDATE activities SET best_efforts = NULL")
+
+    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in performance(client)
 
 
 def test_daily_load_is_bucketed_by_local_date_and_runs_through_today():
