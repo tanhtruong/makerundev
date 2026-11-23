@@ -49,7 +49,7 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones, timezone and body mass; TRIMP is stored per activity and recomputed when its inputs change, while estimated power is worked out when the page opens.
 - Strava sync page: connect, sync by hand, see what was skipped, disconnect.
 - Garmin sync page: save a Personal API key, sync by hand, see what was skipped, remove the key.
-- JSON API: `GET /api/activities` (paged), `GET /api/activities/{id}/records`, following the convention in [`docs/api.md`](api.md); the React app replaces the Jinja pages on top of it in 0.8.0 ([ADR 8](adr/0008-react-front-end.md)).
+- JSON API: `GET /api/activities` (paged), `GET /api/activities/{id}` (what the activity page shows), `PUT /api/activities/{id}/exclusion`, `GET /api/activities/{id}/records`, following the convention in [`docs/api.md`](api.md); the React app replaces the Jinja pages on top of it in 0.8.0 ([ADR 8](adr/0008-react-front-end.md)).
 - One process, SQLite, files on local disk. Runs with `uv run makerundev-server` or Docker.
 
 Next: map view, search and filters, multi-user with login.

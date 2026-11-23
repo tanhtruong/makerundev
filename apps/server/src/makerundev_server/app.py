@@ -2,7 +2,6 @@ import contextlib
 import datetime as dt
 import secrets
 import threading
-from collections.abc import Sequence
 from pathlib import Path
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
@@ -167,7 +166,7 @@ def create_app(
                 if body_mass_kg is not None
                 else None,
                 "efforts": best_efforts(activity),
-                "splits": _unless_single(splits(activity)),
+                "splits": api.unless_single(splits(activity)),
                 "laps": _lap_rows(store.laps(row)),
                 "ground_contact_time": summary.avg_ground_contact_time,
                 "vertical_oscillation": summary.avg_vertical_oscillation,
@@ -401,10 +400,6 @@ def _count(template: str, count: int) -> str:
     return template.format(f"{count} {'activity' if count == 1 else 'activities'}")
 
 
-def _unless_single[T](rows: Sequence[T]) -> list[T]:
-    return list(rows) if len(rows) >= 2 else []
-
-
 def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
     return [
         {
@@ -413,5 +408,5 @@ def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
             "distance_m": lap.distance_m,
             "pace_s_per_km": lap.pace_s_per_km,
         }
-        for number, lap in enumerate(_unless_single(laps), start=1)
+        for number, lap in enumerate(api.unless_single(laps), start=1)
     ]
