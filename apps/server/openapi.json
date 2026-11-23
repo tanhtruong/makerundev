@@ -59,6 +59,45 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "activities"
+        ],
+        "summary": "Import Activities",
+        "operationId": "importActivities",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_importActivities"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportReport"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/activities/{activity_id}": {
@@ -775,6 +814,23 @@
         ],
         "title": "BestEffort"
       },
+      "Body_importActivities": {
+        "properties": {
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "Body_importActivities"
+      },
       "Bounds": {
         "properties": {
           "low": {
@@ -806,6 +862,53 @@
         ],
         "title": "Exclusion"
       },
+      "FileImport": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "imported",
+              "already_imported",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "activity_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Activity Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "status",
+          "activity_id",
+          "error"
+        ],
+        "title": "FileImport"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -818,6 +921,22 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportReport": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/FileImport"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "ImportReport"
       },
       "Lap": {
         "properties": {

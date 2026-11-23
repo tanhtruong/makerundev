@@ -40,6 +40,47 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
     ]
 
 
+def test_api_import_reports_each_file_in_order_and_lists_the_new_activity_once(
+    tmp_path, steady_run_fit
+):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    response = client.post(
+        "/api/activities",
+        files=[
+            ("files", ("morning.fit", steady_run_fit, "application/octet-stream")),
+            ("files", ("again.fit", steady_run_fit, "application/octet-stream")),
+            ("files", ("notes.txt", b"not an activity", "text/plain")),
+        ],
+    )
+
+    assert response.status_code == 200
+    [activity] = client.get("/api/activities").json()["items"]
+    assert response.json() == {
+        "results": [
+            {
+                "filename": "morning.fit",
+                "status": "imported",
+                "activity_id": activity["id"],
+                "error": None,
+            },
+            {
+                "filename": "again.fit",
+                "status": "already_imported",
+                "activity_id": activity["id"],
+                "error": None,
+            },
+            {
+                "filename": "notes.txt",
+                "status": "failed",
+                "activity_id": None,
+                "error": "unsupported file: expected FIT, GPX or TCX",
+            },
+        ]
+    }
+    assert activity["filename"] == "morning.fit"
+
+
 LAP_ROWS = [{"t": float(i), "distance": i * 3.0} for i in range(601)]
 LAPS = [
     {"t": 0.0, "elapsed": 330.0, "distance": 1000.0},

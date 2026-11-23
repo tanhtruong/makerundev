@@ -24,9 +24,13 @@ import type { ActivityDetail } from "../../model/activity-detail.gen";
 
 import type { ActivityPage } from "../../model/activity-page.gen";
 
+import type { BodyImportActivities } from "../../model/body-import-activities.gen";
+
 import type { Exclusion } from "../../model/exclusion.gen";
 
 import type { HTTPValidationError } from "../../model/httpvalidation-error.gen";
+
+import type { ImportReport } from "../../model/import-report.gen";
 
 import type { ListActivitiesParams } from "../../model/list-activities-params.gen";
 
@@ -193,6 +197,87 @@ export function useListActivities<TData = Awaited<ReturnType<typeof listActiviti
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+export const getImportActivitiesUrl = () => {
+  return `/api/activities`;
+};
+
+/**
+ * @summary Import Activities
+ */
+export const importActivities = async (
+  bodyImportActivities: BodyImportActivities,
+  options?: Parameters<typeof apiFetch>[1],
+): Promise<ImportReport> => {
+  const formData = new FormData();
+  bodyImportActivities.files.forEach((value) => formData.append(`files`, value));
+
+  return apiFetch<ImportReport>(getImportActivitiesUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getImportActivitiesMutationKey = () => ["importActivities"] as const;
+
+export const getImportActivitiesMutationOptions = <TError = HTTPValidationError, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof importActivities>>,
+    TError,
+    ImportActivitiesMutationVariables,
+    TContext
+  >;
+  request?: SecondParameter<typeof apiFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof importActivities>>,
+  TError,
+  ImportActivitiesMutationVariables,
+  TContext
+> => {
+  const mutationKey = getImportActivitiesMutationKey();
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && "mutationKey" in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof importActivities>>,
+    ImportActivitiesMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return importActivities(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ImportActivitiesMutationResult = NonNullable<Awaited<ReturnType<typeof importActivities>>>;
+export type ImportActivitiesMutationBody = BodyImportActivities;
+export type ImportActivitiesMutationError = HTTPValidationError;
+export type ImportActivitiesMutationVariables = { data: BodyImportActivities };
+
+/** @summary Import Activities */
+export const useImportActivities = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof importActivities>>,
+      TError,
+      ImportActivitiesMutationVariables,
+      TContext
+    >;
+    request?: SecondParameter<typeof apiFetch>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof importActivities>>,
+  TError,
+  ImportActivitiesMutationVariables,
+  TContext
+> => {
+  return useMutation(getImportActivitiesMutationOptions(options), queryClient);
+};
 export const getGetActivityUrl = (activityId: number) => {
   return `/api/activities/${activityId}`;
 };

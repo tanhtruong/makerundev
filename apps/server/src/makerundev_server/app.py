@@ -12,7 +12,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from makerundev import ActivityFileError, Lap, format
+from makerundev import Lap, format
 from makerundev.metrics import (
     aerobic_decoupling,
     best_efforts,
@@ -42,7 +42,6 @@ from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaEr
 from makerundev_server.sync import StravaSync
 from makerundev_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
-MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 HERE = Path(__file__).parent
 STRAVA_NOTICES = {
     "connected": "Connected to Strava. Start a sync to bring your activities in.",
@@ -115,25 +114,16 @@ def create_app(
 
     @pages.post("/activities", response_class=HTMLResponse)
     def upload(request: Request, files: Annotated[list[UploadFile], File()]) -> HTMLResponse:
-        notices: list[str] = []
-        readable = 0
-        created = 0
-        for upload in files:
-            name = upload.filename or "upload"
-            data = upload.file.read(MAX_UPLOAD_BYTES + 1)
-            if len(data) > MAX_UPLOAD_BYTES:
-                notices.append(f"{name}: larger than 64 MB")
-                continue
-            try:
-                result = store.import_file(name, data)
-            except ActivityFileError as error:
-                notices.append(f"{name}: {error}")
-                continue
-            readable += 1
-            if result.created:
-                created += 1
-            else:
-                notices.append(f"{name}: already imported")
+        results = api.import_uploads(store, files)
+        notices = [
+            f"{result.filename}: {result.error}"
+            if result.status == "failed"
+            else f"{result.filename}: already imported"
+            for result in results
+            if result.status != "imported"
+        ]
+        created = sum(result.status == "imported" for result in results)
+        readable = any(result.status != "failed" for result in results)
         return import_page(request, notices, created, status_code=200 if readable else 400)
 
     @pages.get("/activities/{activity_id}", response_class=HTMLResponse)
