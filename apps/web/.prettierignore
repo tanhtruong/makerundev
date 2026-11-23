@@ -1,0 +1,4 @@
+pnpm-lock.yaml
+src/app/route-tree.gen.ts
+playwright-report
+test-results

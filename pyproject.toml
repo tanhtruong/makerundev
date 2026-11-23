@@ -7,7 +7,7 @@ requires-python = ">=3.12"
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "apps/*"]
+members = ["packages/makerundev", "apps/server"]
 
 [tool.uv.sources]
 makerundev = { workspace = true }

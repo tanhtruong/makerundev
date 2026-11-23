@@ -16,6 +16,8 @@ make check
 
 `make check` runs ruff, mypy (strict) and the test suite. CI runs the same command.
 
+Work on the React app in `apps/web` also needs Node and pnpm; [docs/frontend.md](docs/frontend.md) covers setup, `make check-web` and how the app is laid out.
+
 ## Finding something to work on
 
 - [`good first issue`](https://github.com/tanhtruong/makerundev/labels/good%20first%20issue) issues are small and fully specified.

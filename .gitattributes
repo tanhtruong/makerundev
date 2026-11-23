@@ -1,1 +1,4 @@
 apps/server/openapi.json linguist-generated=true
+apps/web/pnpm-lock.yaml linguist-generated=true
+apps/web/src/lib/api/** linguist-generated=true
+apps/web/src/app/route-tree.gen.ts linguist-generated=true

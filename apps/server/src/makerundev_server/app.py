@@ -23,7 +23,7 @@ from makerundev.metrics import (
     time_in_zones,
 )
 
-from makerundev_server import api, charts, config, garmin
+from makerundev_server import api, charts, config, garmin, web
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import connect
 from makerundev_server.garmin_sync import GarminSync
@@ -68,6 +68,7 @@ def create_app(
     strava_transport: httpx2.BaseTransport | None = None,
     garmin_transport: httpx2.BaseTransport | None = None,
     garmin_pause: float = garmin.PAUSE_S,
+    web_dir: Path | None = None,
 ) -> FastAPI:
     root = data_dir or config.data_dir()
     root.mkdir(parents=True, exist_ok=True)
@@ -99,22 +100,25 @@ def create_app(
     app.add_middleware(CrossSiteGuard)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
-    def index(request: Request, notices: list[str], status_code: int = 200) -> HTMLResponse:
+    def import_page(
+        request: Request, notices: list[str], imported: int = 0, status_code: int = 200
+    ) -> HTMLResponse:
         return templates.TemplateResponse(
             request,
-            "index.html",
-            {"activities": store.list(), "notices": notices, "timezone": timezone()},
+            "import.html",
+            {"notices": notices, "imported": imported},
             status_code=status_code,
         )
 
-    @pages.get("/", response_class=HTMLResponse)
-    def home(request: Request) -> HTMLResponse:
-        return index(request, [])
+    @pages.get("/import", response_class=HTMLResponse)
+    def import_form(request: Request) -> HTMLResponse:
+        return import_page(request, [])
 
     @pages.post("/activities", response_class=HTMLResponse)
     def upload(request: Request, files: Annotated[list[UploadFile], File()]) -> HTMLResponse:
         notices: list[str] = []
-        imported = 0
+        readable = 0
+        created = 0
         for upload in files:
             name = upload.filename or "upload"
             data = upload.file.read(MAX_UPLOAD_BYTES + 1)
@@ -126,10 +130,12 @@ def create_app(
             except ActivityFileError as error:
                 notices.append(f"{name}: {error}")
                 continue
-            imported += 1
-            if not result.created:
+            readable += 1
+            if result.created:
+                created += 1
+            else:
                 notices.append(f"{name}: already imported")
-        return index(request, notices, status_code=200 if imported else 400)
+        return import_page(request, notices, created, status_code=200 if readable else 400)
 
     @pages.get("/activities/{activity_id}", response_class=HTMLResponse)
     def detail(request: Request, activity_id: int) -> HTMLResponse:
@@ -376,6 +382,7 @@ def create_app(
 
     app.include_router(pages)
     app.include_router(api.router(store))
+    web.serve(app, web_dir or HERE / "web")
     return app
 
 

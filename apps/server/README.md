@@ -25,7 +25,7 @@ uv sync
 uv run makerundev-server
 ```
 
-`docker compose up` in the clone builds the image from the checkout instead.
+The React pages, the activity list for now, need the web app built once with `make sync-web` and `make build-web`, which need Node and pnpm; until then they say so, and the other pages work. `docker compose up` in the clone builds the image, web app included, from the checkout instead.
 
 ## Configuration
 
@@ -81,7 +81,8 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 
 | Method and path | What it returns |
 | --- | --- |
-| `GET /` | Activity list and import form |
+| `GET /` | The activity list (the React app; every path the server does not own returns it) |
+| `GET /import` | Import form |
 | `POST /activities` | Import one or more files (multipart field `files`) |
 | `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP |
 | `GET /load?days=90\|180\|365\|all` | Fitness, fatigue and form from daily TRIMP (default 180 days) |
@@ -104,7 +105,7 @@ The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob
 
 ## Development
 
-The app is FastAPI with Jinja templates and inline SVG charts, which a React app replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
+The app is FastAPI with Jinja templates and inline SVG charts, which the React app in `apps/web` replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). The activity list is already React. `make check` at the repository root runs the server's tests along with the library's and needs no Node. From a clone, run `make build-web` once to serve the React pages; without it they show how to build them. See [docs/frontend.md](https://github.com/tanhtruong/makerundev/blob/main/docs/frontend.md) and [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
 
 After changing a JSON route or its models, run `make openapi` at the repository root and commit `apps/server/openapi.json`; a test fails while it is stale.
 

@@ -1,4 +1,4 @@
-.PHONY: sync check lint format types test openapi serve release publish
+.PHONY: sync check lint format types test openapi serve release publish sync-web build-web check-web dev-web
 
 sync:
 	uv sync --locked
@@ -21,6 +21,22 @@ test:
 
 openapi:
 	uv run python scripts/openapi.py
+
+sync-web:
+	cd apps/web && pnpm install --frozen-lockfile
+
+build-web:
+	cd apps/web && pnpm build
+
+check-web:
+	cd apps/web && pnpm lint && pnpm typecheck && pnpm test
+	cd apps/web && pnpm generate && pnpm exec vite build
+	@test -z "$$(git status --porcelain -- apps/web/src/lib/api apps/web/src/app/route-tree.gen.ts)" \
+		|| { git status --short -- apps/web/src; echo "generated web files are stale: commit what make check-web wrote" >&2; exit 1; }
+	cd apps/web && pnpm e2e
+
+dev-web:
+	cd apps/web && pnpm dev
 
 serve:
 	uv run makerundev-server

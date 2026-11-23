@@ -1,6 +1,6 @@
 # Releasing
 
-A published GitHub release runs `.github/workflows/release.yml`. It checks that the tag matches the `makerundev` version, runs `make check`, publishes `makerundev` and then `makerundev-server` to PyPI with trusted publishing (no API token is stored anywhere), and pushes the server image to `ghcr.io/tanhtruong/makerundev-server`.
+A published GitHub release runs `.github/workflows/release.yml`. It checks that the tag matches the `makerundev` version, runs `make check`, builds the web app into the server package and fails if the wheel lacks it, publishes `makerundev` and then `makerundev-server` to PyPI with trusted publishing (no API token is stored anywhere), and pushes the server image to `ghcr.io/tanhtruong/makerundev-server`.
 
 ## One-time setup
 

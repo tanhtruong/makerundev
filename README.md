@@ -138,6 +138,8 @@ uv sync
 uv run makerundev-server
 ```
 
+From a clone, the activity list says how to build the web app until you run `make sync-web` and `make build-web` once (Node and pnpm, see [docs/frontend.md](docs/frontend.md)); the other pages and the JSON API work without it.
+
 Then open http://127.0.0.1:8000 and:
 
 1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
@@ -269,7 +271,7 @@ Not planned: social feeds, segment leaderboards, hosting other people's data or 
 
 ## Contributing
 
-Bug reports, file-format edge cases, metric ideas and code are all welcome. The most useful thing you can send is a file makerundev gets wrong (shift or strip the GPS track first). Setup is `uv sync` and `make check`; [CONTRIBUTING.md](CONTRIBUTING.md) has the rest, including what a metric change needs.
+Bug reports, file-format edge cases, metric ideas and code are all welcome. The most useful thing you can send is a file makerundev gets wrong (shift or strip the GPS track first). Setup is `uv sync` and `make check`; [CONTRIBUTING.md](CONTRIBUTING.md) has the rest, including what a metric change needs, and [docs/frontend.md](docs/frontend.md) covers the React app.
 
 ## Documentation
 
@@ -277,6 +279,7 @@ Bug reports, file-format edge cases, metric ideas and code are all welcome. The 
 - [Glossary](GLOSSARY.md) - every term and metric definition
 - [Architecture decisions](docs/adr) - why things are the way they are
 - [Server README](apps/server/README.md) - configuration, data, routes and migrations
+- [The web app](docs/frontend.md) - the React app, its commands and structure
 - [Changelog](CHANGELOG.md) - what changed in each release
 
 ## License

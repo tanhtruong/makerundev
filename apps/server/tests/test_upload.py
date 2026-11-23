@@ -30,10 +30,6 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
     assert activities[0]["sport"] == "running"
     assert activities[0]["start_time"] == "2026-03-01T07:00:00Z"
 
-    index = client.get("/")
-    assert "morning.fit" in index.text
-    assert "3.00 km" in index.text
-
     detail = client.get(f"/activities/{activities[0]['id']}")
     assert detail.status_code == 200
     assert "5:33 /km" in detail.text
@@ -260,7 +256,6 @@ def test_gpx_activity_is_listed_by_its_track_name(tmp_path):
     [activity] = client.get("/api/activities").json()["items"]
 
     assert (activity["name"], activity["filename"]) == ("Harbour loop", "run.gpx")
-    assert table_cells(client.get("/").text, "activities")[1] == "Harbour loop"
 
 
 def test_uploaded_zip_is_stored_as_the_file_inside_and_dedupes_against_it(

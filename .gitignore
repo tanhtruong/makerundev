@@ -14,3 +14,9 @@ data/
 # Local tool state
 .claude/
 .impeccable/
+
+# Built web app and Node
+apps/server/src/makerundev_server/web/
+node_modules/
+apps/web/test-results/
+apps/web/playwright-report/
