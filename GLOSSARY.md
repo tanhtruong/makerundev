@@ -79,6 +79,12 @@ VDOT = VO2 / F
 
 VDOT is the VO2max that would produce the effort at average running economy. A runner with better or worse economy has a different VO2max for the same VDOT, and it is not the VO2max Garmin or other vendors show. `F` exceeds 1 below about 11 minutes, as Daniels' model expects. Unavailable outside the 3-minute to 5-hour window, about the span of Daniels' tables (shorter efforts lean on anaerobic capacity), for an effort too slow to give a positive VDOT, and for a distance that is not positive or not finite or a time that is not a number.
 
+**Current VDOT** - The highest VDOT among the best efforts of the last 6 weeks, shown on the training load page with the effort it came from. The 6 weeks are the 42 local days ending today, in the athlete's timezone or UTC before settings are saved. Only running and trail running count: a treadmill's distance comes from belt or footpod calibration and can inflate an effort. An activity the athlete excluded does not count. Efforts outside VDOT's 3-minute to 5-hour window never count, and on a tie the more recent effort wins.
+
+**Current critical speed** - Critical speed and D′ fitted on the fastest time at each best-effort distance over the same 6 weeks, activities and exclusions as current VDOT, so the 1 km can come from one run and the 3 km from another. Efforts all run at about the same pace, such as those inside one easy run, give no positive D′ and so no current critical speed.
+
+**Stored best efforts** - The app keeps each activity's best efforts at the default distances, so the training load page does not read every stream. Activities stored before they were kept get them when the page next needs them. Any change to the default distances or to how best efforts are computed ships a migration that clears them, so they are worked out again.
+
 **Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. Thresholds default to 60, 70, 80 and 90 % (the starts of zones 2 to 5). In the app they are percentages of max heart rate or of heart-rate reserve, as the zone model says; in the CLI, of max heart rate.
 
 **Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates.

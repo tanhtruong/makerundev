@@ -16,6 +16,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    false,
     inspect,
 )
 from sqlalchemy.engine import Engine
@@ -82,6 +83,10 @@ class ActivityRow(Base):
     elevation_gain_m: Mapped[float] = mapped_column(Float)
     trimp: Mapped[float | None] = mapped_column(Float)
     laps: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON(none_as_null=True))
+    best_efforts: Mapped[list[dict[str, float]] | None] = mapped_column(JSON(none_as_null=True))
+    excluded_from_performance: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
     imported_at: Mapped[dt.datetime] = mapped_column(
         UtcDateTime, default=lambda: dt.datetime.now(dt.UTC)
     )
