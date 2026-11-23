@@ -8,7 +8,7 @@ from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
 import httpx2
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -23,10 +23,11 @@ from makerundev.metrics import (
     time_in_zones,
 )
 
-from makerundev_server import charts, config, garmin
+from makerundev_server import api, charts, config, garmin
 from makerundev_server.cross_site import CrossSiteGuard
-from makerundev_server.db import ActivityRow, connect
+from makerundev_server.db import connect
 from makerundev_server.garmin_sync import GarminSync
+from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS, current_performance
 from makerundev_server.settings import (
     DEFAULT_ZONE_MODEL,
@@ -93,7 +94,8 @@ def create_app(
         settings = store.athlete_settings()
         return settings.timezone if settings else "UTC"
 
-    app = FastAPI(title="makerundev")
+    app = FastAPI(title="makerundev", version="pre-1.0")
+    pages = APIRouter(include_in_schema=False)
     app.add_middleware(CrossSiteGuard)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
@@ -105,11 +107,11 @@ def create_app(
             status_code=status_code,
         )
 
-    @app.get("/", response_class=HTMLResponse)
+    @pages.get("/", response_class=HTMLResponse)
     def home(request: Request) -> HTMLResponse:
         return index(request, [])
 
-    @app.post("/activities", response_class=HTMLResponse)
+    @pages.post("/activities", response_class=HTMLResponse)
     def upload(request: Request, files: Annotated[list[UploadFile], File()]) -> HTMLResponse:
         notices: list[str] = []
         imported = 0
@@ -129,9 +131,9 @@ def create_app(
                 notices.append(f"{name}: already imported")
         return index(request, notices, status_code=200 if imported else 400)
 
-    @app.get("/activities/{activity_id}", response_class=HTMLResponse)
+    @pages.get("/activities/{activity_id}", response_class=HTMLResponse)
     def detail(request: Request, activity_id: int) -> HTMLResponse:
-        row = _row(store, activity_id)
+        row = activity_or_404(store, activity_id)
         activity = store.activity(row)
         records = activity.records
         summary = summarize(activity)
@@ -175,7 +177,7 @@ def create_app(
             },
         )
 
-    @app.post("/activities/{activity_id}/exclusion", response_model=None)
+    @pages.post("/activities/{activity_id}/exclusion", response_model=None)
     async def exclusion(request: Request, activity_id: int) -> Response:
         excluded = (await request.form()).get("excluded") == "true"
         if not await run_in_threadpool(store.performance.exclude, activity_id, excluded):
@@ -210,7 +212,7 @@ def create_app(
             status_code=status_code,
         )
 
-    @app.get("/settings", response_class=HTMLResponse)
+    @pages.get("/settings", response_class=HTMLResponse)
     def settings(request: Request, recomputed: str = "", unreadable: str = "") -> HTMLResponse:
         notice = None
         if recomputed.isdigit():
@@ -219,7 +221,7 @@ def create_app(
                 notice += _count(" {} could not be read; see the server log.", int(unreadable))
         return settings_page(request, form_values(store.athlete_settings()), {}, notice)
 
-    @app.post("/settings", response_class=HTMLResponse, response_model=None)
+    @pages.post("/settings", response_class=HTMLResponse, response_model=None)
     async def save_settings(request: Request) -> Response:
         form = await request.form()
         values = {name: str(form.get(name, "")) for name in FORM_FIELDS}
@@ -230,7 +232,7 @@ def create_app(
         query = f"recomputed={result.recomputed}&unreadable={result.unreadable}"
         return RedirectResponse(f"/settings?{query}", status_code=303)
 
-    @app.get("/load", response_class=HTMLResponse)
+    @pages.get("/load", response_class=HTMLResponse)
     def load(request: Request, days: str = DEFAULT_RANGE) -> HTMLResponse:
         selected = days if days in RANGES else DEFAULT_RANGE
         settings = store.athlete_settings()
@@ -259,7 +261,7 @@ def create_app(
     def to_strava(notice: str = "") -> RedirectResponse:
         return RedirectResponse(f"/strava?notice={notice}" if notice else "/strava", 303)
 
-    @app.get("/strava", response_class=HTMLResponse)
+    @pages.get("/strava", response_class=HTMLResponse)
     def strava(request: Request, notice: str = "") -> HTMLResponse:
         connection = store.strava_connection()
         return templates.TemplateResponse(
@@ -275,7 +277,7 @@ def create_app(
             },
         )
 
-    @app.post("/strava/connect", response_model=None)
+    @pages.post("/strava/connect", response_model=None)
     def strava_connect(request: Request) -> Response:
         client = strava_client()
         if client is None:
@@ -285,7 +287,7 @@ def create_app(
         redirect_uri = str(request.url_for("strava_callback"))
         return RedirectResponse(client.authorize_url(redirect_uri, state), status_code=303)
 
-    @app.get("/strava/callback", name="strava_callback", response_model=None)
+    @pages.get("/strava/callback", name="strava_callback", response_model=None)
     def strava_callback(
         code: str = "", state: str = "", scope: str = "", error: str = ""
     ) -> Response:
@@ -305,7 +307,7 @@ def create_app(
         store.save_strava_tokens(tokens)
         return to_strava("connected")
 
-    @app.post("/strava/sync", response_model=None)
+    @pages.post("/strava/sync", response_model=None)
     def strava_sync() -> Response:
         client = strava_client()
         if client is not None and store.start_strava_sync():
@@ -314,7 +316,7 @@ def create_app(
             worker.start()
         return to_strava()
 
-    @app.post("/strava/disconnect", response_model=None)
+    @pages.post("/strava/disconnect", response_model=None)
     def strava_disconnect() -> Response:
         client = strava_client()
         if client is not None:
@@ -329,7 +331,7 @@ def create_app(
     def to_garmin(notice: str = "") -> RedirectResponse:
         return RedirectResponse(f"/garmin?notice={notice}" if notice else "/garmin", 303)
 
-    @app.get("/garmin", response_class=HTMLResponse)
+    @pages.get("/garmin", response_class=HTMLResponse)
     def garmin_page(request: Request, notice: str = "") -> HTMLResponse:
         return templates.TemplateResponse(
             request,
@@ -342,7 +344,7 @@ def create_app(
             },
         )
 
-    @app.post("/garmin/key", response_model=None)
+    @pages.post("/garmin/key", response_model=None)
     async def garmin_key(request: Request) -> Response:
         key = str((await request.form()).get("key", "")).strip()
         if not key:
@@ -356,7 +358,7 @@ def create_app(
         await run_in_threadpool(store.garmin.save_key, key, token)
         return to_garmin("saved")
 
-    @app.post("/garmin/sync", response_model=None)
+    @pages.post("/garmin/sync", response_model=None)
     def garmin_sync() -> Response:
         running = getattr(app.state, "garmin_sync", None)
         if running is not None and running.is_alive():
@@ -367,19 +369,13 @@ def create_app(
             worker.start()
         return to_garmin()
 
-    @app.post("/garmin/remove", response_model=None)
+    @pages.post("/garmin/remove", response_model=None)
     def garmin_remove() -> Response:
         store.garmin.remove_key()
         return to_garmin("removed")
 
-    @app.get("/api/activities")
-    def api_activities() -> list[dict[str, Any]]:
-        return [_as_dict(row) for row in store.list()]
-
-    @app.get("/api/activities/{activity_id}/records")
-    def api_records(activity_id: int) -> list[dict[str, Any]]:
-        return store.records(_row(store, activity_id)).to_dicts()
-
+    app.include_router(pages)
+    app.include_router(api.router(store))
     return app
 
 
@@ -412,32 +408,3 @@ def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
         }
         for number, lap in enumerate(_unless_single(laps), start=1)
     ]
-
-
-def _row(store: Store, activity_id: int) -> ActivityRow:
-    row = store.get(activity_id)
-    if row is None:
-        raise HTTPException(status_code=404, detail="activity not found")
-    return row
-
-
-def _as_dict(row: ActivityRow) -> dict[str, Any]:
-    return {
-        "id": row.id,
-        "name": row.name,
-        "filename": row.filename,
-        "sport": row.sport,
-        "device": row.device,
-        "source_format": row.source_format,
-        "start_time": row.start_time.isoformat(),
-        "distance_m": row.distance_m,
-        "elapsed_s": row.elapsed_s,
-        "moving_s": row.moving_s,
-        "pace_s_per_km": row.pace_s_per_km,
-        "avg_heart_rate": row.avg_heart_rate,
-        "max_heart_rate": row.max_heart_rate,
-        "elevation_gain_m": row.elevation_gain_m,
-        "trimp": row.trimp,
-        "external_source": row.external_source,
-        "external_id": row.external_id,
-    }

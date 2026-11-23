@@ -26,13 +26,13 @@ def test_a_saved_key_syncs_every_activity_as_a_file_newest_first(tmp_path, make_
     client.app.state.garmin_sync.join(timeout=10)
 
     assert fake.downloads == ["3", "2", "1"]
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [
         (a["filename"], a["name"], a["external_source"], a["start_time"]) for a in activities
     ] == [
-        ("garmin-3.fit", "Run 3", None, "2026-03-03T07:00:00+00:00"),
-        ("2_ACTIVITY.fit", "Run 2", None, "2026-03-02T07:00:00+00:00"),
-        ("1_ACTIVITY.fit", "Run 1", None, "2026-03-01T07:00:00+00:00"),
+        ("garmin-3.fit", "Run 3", None, "2026-03-03T07:00:00Z"),
+        ("2_ACTIVITY.fit", "Run 2", None, "2026-03-02T07:00:00Z"),
+        ("1_ACTIVITY.fit", "Run 1", None, "2026-03-01T07:00:00Z"),
     ]
     assert {row.sha256 for row in store.list()} == {sha256(fake.fit(day)) for day in (1, 2, 3)}
     page = client.get("/garmin").text
@@ -201,7 +201,9 @@ def test_activities_that_cannot_be_imported_are_listed_and_not_downloaded_again(
         ("4", "ZIP holds more than one activity file; extract it and import the files"),
         ("5", "Garmin did not send a ZIP"),
     ]
-    assert [a["filename"] for a in client.get("/api/activities").json()] == ["1_ACTIVITY.fit"]
+    assert [a["filename"] for a in client.get("/api/activities").json()["items"]] == [
+        "1_ACTIVITY.fit"
+    ]
 
 
 def test_retry_after_is_read_as_seconds_or_as_a_date():

@@ -51,7 +51,7 @@ def performance(client: TestClient) -> str:
 
 
 def ids(client: TestClient) -> dict[str, int]:
-    return {row["filename"]: row["id"] for row in client.get("/api/activities").json()}
+    return {row["filename"]: row["id"] for row in client.get("/api/activities").json()["items"]}
 
 
 @pytest.fixture
@@ -182,7 +182,7 @@ def test_unknown_range_falls_back_to_180_days(tmp_path, steady_run_fit):
 
 def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
     client = client_with(tmp_path, ("run.fit", steady_run_fit))
-    activity = client.get("/api/activities").json()[0]
+    activity = client.get("/api/activities").json()["items"][0]
 
     page = client.get(f"/activities/{activity['id']}")
 
@@ -197,7 +197,7 @@ def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
 def test_heart_rate_reserve_zones_start_from_resting_heart_rate(tmp_path, steady_run_fit):
     client = client_with(tmp_path, ("run.fit", steady_run_fit), settings=False)
     client.post("/settings", data=SETTINGS | {"zone_model": "hr_reserve_percent"})
-    activity = client.get("/api/activities").json()[0]
+    activity = client.get("/api/activities").json()["items"][0]
 
     page = client.get(f"/activities/{activity['id']}")
 
@@ -208,7 +208,7 @@ def test_heart_rate_reserve_zones_start_from_resting_heart_rate(tmp_path, steady
 
 def test_activity_times_show_in_the_settings_timezone(tmp_path, steady_run_fit):
     client = client_with(tmp_path, ("run.fit", steady_run_fit))
-    activity = client.get("/api/activities").json()[0]
+    activity = client.get("/api/activities").json()["items"][0]
 
     assert "2026-03-01 08:00" in client.get("/").text
     assert "2026-03-01 08:00 CET" in client.get(f"/activities/{activity['id']}").text

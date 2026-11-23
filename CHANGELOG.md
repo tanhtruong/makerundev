@@ -6,6 +6,11 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** `GET /api/activities` returns one page, `{"items": [...], "total": N}`, instead of a bare list of every activity. It takes `limit` (default 50, at most 200) and `offset` (default 0), and refuses other values with 422; `total` counts every activity. Items are newest first, as before, with ties on start time in a stable order. In each item, `avg_heart_rate` and `max_heart_rate` are now `avg_heart_rate_bpm` and `max_heart_rate_bpm`, and `start_time` ends in `Z` instead of `+00:00`. A script that read the whole list now pages through it until it has `total` items. The JSON API follows the convention in `docs/api.md`, and stays unversioned until 1.0.
+- The OpenAPI schema at `GET /openapi.json` describes only the JSON API, without the server-rendered pages, and is committed as `apps/server/openapi.json`.
+
 ## [0.7.0] - 2026-11-23
 
 ### Added
