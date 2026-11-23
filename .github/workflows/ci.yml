@@ -22,6 +22,20 @@ jobs:
       - run: uv sync --locked
       - run: make check
 
+  check-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: apps/web/.nvmrc
+      - run: corepack enable
+      - run: uv sync --locked
+      - run: make sync-web
+      - run: cd apps/web && pnpm exec playwright install --with-deps chromium
+      - run: make check-web
+
   docker:
     runs-on: ubuntu-latest
     steps:
@@ -30,8 +44,9 @@ jobs:
       - run: docker run -d --name makerundev -p 8000:8000 makerundev-server:ci
       - run: |
           for _ in $(seq 1 30); do
-            curl -sf http://127.0.0.1:8000/api/activities && exit 0
+            curl -sf http://127.0.0.1:8000/api/activities && break
             sleep 1
           done
+          curl -sf http://127.0.0.1:8000/ | grep -q '<div id="root">' && exit 0
           docker logs makerundev
           exit 1

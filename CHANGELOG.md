@@ -6,8 +6,15 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- The activity list is the first page of the new web app. Each run is a lane: a bar from a common start line shows its distance to scale against the longest run on the page, beside its date, name, sport, moving time, pace, average heart rate and climb. The list pages 50 activities at a time. Light and dark follow your system setting, it fits a phone screen, and every font and script is served by your own instance. The other pages keep their current look until they are ported.
+- `makerundev-server` from PyPI and the Docker image ship with the web app built in, so running it still needs no Node.
+
 ### Changed
 
+- The activity list shows times in your browser's time zone rather than the timezone in Settings, until the settings page moves to the new app. The activity page and the training load page still use the one in Settings.
+- The import form moved to its own page, `/import`, linked from the top bar. After an import it says how many activities came in and links back to the list.
 - **Breaking:** `GET /api/activities` returns one page, `{"items": [...], "total": N}`, instead of a bare list of every activity. It takes `limit` (default 50, at most 200) and `offset` (default 0), and refuses other values with 422; `total` counts every activity. Items are newest first, as before, with ties on start time in a stable order. In each item, `avg_heart_rate` and `max_heart_rate` are now `avg_heart_rate_bpm` and `max_heart_rate_bpm`, and `start_time` ends in `Z` instead of `+00:00`. A script that read the whole list now pages through it until it has `total` items. The JSON API follows the convention in `docs/api.md`, and stays unversioned until 1.0.
 - The OpenAPI schema at `GET /openapi.json` describes only the JSON API, without the server-rendered pages, and is committed as `apps/server/openapi.json`.
 

@@ -1,0 +1,90 @@
+@import "tailwindcss";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow-semi-condensed/500.css";
+@import "@fontsource/barlow-semi-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+
+:root {
+  color-scheme: light dark;
+  --background: #fafaf8;
+  --foreground: #1b1d1f;
+  --muted: #f0efeb;
+  --muted-foreground: #5f6367;
+  --border: #e3e1dc;
+  --rule: #1b1d1f;
+  --input: #c9c6bf;
+  --ring: #1b1d1f;
+  --accent: #f0efeb;
+  --tartan: #c8462b;
+  --tartan-foreground: #ffffff;
+  --lane: #c8462b;
+  --radius: 0.25rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121416;
+    --foreground: #eceae6;
+    --muted: #1c1f22;
+    --muted-foreground: #a3a6a9;
+    --border: #2a2e32;
+    --rule: #eceae6;
+    --input: #3a3f44;
+    --ring: #eceae6;
+    --accent: #1f2326;
+    --lane: #e5694a;
+  }
+}
+
+@theme inline {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-semi-condensed: "Barlow Semi Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-condensed: "Barlow Condensed", "Barlow Semi Condensed", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-rule: var(--rule);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-accent: var(--accent);
+  --color-tartan: var(--tartan);
+  --color-tartan-foreground: var(--tartan-foreground);
+  --color-lane: var(--lane);
+  --radius-md: var(--radius);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scrollbar-color: var(--input) transparent;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-size: 15px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: var(--tartan);
+    color: var(--tartan-foreground);
+  }
+
+  a {
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}

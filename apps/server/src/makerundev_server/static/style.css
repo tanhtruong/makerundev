@@ -93,6 +93,7 @@ button {
   cursor: pointer;
 }
 
+.imported { margin: 12px 0 0; font-size: 14px; }
 .notices { margin: 12px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: 14px; }
 
 table { width: 100%; border-collapse: collapse; margin-top: 28px; }

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Import - makerundev{% endblock %}
+{% block content %}
+<section class="upload">
+  <form class="drop" action="/activities" method="post" enctype="multipart/form-data">
+    <label class="drop-field">
+      <span class="drop-title">Import activities</span>
+      <span class="drop-hint">FIT, GPX or TCX, optionally gzipped or zipped</span>
+      <input type="file" name="files" multiple required accept=".fit,.gpx,.tcx,.gz,.zip">
+    </label>
+    <button type="submit">Import</button>
+  </form>
+  {% if imported %}
+  <p class="imported">Imported {{ imported }} {{ "activity" if imported == 1 else "activities" }}. <a href="/">See the activity list</a>.</p>
+  {% endif %}
+  {% if notices %}
+  <ul class="notices">
+    {% for notice in notices %}<li>{{ notice }}</li>{% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

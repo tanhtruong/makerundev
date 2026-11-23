@@ -7,3 +7,7 @@ data
 .pytest_cache
 .claude
 .impeccable
+**/node_modules
+apps/server/src/makerundev_server/web
+apps/web/test-results
+apps/web/playwright-report

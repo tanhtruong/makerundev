@@ -210,7 +210,6 @@ def test_activity_times_show_in_the_settings_timezone(tmp_path, steady_run_fit):
     client = client_with(tmp_path, ("run.fit", steady_run_fit))
     activity = client.get("/api/activities").json()["items"][0]
 
-    assert "2026-03-01 08:00" in client.get("/").text
     assert "2026-03-01 08:00 CET" in client.get(f"/activities/{activity['id']}").text
 
 
