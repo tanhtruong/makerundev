@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ activity.name or activity.filename }} - makerundev{% endblock %}
 {% block content %}
-{% macro power(watts, body_mass_kg) %}{% if watts is none %}-{% else %}{{ "%.0f W" | format(watts) }}{% if body_mass_kg is not none %}<span>{{ "%.2f W/kg" | format(watts / body_mass_kg) }}</span>{% endif %}{% endif %}{% endmacro %}
+{% macro power(watts, body_mass_kg) %}{{ watts | power }}{% if watts is not none and body_mass_kg is not none %}<span>{{ "%.2f W/kg" | format(watts / body_mass_kg) }}</span>{% endif %}{% endmacro %}
 <p class="crumb"><a href="/">All activities</a></p>
 <h1>{{ activity.sport.replace("_", " ") | capitalize }} on {{ activity.start_time | local(timezone, "%Y-%m-%d %H:%M %Z") }}</h1>
 <p class="meta">{% if activity.name and activity.name != activity.filename %}{{ activity.name }} · {% endif %}{{ activity.filename }}{% if activity.device %} · {{ activity.device }}{% endif %}{% if strava_url %} · <a class="strava-link" href="{{ strava_url }}" rel="noopener">View on Strava</a>{% endif %}</p>

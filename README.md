@@ -48,6 +48,16 @@ Add `--long` for grade-adjusted pace and aerobic decoupling at the end of each l
 2026-10-11-long.fit  2026-10-11 05:30  running  17.64 km  1:30:55  5:09 /km  152 bpm  +151 m  GAP 5:03 /km  decoupling +3.1%
 ```
 
+Add your body mass in kg too and each line ends with estimated power, the watts a power meter would report, worked out from speed, grade and body mass rather than measured (see the [glossary](GLOSSARY.md)):
+
+```bash
+uvx makerundev summary --long --body-mass 70 2026-10-11-long.fit
+```
+
+```text
+2026-10-11-long.fit  2026-10-11 05:30  running  17.64 km  1:30:55  5:09 /km  152 bpm  +151 m  GAP 5:03 /km  decoupling +3.1%  est. power 231 W
+```
+
 Prefer miles? Pass `--units mi` to `summary`, `splits` or `laps`, or set `MAKERUNDEV_UNITS=mi` once:
 
 ```text

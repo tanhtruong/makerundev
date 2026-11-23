@@ -31,6 +31,10 @@ def decoupling(percent: float | None) -> str:
     return "-" if percent is None else f"{percent:+.1f}%"
 
 
+def power(watts: float | None) -> str:
+    return "-" if watts is None else f"{watts:.0f} W"
+
+
 def distance(meters: float, unit: Unit = Unit.KM) -> str:
     return f"{meters / unit.metres:.2f} {unit}"
 

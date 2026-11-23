@@ -10,9 +10,11 @@ from makerundev.io import anonymize, load
 from makerundev.metrics import (
     BANISTER_FEMALE,
     BANISTER_MALE,
+    BODY_MASS_RANGE_KG,
     DEFAULT_ZONE_THRESHOLDS,
     aerobic_decoupling,
     best_efforts,
+    estimated_power,
     splits,
     summarize,
     time_in_zones,
@@ -34,15 +36,38 @@ Units = Annotated[
 ]
 Long = Annotated[
     bool,
-    typer.Option("--long", "-l", help="Also print grade-adjusted pace and aerobic decoupling."),
+    typer.Option(
+        "--long",
+        "-l",
+        help="Also print grade-adjusted pace, aerobic decoupling and, "
+        "with --body-mass, estimated power.",
+    ),
+]
+BodyMass = Annotated[
+    float | None,
+    typer.Option(
+        "--body-mass",
+        min=BODY_MASS_RANGE_KG[0],
+        max=BODY_MASS_RANGE_KG[1],
+        metavar="KG",
+        help="Body mass in kg, for estimated power with --long.",
+    ),
 ]
 
 
 @app.command(
     help="Print distance, time, pace, heart rate and climb for each file, "
-    "and with --long grade-adjusted pace and aerobic decoupling."
+    "and with --long grade-adjusted pace, aerobic decoupling and, given --body-mass, "
+    "estimated power."
 )
-def summary(files: Files, long: Long = False, units: Units = format.Unit.KM) -> None:
+def summary(
+    files: Files,
+    long: Long = False,
+    body_mass: BodyMass = None,
+    units: Units = format.Unit.KM,
+) -> None:
+    if body_mass is not None and not long:
+        raise typer.BadParameter("needs --long", param_hint="--body-mass")
     failed = False
     for path in files:
         try:
@@ -64,6 +89,8 @@ def summary(files: Files, long: Long = False, units: Units = format.Unit.KM) -> 
                 f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km, units)}"
                 f"  decoupling {format.decoupling(aerobic_decoupling(activity))}"
             )
+            if body_mass is not None:
+                line += f"  est. power {format.power(estimated_power(activity, body_mass))}"
         typer.echo(line)
     if failed:
         raise typer.Exit(1)
