@@ -96,12 +96,17 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `POST /garmin/key` | Check a Personal API key with Garmin and save it (form field `key`) |
 | `POST /garmin/sync` | Start a sync in the background |
 | `POST /garmin/remove` | Delete the key and sync progress; imported activities stay |
-| `GET /api/activities` | All activities with their summaries and TRIMP, as JSON |
+| `GET /api/activities?limit=50&offset=0` | Activities newest first with their summaries and TRIMP, as `{items, total}` JSON (`limit` up to 200) |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
+| `GET /openapi.json` | The JSON API's OpenAPI schema |
+
+The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob/main/docs/api.md). It is public but unversioned before 1.0, so a breaking change is listed in the changelog.
 
 ## Development
 
-The app is FastAPI with Jinja templates and inline SVG charts; there is no front-end build step. `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md) and [ADR 4](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0004-server-rendered-self-hosted-app.md).
+The app is FastAPI with Jinja templates and inline SVG charts, which a React app replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). `make check` at the repository root runs its tests along with the library's. See [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
+
+After changing a JSON route or its models, run `make openapi` at the repository root and commit `apps/server/openapi.json`; a test fails while it is stale.
 
 ### Changing the database schema
 

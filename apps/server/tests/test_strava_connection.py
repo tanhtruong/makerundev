@@ -24,7 +24,7 @@ def test_disconnect_removes_what_came_only_from_strava_even_if_revoking_fails(
     response = client.post("/strava/disconnect", follow_redirects=False)
 
     assert response.headers["location"] == "/strava?notice=disconnected"
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [(a["filename"], a["external_source"], a["external_id"]) for a in activities] == [
         ("morning.fit", None, None)
     ]
@@ -122,6 +122,6 @@ def test_a_sync_still_running_after_disconnect_stores_nothing(tmp_path):
     with pytest.raises(Unauthorized):
         store.skip_strava(held, activity.start_time, "no streams on Strava", "backfill")
 
-    assert client.get("/api/activities").json() == []
+    assert client.get("/api/activities").json()["items"] == []
     assert store.strava_connection() is None
     assert not (tmp_path / "streams" / "strava-5.parquet").exists()

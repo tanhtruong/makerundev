@@ -1,4 +1,4 @@
-.PHONY: sync check lint format types test serve release publish
+.PHONY: sync check lint format types test openapi serve release publish
 
 sync:
 	uv sync --locked
@@ -18,6 +18,9 @@ types:
 
 test:
 	uv run pytest -q
+
+openapi:
+	uv run python scripts/openapi.py
 
 serve:
 	uv run makerundev-server

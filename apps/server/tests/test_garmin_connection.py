@@ -30,4 +30,6 @@ def test_removing_the_key_keeps_imported_activities_and_stops_a_running_sync(
 
     assert fake.downloads == ["1", "2"]
     assert store.garmin.connection() is None
-    assert [a["filename"] for a in client.get("/api/activities").json()] == ["1_ACTIVITY.fit"]
+    assert [a["filename"] for a in client.get("/api/activities").json()["items"]] == [
+        "1_ACTIVITY.fit"
+    ]

@@ -25,7 +25,7 @@ def test_a_strava_activity_already_imported_from_a_file_is_matched_not_duplicate
     assert sync(store, fake) == UP_TO_DATE
 
     assert fake.stream_requests() == []
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [(a["filename"], a["source_format"], a["external_id"]) for a in activities] == [
         ("morning.fit", "fit", "77")
     ]
@@ -36,11 +36,11 @@ def test_a_bulk_export_file_is_matched_by_its_strava_id_and_takes_the_strava_nam
     fake = FakeStrava([summary(77, 9, distance=9000.0)])
     client, store = connected(tmp_path, fake)
     upload(client, "77.gpx.gz", gzip.compress(GPX))
-    assert [a["name"] for a in client.get("/api/activities").json()] == ["Morning Run"]
+    assert [a["name"] for a in client.get("/api/activities").json()["items"]] == ["Morning Run"]
 
     sync(store, fake)
 
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [(a["external_id"], a["name"]) for a in activities] == [("77", "Run 77")]
 
 
@@ -48,12 +48,12 @@ def test_a_file_uploaded_after_a_sync_replaces_the_synced_stream(tmp_path, stead
     fake = FakeStrava([summary(77, 1)])
     client, store = connected(tmp_path, fake)
     sync(store, fake)
-    synced = client.get("/api/activities").json()[0]
+    synced = client.get("/api/activities").json()["items"][0]
     assert (tmp_path / "streams" / "strava-77.parquet").exists()
 
     assert upload(client, "morning.fit", steady_run_fit).status_code == 200
 
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert len(activities) == 1
     replaced = activities[0]
     assert replaced["id"] == synced["id"]
@@ -68,7 +68,7 @@ def test_a_file_uploaded_after_a_sync_replaces_the_synced_stream(tmp_path, stead
     records = client.get(f"/api/activities/{replaced['id']}/records").json()
     assert records[0]["power"] == 250.0
     assert upload(client, "again.fit", steady_run_fit).status_code == 200
-    assert len(client.get("/api/activities").json()) == 1
+    assert len(client.get("/api/activities").json()["items"]) == 1
 
 
 @pytest.mark.parametrize(

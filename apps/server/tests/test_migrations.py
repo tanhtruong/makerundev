@@ -67,9 +67,9 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
 
     client = TestClient(create_app(data_dir=tmp_path))
 
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [(a["filename"], a["start_time"]) for a in activities] == [
-        ("old.fit", "2026-02-01T06:30:00+00:00")
+        ("old.fit", "2026-02-01T06:30:00Z")
     ]
     assert_at_head_and_matches_models(connect(tmp_path))
     with sqlite3.connect(tmp_path / "pacelab.db") as db:

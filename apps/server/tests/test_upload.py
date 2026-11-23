@@ -24,11 +24,11 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
         )
         assert response.status_code == 200
 
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert len(activities) == 1
     assert activities[0]["distance_m"] == 3000.0
     assert activities[0]["sport"] == "running"
-    assert activities[0]["start_time"] == "2026-03-01T07:00:00+00:00"
+    assert activities[0]["start_time"] == "2026-03-01T07:00:00Z"
 
     index = client.get("/")
     assert "morning.fit" in index.text
@@ -62,7 +62,7 @@ def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(LAP_ROWS, laps=LAPS)
     client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
-    activity_id = client.get("/api/activities").json()[0]["id"]
+    activity_id = client.get("/api/activities").json()["items"][0]["id"]
 
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         stored = json.loads(db.execute("SELECT laps FROM activities").fetchone()[0])
@@ -77,7 +77,7 @@ def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_p
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(LAP_ROWS, laps=LAPS)
     client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
-    activity_id = client.get("/api/activities").json()[0]["id"]
+    activity_id = client.get("/api/activities").json()["items"][0]["id"]
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         db.execute("UPDATE activities SET laps = NULL")
 
@@ -93,7 +93,7 @@ def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
     treadmill = make_fit(LAP_ROWS)
     for name, fit in (("outdoor.fit", steady_run_fit), ("treadmill.fit", treadmill)):
         client.post("/activities", files=[("files", (name, fit, "application/octet-stream"))])
-    ids = {row["filename"]: row["id"] for row in client.get("/api/activities").json()}
+    ids = {row["filename"]: row["id"] for row in client.get("/api/activities").json()["items"]}
 
     outdoor = client.get(f"/activities/{ids['outdoor.fit']}").text
     assert '<figure class="route">' in outdoor
@@ -139,7 +139,9 @@ def dynamics_tiles(page: str) -> dict[str, str]:
 def upload(client: TestClient, filename: str, data: bytes) -> int:
     client.post("/activities", files=[("files", (filename, data, "application/octet-stream"))])
     activity_id: int = next(
-        row["id"] for row in client.get("/api/activities").json() if row["filename"] == filename
+        row["id"]
+        for row in client.get("/api/activities").json()["items"]
+        if row["filename"] == filename
     )
     return activity_id
 
@@ -255,7 +257,7 @@ def test_gpx_activity_is_listed_by_its_track_name(tmp_path):
     client = TestClient(create_app(data_dir=tmp_path))
     upload(client, "run.gpx", GPX)
 
-    [activity] = client.get("/api/activities").json()
+    [activity] = client.get("/api/activities").json()["items"]
 
     assert (activity["name"], activity["filename"]) == ("Harbour loop", "run.gpx")
     assert table_cells(client.get("/").text, "activities")[1] == "Harbour loop"
@@ -297,4 +299,4 @@ def test_bulk_export_zip_is_refused_with_a_reason(tmp_path, steady_run_fit, make
 
     assert response.status_code == 400
     assert "export.zip: ZIP holds more than one activity file" in response.text
-    assert client.get("/api/activities").json() == []
+    assert client.get("/api/activities").json()["items"] == []

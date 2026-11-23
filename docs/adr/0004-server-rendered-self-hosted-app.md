@@ -4,7 +4,7 @@ Date: 2026-11-19
 
 ## Status
 
-Accepted
+Accepted. Its front-end half (Jinja pages and server-rendered SVG charts) is superseded by [ADR 8](0008-react-front-end.md); its data half stands.
 
 ## Context
 

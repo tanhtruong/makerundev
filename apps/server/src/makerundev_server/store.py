@@ -6,7 +6,7 @@ import logging
 import os
 import threading
 import uuid
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,6 +20,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from makerundev_server.db import (
+    STRAVA,
     ActivityRow,
     AthleteSettingsRow,
     GarminConnectionRow,
@@ -28,7 +29,7 @@ from makerundev_server.db import (
     activity_name,
 )
 from makerundev_server.garmin_store import GarminStore
-from makerundev_server.matching import nearby, same_activity, strava_id_in
+from makerundev_server.matching import file_match, synced_match
 from makerundev_server.performance_store import PerformanceStore, stored_efforts
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
 from makerundev_server.strava import Tokens, Unauthorized
@@ -44,7 +45,6 @@ from makerundev_server.sync_state import (
 )
 
 SETTINGS_ID = 1
-STRAVA = "strava"
 RUNNING_DYNAMICS = ("ground_contact_time", "vertical_oscillation", "step_length")
 
 log = logging.getLogger(__name__)
@@ -85,7 +85,7 @@ class Store:
             activity = load(data)
             summary = summarize(activity)
             basename = Path(filename).name[:255] or "upload"
-            synced = _synced_match(session, basename, activity.start_time, summary.distance_m)
+            synced = synced_match(session, basename, activity.start_time, summary.distance_m)
             replaced = synced.storage_key if synced is not None else None
             row = synced if synced is not None else ActivityRow()
             row.sha256 = digest
@@ -107,6 +107,15 @@ class Store:
             return list(
                 session.scalars(select(ActivityRow).order_by(ActivityRow.start_time.desc()))
             )
+
+    def page(self, limit: int, offset: int) -> tuple[Sequence[ActivityRow], int]:
+        newest_first = select(ActivityRow).order_by(
+            ActivityRow.start_time.desc(), ActivityRow.id.desc()
+        )
+        with Session(self.engine) as session:
+            rows = session.scalars(newest_first.limit(limit).offset(offset)).all()
+            total = session.scalar(select(func.count()).select_from(ActivityRow)) or 0
+        return rows, total
 
     def get(self, activity_id: int) -> ActivityRow | None:
         with Session(self.engine) as session:
@@ -272,7 +281,7 @@ class Store:
             connection = _connected(session)
             if known is None:
                 distance = float(summary.get("distance") or 0.0)
-                file_row = _file_match(session, strava_id, start, distance)
+                file_row = file_match(session, strava_id, start, distance)
                 if file_row is None:
                     return False
                 file_row.external_source = STRAVA
@@ -453,46 +462,6 @@ def _connected(session: Session) -> StravaConnectionRow:
     if row is None or row.access_token is None:
         raise Unauthorized("not connected to Strava")
     return row
-
-
-def _file_match(
-    session: Session, strava_id: str, start: dt.datetime, distance_m: float
-) -> ActivityRow | None:
-    files = (ActivityRow.sha256.is_not(None), ActivityRow.external_id.is_(None))
-    named = session.scalars(
-        select(ActivityRow).where(*files, ActivityRow.filename.like(f"{strava_id}.%"))
-    ).first()
-    if named is not None:
-        return named
-    for row in nearby(session, start):
-        if (
-            row.sha256 is not None
-            and row.external_id is None
-            and same_activity(start, distance_m, row.start_time, row.distance_m)
-        ):
-            return row
-    return None
-
-
-def _synced_match(
-    session: Session, filename: str, start: dt.datetime, distance_m: float
-) -> ActivityRow | None:
-    synced = (ActivityRow.sha256.is_(None), ActivityRow.external_source == STRAVA)
-    strava_id = strava_id_in(filename)
-    if strava_id is not None:
-        named = session.scalars(
-            select(ActivityRow).where(*synced, ActivityRow.external_id == strava_id)
-        ).first()
-        if named is not None:
-            return named
-    for row in nearby(session, start):
-        if (
-            row.sha256 is None
-            and row.external_source == STRAVA
-            and same_activity(start, distance_m, row.start_time, row.distance_m)
-        ):
-            return row
-    return None
 
 
 def _settings(session: Session) -> AthleteSettings | None:

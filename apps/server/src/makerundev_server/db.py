@@ -4,6 +4,7 @@ from typing import Any
 
 from alembic import command
 from alembic.config import Config
+from makerundev.model import SourceFormat
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -44,6 +45,7 @@ class UtcDateTime(TypeDecorator[dt.datetime]):
 
 
 NAME_LENGTH = 255
+STRAVA = "strava"
 
 
 def activity_name(value: object) -> str | None:
@@ -70,7 +72,7 @@ class ActivityRow(Base):
     external_id: Mapped[str | None] = mapped_column(String(32))
     filename: Mapped[str] = mapped_column(String(255))
     name: Mapped[str | None] = mapped_column(String(NAME_LENGTH))
-    source_format: Mapped[str] = mapped_column(String(8))
+    source_format: Mapped[SourceFormat] = mapped_column(String(8))
     sport: Mapped[str] = mapped_column(String(32))
     device: Mapped[str | None] = mapped_column(String(128))
     start_time: Mapped[dt.datetime] = mapped_column(UtcDateTime, index=True)

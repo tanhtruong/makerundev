@@ -24,7 +24,7 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     assert sync(store, fake) == UP_TO_DATE
 
     assert fake.stream_requests() == ["3", "2", "1"]
-    activities = client.get("/api/activities").json()
+    activities = client.get("/api/activities").json()["items"]
     assert [(a["external_source"], a["external_id"]) for a in activities] == [
         ("strava", "3"),
         ("strava", "2"),
@@ -35,7 +35,7 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     assert newest["source_format"] == "strava"
     assert newest["device"] is None
     assert newest["distance_m"] == 3000.0
-    assert newest["start_time"] == "2026-03-03T07:00:00+00:00"
+    assert newest["start_time"] == "2026-03-03T07:00:00Z"
     assert newest["trimp"] > 0
     records = client.get(f"/api/activities/{newest['id']}/records").json()
     assert records[0]["cadence"] == 170.0
@@ -71,7 +71,7 @@ def test_a_later_sync_only_asks_for_what_is_new(tmp_path):
     assert sync(store, fake) == UP_TO_DATE
 
     assert fake.stream_requests() == ["3"]
-    assert len(client.get("/api/activities").json()) == 3
+    assert len(client.get("/api/activities").json()["items"]) == 3
     assert store.strava_connection().imported == 1
 
 
@@ -89,7 +89,7 @@ def test_sync_pauses_before_the_rate_limit_and_resumes_where_it_stopped(tmp_path
     assert sync(store, fake) == UP_TO_DATE
 
     assert fake.stream_requests() == ["8", "7", "6", "5", "4", "3", "2", "1"]
-    assert len(client.get("/api/activities").json()) == 8
+    assert len(client.get("/api/activities").json()["items"]) == 8
 
 
 def test_sync_pauses_for_the_day_when_the_daily_limit_is_close(tmp_path):
@@ -112,7 +112,7 @@ def test_activities_without_usable_streams_are_listed_and_not_tried_again(tmp_pa
     assert sync(store, fake) == UP_TO_DATE
 
     assert fake.stream_requests() == ["4", "3", "1"]
-    assert [a["external_id"] for a in client.get("/api/activities").json()] == ["1"]
+    assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["1"]
     skipped = {item["id"]: item["reason"] for item in store.strava_connection().skipped}
     assert skipped == {
         "2": "a manual entry, with no streams",
@@ -157,7 +157,7 @@ def test_sync_now_runs_in_the_background_and_the_page_reports_it(tmp_path):
     assert response.headers["location"] == "/strava"
     page = client.get("/strava").text
     assert UP_TO_DATE in page
-    assert len(client.get("/api/activities").json()) == 1
+    assert len(client.get("/api/activities").json()["items"]) == 1
 
 
 def test_a_sync_cut_short_by_a_restart_can_be_started_again(tmp_path):
@@ -179,7 +179,7 @@ def test_an_activity_strava_refuses_to_serve_is_skipped_and_the_sync_goes_on(tmp
 
     assert sync(store, fake) == UP_TO_DATE
 
-    assert [a["external_id"] for a in client.get("/api/activities").json()] == ["3", "1"]
+    assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["3", "1"]
     assert [item["reason"] for item in store.strava_connection().skipped] == ["Strava answered 403"]
 
 
@@ -200,7 +200,7 @@ def test_an_activity_without_a_start_time_does_not_stop_the_sync(tmp_path):
 
     assert sync(store, fake) == UP_TO_DATE
 
-    assert [a["external_id"] for a in client.get("/api/activities").json()] == ["2", "1"]
+    assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["2", "1"]
 
 
 def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_next_time(tmp_path):
@@ -215,12 +215,12 @@ def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_nex
     assert sync(store, fake) == PAUSED_SHORT
 
     assert fake.stream_requests() == ["1"]
-    assert client.get("/api/activities").json() == []
+    assert client.get("/api/activities").json()["items"] == []
     fake.throttled_detail.clear()
 
     assert sync(store, fake) == UP_TO_DATE
 
-    [activity] = client.get("/api/activities").json()
+    [activity] = client.get("/api/activities").json()["items"]
     assert len(lap_rows(client.get(f"/activities/{activity['id']}").text)) == 2
 
 
@@ -237,7 +237,7 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, s
     ]
     fake.without_detail.add("2")
     fake.requests.clear()
-    ids = {a["external_id"]: a["id"] for a in client.get("/api/activities").json()}
+    ids = {a["external_id"]: a["id"] for a in client.get("/api/activities").json()["items"]}
     assert lap_rows(client.get(f"/activities/{ids['1']}").text) == []
 
     assert sync(store, fake) == UP_TO_DATE
