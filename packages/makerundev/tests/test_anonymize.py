@@ -156,7 +156,7 @@ def test_anonymize_refuses_a_position_with_a_second_latitude():
         b"<t:Position>", b"<t:Position><t:LatitudeDegrees>55.9</t:LatitudeDegrees>", 1
     )
 
-    with pytest.raises(ActivityFileError):
+    with pytest.raises(ActivityFileError, match="more than one latitude"):
         anonymize(source, rng=random.Random(7))
 
 

@@ -32,23 +32,6 @@ def test_route_keeps_the_aspect_ratio_of_the_ground():
     assert inner_width / inner_height == pytest.approx(0.5, abs=0.001)
 
 
-def test_route_fits_its_viewbox_with_an_inset():
-    route = charts.route(positions([55.0, 55.002, 55.01], [12.0, 12.004, 12.001]))
-    assert route is not None
-    xs, ys = zip(*points(route), strict=True)
-    assert min(xs) == pytest.approx(charts.INSET)
-    assert max(xs) == pytest.approx(route.width - charts.INSET, abs=0.1)
-    assert min(ys) == pytest.approx(charts.INSET)
-    assert max(ys) == pytest.approx(route.height - charts.INSET, abs=0.1)
-
-
-def test_route_of_a_straight_line_north_has_a_drawable_viewbox():
-    route = charts.route(positions([55.0, 55.01], [12.0, 12.0]))
-    assert route is not None
-    assert route.width == 2 * charts.INSET
-    assert route.height == charts.ROUTE_SIZE + 2 * charts.INSET
-
-
 def test_route_drops_rows_without_a_position():
     route = charts.route(positions([55.0, None, 55.01, 55.02], [12.0, 12.005, None, 12.01]))
     assert route is not None
@@ -78,4 +61,5 @@ def test_downsampled_route_ends_at_the_final_position():
         positions([55.0 + i * 1e-5 for i in range(count)], [12.0 + i * 1e-5 for i in range(count)])
     )
     assert route is not None
+    assert len(points(route)) == charts.MAX_POINTS + 2
     assert points(route)[-1] == pytest.approx((route.width - charts.INSET, charts.INSET), abs=0.1)

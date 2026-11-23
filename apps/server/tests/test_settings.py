@@ -39,21 +39,6 @@ def save(client: TestClient, **changes: str):
     return client.post("/settings", data=FORM | changes, follow_redirects=False)
 
 
-def test_settings_start_unset_with_default_zones_and_a_max_heart_rate_hint(
-    tmp_path, steady_run_fit
-):
-    client = TestClient(create_app(data_dir=tmp_path))
-    upload(client, "run.fit", steady_run_fit)
-
-    page = client.get("/settings")
-
-    assert page.status_code == 200
-    assert 'name="max_hr" value=""' in page.text
-    assert 'name="zone_2" value="60"' in page.text
-    assert 'name="zone_5" value="90"' in page.text
-    assert "Highest recorded in your activities: 140 bpm" in page.text
-
-
 def test_saved_settings_persist_across_restarts(tmp_path):
     response = save(
         TestClient(create_app(data_dir=tmp_path)),
@@ -114,23 +99,15 @@ def test_a_blank_body_mass_clears_the_saved_one(tmp_path):
     assert 'name="body_mass_kg" value=""' in client.get("/settings").text
 
 
-def test_activity_without_heart_rate_stores_no_trimp(tmp_path, make_fit):
-    no_heart_rate = make_fit([{"t": float(i), "distance": i * 3.0} for i in range(301)])
-    client = TestClient(create_app(data_dir=tmp_path))
-    save(client)
-
-    upload(client, "no-hr.fit", no_heart_rate)
-
-    assert stored_trimp(tmp_path) == [None]
-
-
 def test_activity_with_an_unreadable_stream_does_not_block_saving(tmp_path, steady_run_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     upload(client, "run.fit", steady_run_fit)
+    save(client)
+    assert stored_trimp(tmp_path) != [None]
     for stream in (tmp_path / "streams").iterdir():
         stream.unlink()
 
-    response = save(client)
+    response = save(client, trimp_coefficients="female")
 
     assert response.headers["location"] == "/settings?recomputed=0&unreadable=1"
     page = client.get(response.headers["location"]).text

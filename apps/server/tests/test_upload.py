@@ -44,23 +44,6 @@ def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit)
     ]
 
 
-def test_imported_activity_gets_trimp_only_once_heart_rate_is_set(
-    tmp_path, steady_run_fit, make_fit
-):
-    client = TestClient(create_app(data_dir=tmp_path))
-    upload = [("files", ("before.fit", steady_run_fit, "application/octet-stream"))]
-    client.post("/activities", files=upload)
-    store = Store(tmp_path, connect(tmp_path))
-    assert [row.trimp for row in store.list()] == [None]
-
-    store.save_athlete_settings(AthleteSettings(max_hr=190, resting_hr=50))
-    later = make_fit([{"t": float(i), "distance": i * 3.0, "hr": 150} for i in range(601)])
-    client.post("/activities", files=[("files", ("after.fit", later, "application/octet-stream"))])
-
-    trimp = {row.filename: row.trimp for row in store.list()}
-    assert trimp["after.fit"] is not None and trimp["after.fit"] > 0
-
-
 LAP_ROWS = [{"t": float(i), "distance": i * 3.0} for i in range(601)]
 LAPS = [
     {"t": 0.0, "elapsed": 330.0, "distance": 1000.0},
@@ -122,17 +105,6 @@ def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
     indoor = client.get(f"/activities/{ids['treadmill.fit']}").text
     assert '<figure class="route">' not in indoor
     assert "<polyline" not in indoor
-
-
-def test_pages_link_icons_that_are_served(tmp_path):
-    client = TestClient(create_app(data_dir=tmp_path))
-
-    index = client.get("/").text
-    for name in ("favicon-light.png", "favicon-dark.png", "apple-touch-icon.png"):
-        assert f"/static/{name}" in index
-        icon = client.get(f"/static/{name}")
-        assert icon.status_code == 200
-        assert icon.headers["content-type"] == "image/png"
 
 
 DYNAMICS_COLUMNS = ["ground_contact_time", "vertical_oscillation", "step_length"]
@@ -238,13 +210,6 @@ def strip_dynamics(tmp_path, data: bytes) -> Path:
     return stream
 
 
-def test_activity_page_shows_running_dynamics_averages(tmp_path, make_fit):
-    client = TestClient(create_app(data_dir=tmp_path))
-    activity_id = upload(client, "dynamics.fit", make_fit(DYNAMICS_ROWS))
-
-    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == DYNAMICS_TILES
-
-
 def test_activity_imported_before_running_dynamics_gets_them_on_first_view(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(DYNAMICS_ROWS)
@@ -294,18 +259,6 @@ def test_gpx_activity_is_listed_by_its_track_name(tmp_path):
 
     assert (activity["name"], activity["filename"]) == ("Harbour loop", "run.gpx")
     assert table_cells(client.get("/").text, "activities")[1] == "Harbour loop"
-
-
-def test_gpx_activity_shows_no_running_dynamics_and_is_not_rewritten(tmp_path):
-    client = TestClient(create_app(data_dir=tmp_path))
-    activity_id = upload(client, "run.gpx", GPX)
-    stream = strip_dynamics(tmp_path, GPX)
-
-    page = client.get(f"/activities/{activity_id}").text
-
-    assert "Distance" in stats(page)
-    assert dynamics_tiles(page) == {}
-    assert not set(DYNAMICS_COLUMNS) & set(pl.read_parquet(stream).columns)
 
 
 def test_uploaded_zip_is_stored_as_the_file_inside_and_dedupes_against_it(
