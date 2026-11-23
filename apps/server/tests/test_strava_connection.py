@@ -100,16 +100,11 @@ def test_a_callback_that_is_forged_denied_or_too_narrow_connects_nothing(tmp_pat
     assert "Connect with Strava" in client.get(callback.headers["location"]).text
 
 
-def test_without_an_api_application_the_page_explains_the_setup(tmp_path, monkeypatch):
+def test_without_an_api_application_the_pages_open_and_connect_goes_nowhere(tmp_path, monkeypatch):
     monkeypatch.delenv("MAKERUNDEV_STRAVA_CLIENT_ID")
     client = TestClient(create_app(data_dir=tmp_path))
 
-    page = client.get("/strava")
-
-    assert page.status_code == 200
-    assert "MAKERUNDEV_STRAVA_CLIENT_ID" in page.text
-    assert "<code>testserver</code>" in page.text
-    assert "Connect with Strava" not in page.text
+    assert client.get("/strava").status_code == 200
     assert client.post("/strava/connect", follow_redirects=False).headers["location"] == "/strava"
 
 

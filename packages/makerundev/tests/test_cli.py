@@ -226,5 +226,6 @@ def test_anonymize_writes_a_shifted_copy_and_never_overwrites_a_file(tmp_path):
 
     assert first.exit_code == 0
     assert first.output.split()[1] == "3"
+    assert written != source.read_bytes()
     assert onto_itself.exit_code != 0
     assert output.read_bytes() == written

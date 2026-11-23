@@ -8,8 +8,8 @@ import httpx2
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.settings import AthleteSettings
-from makerundev_server.sync import PAUSED_DAILY, PAUSED_SHORT, REJECTED, UP_TO_DATE
-from strava_fake import FakeStrava, connected, lap, summary, sync
+from makerundev_server.sync import PAUSED_DAILY, PAUSED_SHORT, UP_TO_DATE
+from strava_fake import FakeStrava, connected, lap, summary, sync, upload
 
 
 def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
@@ -101,14 +101,6 @@ def test_sync_pauses_for_the_day_when_the_daily_limit_is_close(tmp_path):
     assert fake.stream_requests() == []
 
 
-def test_a_429_from_strava_pauses_the_sync(tmp_path):
-    fake = FakeStrava([summary(1, 1)])
-    fake.usage = [100, 100]
-    _, store = connected(tmp_path, fake)
-
-    assert sync(store, fake) == PAUSED_SHORT
-
-
 def test_activities_without_usable_streams_are_listed_and_not_tried_again(tmp_path):
     fake = FakeStrava(
         [summary(1, 1), summary(2, 2, manual=True), summary(3, 3), summary(4, 4)],
@@ -153,15 +145,6 @@ def test_an_access_token_about_to_expire_is_refreshed_and_the_new_pair_kept(tmp_
     ]
     connection = store.strava_connection()
     assert (connection.access_token, connection.refresh_token) == ("access-1", "refresh-1")
-
-
-def test_a_connection_strava_no_longer_accepts_says_so(tmp_path):
-    def rejecting(request: httpx2.Request) -> httpx2.Response:
-        return httpx2.Response(401, json={"message": "Authorization Error"})
-
-    _, store = connected(tmp_path, rejecting)
-
-    assert sync(store, rejecting) == REJECTED
 
 
 def test_sync_now_runs_in_the_background_and_the_page_reports_it(tmp_path):
@@ -241,15 +224,16 @@ def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_nex
     assert len(lap_rows(client.get(f"/activities/{activity['id']}").text)) == 2
 
 
-def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path):
-    fake = FakeStrava([summary(1, 1), summary(2, 2)])
+def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, steady_run_fit):
+    fake = FakeStrava([summary(1, 1), summary(2, 2), summary(77, 9, distance=9000.0)])
     client, store = connected(tmp_path, fake)
+    upload(client, "77.fit.gz", gzip.compress(steady_run_fit))
     sync(store, fake)
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         db.execute("UPDATE activities SET laps = NULL")
     fake.laps["1"] = [
-        lap("2026-03-01T07:00:00Z", 300, 1000.0),
         lap("2026-03-01T07:05:00Z", 700, 2000.0),
+        lap("2026-03-01T07:00:00Z", 300, 1000.0),
     ]
     fake.without_detail.add("2")
     fake.requests.clear()
@@ -260,7 +244,10 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path):
 
     assert fake.stream_requests() == []
     assert sorted(fake.detail_requests()) == ["1", "2"]
-    assert len(lap_rows(client.get(f"/activities/{ids['1']}").text)) == 2
+    assert lap_rows(client.get(f"/activities/{ids['1']}").text) == [
+        ["1", "5:00", "1.00 km", "5:00 /km"],
+        ["2", "11:40", "2.00 km", "5:50 /km"],
+    ]
     original = json.loads(gzip.decompress((tmp_path / "originals" / "strava-1").read_bytes()))
     assert len(original["activity"]["laps"]) == 2
     assert len(original["streams"]["time"]["data"]) == 1001

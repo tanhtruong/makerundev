@@ -80,6 +80,7 @@ def test_a_file_uploaded_after_a_sync_replaces_the_synced_stream(tmp_path, stead
         (-60, 3000.0, 3200.0, True),
         (0, 3000.0, 3201.0, False),
         (0, 20000.0, 21000.0, True),
+        (0, 20000.0, 21050.0, True),
         (0, 20000.0, 21060.0, False),
     ],
 )

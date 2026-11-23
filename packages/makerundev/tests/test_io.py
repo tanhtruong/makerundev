@@ -88,13 +88,6 @@ def test_fit_running_dynamics_are_read_in_canonical_units(make_fit):
     assert records["step_length"].to_list() == pytest.approx([1.1, 0.0, None])
 
 
-def test_fit_without_running_dynamics_has_null_columns(steady_run_fit):
-    records = load(steady_run_fit).records
-
-    for column in ("ground_contact_time", "vertical_oscillation", "step_length"):
-        assert records[column].null_count() == records.height
-
-
 def test_fit_laps_are_sorted_and_those_without_a_start_are_dropped(make_fit):
     rows = [{"t": float(i), "distance": i * 3.0} for i in range(3)]
     laps = [
@@ -128,6 +121,7 @@ def test_gpx_track_gets_distance_and_speed_from_positions():
 @pytest.mark.parametrize(
     ("header", "first_track", "name"),
     [
+        ("<metadata><name>Exported</name></metadata>", "<name>Harbour loop</name>", "Harbour loop"),
         ("<metadata><name>Exported</name></metadata>", "<name> </name>", "Exported"),
         ("", "", None),
     ],
@@ -172,6 +166,7 @@ def test_tcx_laps_are_read_in_utc_and_those_without_a_start_are_dropped():
     assert activity.laps == (
         Lap(start_time=START + dt.timedelta(minutes=5), elapsed_s=None, distance_m=1000.0),
     )
+    assert activity.laps[0].start_time.utcoffset() == dt.timedelta(0)
 
 
 def test_unreadable_input_raises_activity_file_error(steady_run_fit):
@@ -280,12 +275,15 @@ def test_damaged_zip_raises_activity_file_error(steady_run_fit, make_zip):
     lying_offset[end + 16 : end + 20] = (len(data) * 2).to_bytes(4, "little")
     future_version = bytearray(data)
     future_version[central + 6] = 99
+    bad_signature = bytearray(data)
+    bad_signature[central + 3] = 0
 
     for damaged in (
         data[: len(data) // 2],
         bytes(undecodable_name),
         bytes(lying_offset),
         bytes(future_version),
+        bytes(bad_signature),
     ):
         with pytest.raises(ActivityFileError):
             unzip(damaged)

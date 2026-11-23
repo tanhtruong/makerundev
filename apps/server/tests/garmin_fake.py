@@ -7,7 +7,7 @@ import httpx2
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.db import connect
-from makerundev_server.garmin import DOWNLOAD_PATH, SEARCH_PATH, TOKEN_PATH, GarminClient
+from makerundev_server.garmin import GarminClient
 from makerundev_server.garmin_sync import GarminSync
 from makerundev_server.store import Store
 
@@ -38,10 +38,9 @@ def jwt(issued_at: dt.datetime, expires_at: dt.datetime) -> str:
 
 
 class FakeGarmin:
-    def __init__(self, make_fit, make_zip, lifetime=dt.timedelta(hours=24)):
+    def __init__(self, make_fit, make_zip):
         self.make_fit = make_fit
         self.make_zip = make_zip
-        self.lifetime = lifetime
         self.key = KEY
         self.listed: list[dict] = []
         self.files: dict[str, bytes] = {}
@@ -51,7 +50,6 @@ class FakeGarmin:
         self.searches = 0
         self.data_requests = 0
         self.throttle_after: int | None = None
-        self.after_search: dict[int, Callable[[], object]] = {}
         self.after_download: dict[str, Callable[[], object]] = {}
 
     def run(
@@ -79,12 +77,12 @@ class FakeGarmin:
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         authorization = request.headers.get("Authorization", "")
-        if path == TOKEN_PATH:
+        if path == "/personalapitoken-service/personal-api/personal-api-key/token":
             if request.method != "POST" or authorization != f"ApiKey {self.key}":
                 return httpx2.Response(401, text="Unauthorized")
             self.tokens_issued += 1
             now = dt.datetime.now(dt.UTC) + dt.timedelta(seconds=self.tokens_issued)
-            token = jwt(now, now + self.lifetime)
+            token = jwt(now, now + dt.timedelta(hours=24))
             self.tokens.add(token)
             return httpx2.Response(200, text=token, headers={"Content-Type": "text/plain"})
         if authorization.removeprefix("Bearer ") not in self.tokens:
@@ -92,10 +90,10 @@ class FakeGarmin:
         self.data_requests += 1
         if self.throttle_after is not None and self.data_requests > self.throttle_after:
             return httpx2.Response(429, headers={"Retry-After": "120"})
-        if path == SEARCH_PATH:
+        if path == "/activitylist-service/activities/search/activities":
             return self.search(request.url.params)
         activity_id = path.rsplit("/", 1)[1]
-        assert path == DOWNLOAD_PATH.format(activity_id)
+        assert path == f"/download-service/files/activity/{activity_id}"
         self.downloads.append(activity_id)
         if activity_id in self.after_download:
             self.after_download[activity_id]()
@@ -115,10 +113,7 @@ class FakeGarmin:
         until = params.get("endDate", "9999")
         within = [a for a in self.listed if since <= a.get("startTimeGMT", "")[:10] <= until]
         newest_first = sorted(within, key=lambda a: a.get("startTimeGMT", ""), reverse=True)
-        response = httpx2.Response(200, json=newest_first[first : first + size])
-        if self.searches in self.after_search:
-            self.after_search[self.searches]()
-        return response
+        return httpx2.Response(200, json=newest_first[first : first + size])
 
 
 def app_with(tmp_path, fake) -> tuple[TestClient, Store]:

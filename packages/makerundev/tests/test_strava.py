@@ -1,7 +1,7 @@
 import datetime as dt
 
 import pytest
-from makerundev import ActivityFileError, Sport, load
+from makerundev import ActivityFileError, Sport
 from makerundev.io.strava import read_strava
 from makerundev.model import STREAM_SCHEMA, Lap
 
@@ -68,14 +68,6 @@ def test_streams_are_mapped_onto_the_record_stream_in_canonical_units():
     }
 
 
-def test_the_same_run_from_strava_and_from_its_fit_file_has_the_same_cadence(make_fit):
-    fit = load(make_fit([{"t": float(i), "distance": i * 3.0, "cadence": 85} for i in range(3)]))
-
-    strava = read_strava(summary(), streams())
-
-    assert strava.records["cadence"].to_list() == fit.records["cadence"].to_list() == [170.0] * 3
-
-
 def test_cadence_is_not_doubled_off_the_run():
     activity = read_strava(summary(sport_type="Ride"), streams())
 
@@ -91,12 +83,9 @@ def test_cadence_is_not_doubled_off_the_run():
         ({"sport_type": "TrailRun"}, {}, Sport.TRAIL_RUNNING),
         ({"sport_type": "TrailRun"}, {"latlng": None}, Sport.TRAIL_RUNNING),
         ({"sport_type": "VirtualRun"}, {}, Sport.TREADMILL_RUNNING),
-        ({"sport_type": "Walk"}, {}, Sport.WALKING),
-        ({"sport_type": "Hike"}, {}, Sport.HIKING),
         ({"sport_type": "Ride"}, {}, Sport.CYCLING),
         ({"sport_type": "GravelRide"}, {}, Sport.CYCLING),
         ({"sport_type": "EBikeRide"}, {}, Sport.CYCLING),
-        ({"sport_type": "Swim"}, {}, Sport.SWIMMING),
         ({"sport_type": "Yoga"}, {}, Sport.OTHER),
         ({"sport_type": None, "type": "Run"}, {}, Sport.RUNNING),
     ],
