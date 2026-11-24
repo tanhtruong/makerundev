@@ -460,6 +460,128 @@
           }
         }
       }
+    },
+    "/api/garmin": {
+      "get": {
+        "tags": [
+          "garmin"
+        ],
+        "summary": "Garmin Status",
+        "operationId": "garminStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GarminStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/garmin/key": {
+      "put": {
+        "tags": [
+          "garmin"
+        ],
+        "summary": "Save Garmin Key",
+        "operationId": "saveGarminKey",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GarminKey"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GarminStatus"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Garmin could not be reached to check the key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "garmin"
+        ],
+        "summary": "Remove Garmin Key",
+        "operationId": "removeGarminKey",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GarminStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/garmin/sync": {
+      "post": {
+        "tags": [
+          "garmin"
+        ],
+        "summary": "Start Garmin Sync",
+        "operationId": "startGarminSync",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GarminStatus"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No Garmin key is saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1164,6 +1286,43 @@
           "error"
         ],
         "title": "FileImport"
+      },
+      "GarminKey": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "GarminKey"
+      },
+      "GarminStatus": {
+        "properties": {
+          "key_saved": {
+            "type": "boolean",
+            "title": "Key Saved"
+          },
+          "sync": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "key_saved",
+          "sync"
+        ],
+        "title": "GarminStatus"
       },
       "HTTPValidationError": {
         "properties": {

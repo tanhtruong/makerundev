@@ -26,6 +26,7 @@ from makerundev_server import (
     charts,
     config,
     garmin,
+    garmin_api,
     settings_api,
     strava_api,
     training_api,
@@ -33,7 +34,6 @@ from makerundev_server import (
 )
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import Outcome, SyncState, connect
-from makerundev_server.garmin_sync import GarminSync
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS, current_performance
 from makerundev_server.settings import (
@@ -47,7 +47,6 @@ from makerundev_server.settings import (
 )
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
-from makerundev_server.sync_api import run_in_background
 from makerundev_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
 HERE = Path(__file__).parent
@@ -81,8 +80,7 @@ GARMIN_OUTCOMES: dict[Outcome, str] = {
 }
 GARMIN_NOTICES = {
     "saved": "Key saved. Start a sync to bring your activities in.",
-    "empty": "Paste your Personal API key first.",
-    "rejected": "Garmin did not accept that key. Check it was copied whole and has not expired.",
+    **garmin_api.KEY_ERRORS,
     "unreachable": "Garmin could not be reached to check the key. Try again later.",
     "removed": "Key removed. Activities imported from Garmin stay.",
 }
@@ -363,23 +361,12 @@ def create_app(
 
     @pages.post("/garmin/key", response_model=None)
     async def garmin_key(request: Request) -> Response:
-        key = str((await request.form()).get("key", "")).strip()
-        if not key:
-            return to_garmin("empty")
-        try:
-            token = await run_in_threadpool(garmin_client().token, key)
-        except garmin.Unauthorized:
-            return to_garmin("rejected")
-        except (garmin.GarminError, httpx2.HTTPError):
-            return to_garmin("unreachable")
-        await run_in_threadpool(store.garmin.save_key, key, token)
-        return to_garmin("saved")
+        key = str((await request.form()).get("key", ""))
+        return to_garmin(await run_in_threadpool(garmin_api.save_key, store, garmin_client(), key))
 
     @pages.post("/garmin/sync", response_model=None)
     def garmin_sync() -> Response:
-        run_in_background(
-            app, "garmin_sync", store.garmin.start_sync, GarminSync(store, garmin_client()).run
-        )
+        garmin_api.begin_sync(app, store, garmin_client())
         return to_garmin()
 
     @pages.post("/garmin/remove", response_model=None)
@@ -392,6 +379,7 @@ def create_app(
     app.include_router(settings_api.router(store))
     app.include_router(training_api.router(store))
     app.include_router(strava_api.router(store, strava_transport))
+    app.include_router(garmin_api.router(store, garmin_transport, garmin_pause))
     web.serve(app, web_dir or HERE / "web")
     return app
 
