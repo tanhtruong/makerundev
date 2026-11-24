@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as GarminRouteImport } from './routes/garmin'
 import { Route as LoadRouteImport } from './routes/load'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StravaRouteImport } from './routes/strava'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +30,11 @@ const LoadRoute = LoadRouteImport.update({
   path: '/load',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StravaRoute = StravaRouteImport.update({
   id: '/strava',
   path: '/strava',
@@ -39,12 +45,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/garmin': typeof GarminRoute
   '/load': typeof LoadRoute
+  '/settings': typeof SettingsRoute
   '/strava': typeof StravaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/garmin': typeof GarminRoute
   '/load': typeof LoadRoute
+  '/settings': typeof SettingsRoute
   '/strava': typeof StravaRoute
 }
 export interface FileRoutesById {
@@ -52,20 +60,22 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/garmin': typeof GarminRoute
   '/load': typeof LoadRoute
+  '/settings': typeof SettingsRoute
   '/strava': typeof StravaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/garmin' | '/load' | '/strava'
+  fullPaths: '/' | '/garmin' | '/load' | '/settings' | '/strava'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/garmin' | '/load' | '/strava'
-  id: '__root__' | '/' | '/garmin' | '/load' | '/strava'
+  to: '/' | '/garmin' | '/load' | '/settings' | '/strava'
+  id: '__root__' | '/' | '/garmin' | '/load' | '/settings' | '/strava'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   GarminRoute: typeof GarminRoute
   LoadRoute: typeof LoadRoute
+  SettingsRoute: typeof SettingsRoute
   StravaRoute: typeof StravaRoute
 }
 
@@ -92,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/strava': {
       id: '/strava'
       path: '/strava'
@@ -106,6 +123,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   GarminRoute: GarminRoute,
   LoadRoute: LoadRoute,
+  SettingsRoute: SettingsRoute,
   StravaRoute: StravaRoute,
 }
 export const routeTree = rootRouteImport

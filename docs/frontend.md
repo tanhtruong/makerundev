@@ -1,6 +1,6 @@
 # The web app
 
-The React app in `apps/web` replaces the server's Jinja pages one page at a time ([ADR 8](adr/0008-react-front-end.md)). The activity list at `/`, with the import form, was the first page, and the Strava, Garmin and training load pages at `/strava`, `/garmin` and `/load` are ported too. Every page that `src/lib/server-pages.ts` lists is still Jinja until its port merges. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
+The React app in `apps/web` replaces the server's Jinja pages one page at a time ([ADR 8](adr/0008-react-front-end.md)). The activity list at `/`, with the import form, was the first page, and the Strava, Garmin, training load and settings pages at `/strava`, `/garmin`, `/load` and `/settings` are ported too. The activity page at `/activities/{id}` is still Jinja until its port merges. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
 
 ## Set up
 
@@ -29,7 +29,7 @@ Inside `apps/web`, `pnpm generate` regenerates the API client and `pnpm format` 
 
 ## How the server serves it
 
-`/api` routes and the remaining Jinja routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links from React to a page that is still Jinja are plain `<a href>`, never router links, because the router does not know those pages. `src/lib/server-pages.ts` lists those pages once, for the top bar and for `make dev-web`'s proxy; porting a page removes it there, from the Jinja nav in `templates/base.html`, and from the server's routes. It also lists the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
+`/api` routes and the remaining Jinja routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links from React to a page that is still Jinja are plain `<a href>`, never router links, because the router does not know those pages. `src/lib/server-pages.ts` lists the paths the server still answers itself, for `make dev-web`'s proxy; porting a page removes it there, from the Jinja nav in `templates/base.html`, and from the server's routes, and its link in the top bar becomes a router link. The list also holds the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
 
 ## Structure
 

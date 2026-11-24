@@ -11,18 +11,7 @@ from makerundev_server import create_app
 from makerundev_server.charts import zone_bars
 from makerundev_server.db import ActivityRow
 from makerundev_server.training import load_view
-
-SETTINGS = {
-    "max_hr": "190",
-    "resting_hr": "50",
-    "trimp_coefficients": "male",
-    "timezone": "Europe/Copenhagen",
-    "zone_model": "max_hr_percent",
-    "zone_2": "60",
-    "zone_3": "70",
-    "zone_4": "80",
-    "zone_5": "90",
-}
+from settings_payload import SETTINGS
 
 
 def run(start: str, trimp: float | None) -> ActivityRow:
@@ -32,7 +21,7 @@ def run(start: str, trimp: float | None) -> ActivityRow:
 def client_with(tmp_path, *files: tuple[str, bytes], settings: bool = True) -> TestClient:
     client = TestClient(create_app(data_dir=tmp_path))
     if settings:
-        client.post("/settings", data=SETTINGS)
+        client.put("/api/settings", json=SETTINGS)
     for name, data in files:
         client.post("/api/activities", files=[("files", (name, data, "application/octet-stream"))])
     return client
@@ -383,7 +372,7 @@ def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
 
 def test_heart_rate_reserve_zones_start_from_resting_heart_rate(tmp_path, steady_run_fit):
     client = client_with(tmp_path, ("run.fit", steady_run_fit), settings=False)
-    client.post("/settings", data=SETTINGS | {"zone_model": "hr_reserve_percent"})
+    client.put("/api/settings", json=SETTINGS | {"zone_model": "hr_reserve_percent"})
     activity = client.get("/api/activities").json()["items"][0]
 
     page = client.get(f"/activities/{activity['id']}")

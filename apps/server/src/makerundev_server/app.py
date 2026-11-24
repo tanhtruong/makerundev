@@ -35,15 +35,6 @@ from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import connect
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS
-from makerundev_server.settings import (
-    DEFAULT_ZONE_MODEL,
-    FORM_FIELDS,
-    ZONE_FIELDS,
-    ZONE_MODEL_LABELS,
-    form_values,
-    parse_form,
-    timezones,
-)
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError
 
@@ -135,54 +126,6 @@ def create_app(
             raise HTTPException(status_code=404, detail="activity not found")
         return RedirectResponse(f"/activities/{activity_id}", status_code=303)
 
-    def settings_page(
-        request: Request,
-        values: dict[str, str],
-        errors: dict[str, str],
-        notice: str | None = None,
-        status_code: int = 200,
-    ) -> HTMLResponse:
-        saved = store.athlete_settings()
-        starts = format.zone_starts(saved.zone_boundaries_bpm()) if saved and not errors else []
-        return templates.TemplateResponse(
-            request,
-            "settings.html",
-            {
-                "values": values,
-                "errors": errors,
-                "notice": notice,
-                "zone_fields": ZONE_FIELDS,
-                "zone_models": ZONE_MODEL_LABELS,
-                "zone_label": ZONE_MODEL_LABELS.get(
-                    values["zone_model"], ZONE_MODEL_LABELS[DEFAULT_ZONE_MODEL]
-                ),
-                "zone_starts": starts,
-                "timezones": sorted(timezones()),
-                "highest_heart_rate": store.highest_heart_rate(),
-            },
-            status_code=status_code,
-        )
-
-    @pages.get("/settings", response_class=HTMLResponse)
-    def settings(request: Request, recomputed: str = "", unreadable: str = "") -> HTMLResponse:
-        notice = None
-        if recomputed.isdigit():
-            notice = "Settings saved." + _count(" TRIMP recomputed for {}.", int(recomputed))
-            if unreadable.isdigit():
-                notice += _count(" {} could not be read; see the server log.", int(unreadable))
-        return settings_page(request, form_values(store.athlete_settings()), {}, notice)
-
-    @pages.post("/settings", response_class=HTMLResponse, response_model=None)
-    async def save_settings(request: Request) -> Response:
-        form = await request.form()
-        values = {name: str(form.get(name, "")) for name in FORM_FIELDS}
-        parsed, errors = parse_form(values)
-        if parsed is None:
-            return settings_page(request, values, errors, status_code=422)
-        result = await run_in_threadpool(store.save_athlete_settings, parsed)
-        query = f"recomputed={result.recomputed}&unreadable={result.unreadable}"
-        return RedirectResponse(f"/settings?{query}", status_code=303)
-
     def strava_client() -> StravaClient | None:
         return strava_api.strava_client(strava_transport)
 
@@ -231,12 +174,6 @@ def create_app(
 
 def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") -> str:
     return moment.astimezone(ZoneInfo(timezone)).strftime(pattern)
-
-
-def _count(template: str, count: int) -> str:
-    if not count:
-        return ""
-    return template.format(f"{count} {'activity' if count == 1 else 'activities'}")
 
 
 def _lap_rows(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:

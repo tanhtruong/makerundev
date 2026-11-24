@@ -5,6 +5,7 @@ import openapi
 import pytest
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
+from settings_payload import SETTINGS as BASE_SETTINGS
 
 ROWS = [{"t": float(i), "distance": i * 3.0, "hr": 140} for i in range(301)]
 
@@ -70,23 +71,12 @@ DETAIL_ROWS = [
     }
     for i in range(1501)
 ]
-SETTINGS = {
-    "max_hr": "190",
-    "resting_hr": "50",
-    "trimp_coefficients": "male",
-    "timezone": "Europe/Copenhagen",
-    "zone_model": "max_hr_percent",
-    "zone_2": "60",
-    "zone_3": "70",
-    "zone_4": "80",
-    "zone_5": "90",
-    "body_mass_kg": "75",
-}
+SETTINGS = BASE_SETTINGS | {"body_mass_kg": 75}
 
 
 def test_activity_detail_returns_what_the_activity_page_shows(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
-    client.post("/settings", data=SETTINGS)
+    client.put("/api/settings", json=SETTINGS)
     client.post("/api/activities", files=[("files", ("steady.fit", make_fit(DETAIL_ROWS)))])
     activity_id = client.get("/api/activities").json()["items"][0]["id"]
 

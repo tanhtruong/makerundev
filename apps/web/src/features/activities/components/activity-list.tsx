@@ -10,12 +10,9 @@ import { useTimeZone } from "@/hooks/use-time-zone";
 import { ImportForm } from "@/features/activities/components/import-form";
 import { useListActivities } from "@/lib/api/endpoints/activities/activities.gen";
 import type { ActivityPage } from "@/lib/api/model/activity-page.gen";
+import { activityCount } from "@/lib/format";
 
 const PAGE_SIZE = 50;
-
-function activityCount(total: number): string {
-  return `${total} ${total === 1 ? "activity" : "activities"}`;
-}
 
 export function ActivityList({ page }: { page: number }) {
   const offset = (page - 1) * PAGE_SIZE;

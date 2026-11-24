@@ -3,19 +3,7 @@ from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.db import connect
 from makerundev_server.store import Store
-
-FORM = {
-    "max_hr": "190",
-    "resting_hr": "50",
-    "trimp_coefficients": "male",
-    "timezone": "UTC",
-    "zone_model": "max_hr_percent",
-    "zone_2": "60",
-    "zone_3": "70",
-    "zone_4": "80",
-    "zone_5": "90",
-}
-SAVED = 'name="max_hr" value="190"'
+from settings_payload import SETTINGS
 
 
 @pytest.mark.parametrize(
@@ -29,15 +17,15 @@ SAVED = 'name="max_hr" value="190"'
         {"Origin": "null", "Host": ""},
     ],
 )
-def test_a_cross_site_post_is_refused_and_changes_nothing(tmp_path, headers):
+def test_a_cross_site_write_is_refused_and_changes_nothing(tmp_path, headers):
     client = TestClient(create_app(data_dir=tmp_path))
 
-    response = client.post("/settings", data=FORM, headers=headers, follow_redirects=False)
+    response = client.put("/api/settings", json=SETTINGS, headers=headers)
 
     assert response.status_code == 403
-    page = client.get("/settings", headers=headers)
-    assert page.status_code == 200
-    assert SAVED not in page.text
+    read = client.get("/api/settings", headers=headers)
+    assert read.status_code == 200
+    assert read.json()["settings"] is None
 
 
 @pytest.mark.parametrize(
@@ -49,13 +37,13 @@ def test_a_cross_site_post_is_refused_and_changes_nothing(tmp_path, headers):
         {"Origin": "https://testserver"},
     ],
 )
-def test_a_same_origin_or_header_less_post_goes_through(tmp_path, headers):
+def test_a_same_origin_or_header_less_write_goes_through(tmp_path, headers):
     client = TestClient(create_app(data_dir=tmp_path))
 
-    response = client.post("/settings", data=FORM, headers=headers, follow_redirects=False)
+    response = client.put("/api/settings", json=SETTINGS, headers=headers)
 
-    assert response.status_code == 303
-    assert SAVED in client.get("/settings").text
+    assert response.status_code == 200
+    assert client.get("/api/settings").json()["settings"] == SETTINGS
 
 
 def test_another_site_cannot_start_a_strava_connection(tmp_path):
