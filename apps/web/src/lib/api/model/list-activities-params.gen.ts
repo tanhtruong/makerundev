@@ -4,6 +4,8 @@
  * makerundev
  * OpenAPI spec version: pre-1.0
  */
+import type { ListActivitiesSort } from "./list-activities-sort.gen";
+import type { Sport } from "./sport.gen";
 
 export type ListActivitiesParams = {
   /**
@@ -13,4 +15,12 @@ export type ListActivitiesParams = {
   limit?: number;
   /** @minimum 0 */
   offset?: number;
+  /** @maxLength 100 */
+  q?: string;
+  sport?: Sport[] | null;
+  min_distance_m?: number | null;
+  max_distance_m?: number | null;
+  from?: string | null;
+  to?: string | null;
+  sort?: ListActivitiesSort;
 };

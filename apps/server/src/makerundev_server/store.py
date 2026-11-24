@@ -30,6 +30,7 @@ from makerundev_server.db import (
     activity_name,
 )
 from makerundev_server.garmin_store import GarminStore
+from makerundev_server.listing import ActivityFilter, ActivitySort, conditions, ordering
 from makerundev_server.matching import file_match, synced_match
 from makerundev_server.performance_store import PerformanceStore, stored_efforts
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
@@ -108,13 +109,19 @@ class Store:
                 session.scalars(select(ActivityRow).order_by(ActivityRow.start_time.desc()))
             )
 
-    def page(self, limit: int, offset: int) -> tuple[Sequence[ActivityRow], int]:
-        newest_first = select(ActivityRow).order_by(
-            ActivityRow.start_time.desc(), ActivityRow.id.desc()
-        )
+    def page(
+        self,
+        limit: int,
+        offset: int,
+        wanted: ActivityFilter,
+        sort: ActivitySort,
+    ) -> tuple[Sequence[ActivityRow], int]:
+        where = conditions(wanted)
+        listed = select(ActivityRow).where(*where).order_by(*ordering(sort))
+        counted = select(func.count()).select_from(ActivityRow).where(*where)
         with Session(self.engine) as session:
-            rows = session.scalars(newest_first.limit(limit).offset(offset)).all()
-            total = session.scalar(select(func.count()).select_from(ActivityRow)) or 0
+            rows = session.scalars(listed.limit(limit).offset(offset)).all()
+            total = session.scalar(counted) or 0
         return rows, total
 
     def get(self, activity_id: int) -> ActivityRow | None:

@@ -142,7 +142,7 @@ From a clone, the app's pages say how to build them until you run `make sync-web
 
 Then open http://127.0.0.1:8000 and:
 
-1. **Import** your files at the top of the activity list. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
+1. **Import** your files at the top of the activity list. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect). Find a run again by searching its name, filtering by date, sport and distance, or sorting by any column; the address bar keeps the view, so you can bookmark it.
 2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them. Add your body mass too, and every run shows its estimated power next to any power your watch recorded.
 3. **Open Training load** to see fitness, fatigue and form built from your daily TRIMP.
 
@@ -263,9 +263,9 @@ The record stream has the same columns and units whatever the source file:
 
 ## Roadmap
 
-Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics, the route shape, critical speed, VDOT and running power without a power meter. Next, roughly in order:
+Done: parsers and the record stream, core metrics and the CLI, the web app, athlete settings with zones and TRIMP, the training load page, database migrations, Strava and Garmin Connect sync, ZIP import, laps, splits, running dynamics, the route shape, critical speed, VDOT and running power without a power meter, and searching, filtering and sorting the activity list. Next, roughly in order:
 
-- In the app: a map view, search and filters
+- In the app: a map view
 
 Not planned: social feeds, segment leaderboards, hosting other people's data or generating training plans. The [v1 spec](docs/v1-spec.md) has the full scope and reasoning.
 

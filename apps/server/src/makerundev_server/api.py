@@ -1,8 +1,10 @@
 import datetime as dt
 from collections.abc import Sequence
 from typing import Annotated, Any, Literal
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from makerundev import ActivityFileError, Sport, format
 from makerundev.metrics import (
@@ -19,6 +21,7 @@ from pydantic import BaseModel
 
 from makerundev_server import charts
 from makerundev_server.db import ActivityRow
+from makerundev_server.listing import ActivityFilter, ActivitySort
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS
 from makerundev_server.settings import AthleteSettings
@@ -27,6 +30,7 @@ from makerundev_server.strava import ACTIVITY_URL
 
 DEFAULT_PAGE_LIMIT = 50
 MAX_PAGE_LIMIT = 200
+MAX_QUERY_LENGTH = 100
 MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
 
@@ -201,8 +205,29 @@ def router(store: Store) -> APIRouter:
     def list_activities(
         limit: Annotated[int, Query(ge=1, le=MAX_PAGE_LIMIT)] = DEFAULT_PAGE_LIMIT,
         offset: Annotated[int, Query(ge=0)] = 0,
+        q: Annotated[str, Query(max_length=MAX_QUERY_LENGTH)] = "",
+        sport: Annotated[list[Sport] | None, Query()] = None,
+        min_distance_m: Annotated[float | None, Query(ge=0)] = None,
+        max_distance_m: Annotated[float | None, Query(ge=0)] = None,
+        from_: Annotated[dt.date | None, Query(alias="from")] = None,
+        to: Annotated[dt.date | None, Query()] = None,
+        sort: ActivitySort = "-start_time",
     ) -> ActivityPage:
-        rows, total = store.page(limit, offset)
+        _refuse_reversed("from", from_, to, "must be on or before to")
+        _refuse_reversed(
+            "min_distance_m", min_distance_m, max_distance_m, "must not be above max_distance_m"
+        )
+        settings = store.athlete_settings()
+        zone = ZoneInfo(settings.timezone if settings else "UTC")
+        wanted = ActivityFilter(
+            text=q.strip(),
+            sports=sport or (),
+            min_distance_m=min_distance_m,
+            max_distance_m=max_distance_m,
+            starts_from=_local_midnight(from_, zone),
+            starts_before=_local_midnight(_day_after(to), zone),
+        )
+        rows, total = store.page(limit, offset, wanted, sort)
         return ActivityPage(items=[_summary(row) for row in rows], total=total)
 
     @api.post("/activities", tags=["activities"])
@@ -236,6 +261,28 @@ def router(store: Store) -> APIRouter:
         return store.records(activity_or_404(store, activity_id)).to_dicts()
 
     return api
+
+
+def _refuse_reversed[T: (dt.date, float)](
+    name: str, low: T | None, high: T | None, message: str
+) -> None:
+    if low is not None and high is not None and low > high:
+        raise RequestValidationError(
+            [{"loc": ("query", name), "msg": message, "type": "value_error", "input": low}]
+        )
+
+
+def _local_midnight(day: dt.date | None, zone: ZoneInfo) -> dt.datetime | None:
+    if day is None:
+        return None
+    try:
+        return dt.datetime.combine(day, dt.time(), zone).astimezone(dt.UTC)
+    except OverflowError:
+        return None
+
+
+def _day_after(day: dt.date | None) -> dt.date | None:
+    return day + dt.timedelta(days=1) if day is not None and day < dt.date.max else None
 
 
 def _summary(row: ActivityRow) -> ActivitySummary:

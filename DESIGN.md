@@ -178,9 +178,9 @@ Chart lines take hues from a validated categorical palette, stepped separately f
 
 ## Layout
 
-Content sits in a centred column up to 1400px wide, with a 16px gutter on phones and 40px from the `sm` breakpoint (640px). The page block has 32px of vertical padding on phones and 40px from `sm`. The heading row sits 24px above the import form, with the heading on the left and the count baseline-aligned at the right, and the form sits 24px (the section spacing) above the table. Paging sits 20px below the table: range and total at the left, Previous and Next at the right.
+Content sits in a centred column up to 1400px wide, with a 16px gutter on phones and 40px from the `sm` breakpoint (640px). The page block has 32px of vertical padding on phones and 40px from `sm`. The heading row sits 24px above the import form, with the heading on the left and the count baseline-aligned at the right, the form sits 24px (the section spacing) above the filter bar, and the filter bar 24px above the table. Paging sits 20px below the table: range and total at the left, then Previous, the page numbers and Next at the right.
 
-Tables are dense. Cells have 10px padding, headers are 40px tall, and text never wraps except the activity name on phones. Columns drop out by width rather than the table turning into cards. Below `sm` the date folds under the name and heart rate folds under pace. Below `md` (768px) sport, moving time and climb are hidden. The lane column takes about a third of the table width.
+Tables are dense. Cells have 10px padding, headers are 40px tall, and text never wraps except the activity name on phones. Columns drop out by width rather than the table turning into cards. Below `sm` the date folds under the name and heart rate folds under pace. Below `md` (768px) sport, moving time, climb and TRIMP are hidden, and a Sort select stands in for their headers. The lane column takes about a third of the table width.
 
 The top bar is 56px tall from `sm`. On phones the wordmark sits above a wrapping row of nav links.
 
@@ -213,7 +213,7 @@ Quiet and functional. They sit beside data and never outshout it. There is no fi
 - **Lane line:** the bar ends in a 3px Lane White line and then a 6px band of tartan.
 
 ### Data table
-- **Header row:** Label type in Stand Grey, 40px tall, with a 1px Start Line Ink rule under it. It has no hover. Numeric headers are right-aligned over their figures; the lane column is headed "Distance", right-aligned over the distance figure, and the bar carries no label of its own.
+- **Header row:** Label type in Stand Grey, 40px tall, with a 1px Start Line Ink rule under it. A sortable header is a link that underlines on hover; the sorted one turns Track Ink with an arrow, before the label over figures and after it otherwise, and the space for the arrow is kept on every sortable header so labels never shift. Numeric headers are right-aligned over their figures; the lane column is headed "Distance", right-aligned over the distance figure, and the bar carries no label of its own.
 - **Rows:** 1px Hairline dividers, 10px cell padding and Infield Wash on hover over 150ms. The whole row is the link target, through the name link stretched across the row. The link underlines on hover.
 - **Figures:** right-aligned in Figure type. Dates are semibold with the time in Stand Grey beside them.
 
@@ -238,6 +238,13 @@ A row of headline numbers between Hairline rules above and below: a Label over a
 
 ### Range switch
 A row of plain text links in Stand Grey, such as 90 days, 180 days, 365 days, All. The chosen one turns Track Ink with a 2px ink underline, like the active nav link, and the choice lives in the URL.
+
+### Filter bar
+Rows above the activity table, closed by a Hairline rule. Each row starts with a Label in Stand Grey in an 80px column, and its controls wrap beside it, never back under the label: Search with its field, Date with All, This month, This year and Custom (two date fields), Sport with a toggle per sport, Distance with two km fields. Toggles look like the Range switch and carry `aria-pressed`; several sports can be on at once. Clear, an outline button, sits at the right of the last row, disabled while nothing is filtered. Every choice lives in the URL.
+
+- **Phones:** below `sm` the Search label sits above a full-width field, and the rows fold behind a "Filters" outline button that counts the filters on ("Filters · 2"), next to the Sort select.
+- **Page numbers:** plain figures like the Range switch, the current one in Track Ink with the 2px ink underline: the first and last pages, the current page and one either side, with an ellipsis for the gaps. They hide below `sm`, where Previous and Next remain.
+- **No matches:** "No activities match these filters." with a link that clears them, in the empty-state block.
 
 ### Line chart
 - **Marks:** 2px series lines with no dots; a hovered day gets a dot on each line.

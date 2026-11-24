@@ -31,6 +31,9 @@ Every route under `/api` follows these rules, so that the React app's client can
 - A list returns `{"items": [...], "total": N}`, where `total` counts every item, not the page.
 - It takes `limit` (default 50, at most 200) and `offset` (default 0); a value outside those is a 422.
 - Its order is stable and ends on a unique column, so paging never skips or repeats an item.
+- A list that can be sorted takes `sort`: the name of a response field, ascending, or with a leading `-`, descending, such as `sort=-distance_m`. Missing values sort last either way.
+- Filters are query parameters named after the field and unit they filter, such as `min_distance_m`; a repeatable one, such as `sport`, is repeated rather than comma-joined. Dates are local days in the athlete's timezone, inclusive at both ends. A filter whose bounds are reversed, such as `from` after `to`, is a 422 on the first of them, with our own `msg`.
+- `total` counts every item the filters match, not every item.
 - `GET /api/activities/{id}/records` is the exception to this and to the response model rule: it returns the whole record stream, one untyped object per sample, as a plain list for scripts. The client uses the series an activity's own endpoint returns instead.
 
 ## Live status

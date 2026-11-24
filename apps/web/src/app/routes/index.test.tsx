@@ -2,7 +2,7 @@ import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { AppProvider } from "@/app/provider";
 import { createAppRouter } from "@/app/router";
@@ -107,6 +107,7 @@ describe("the activity list", () => {
       "5:00 /km148 bpm",
       "148",
       "25 m",
+      "-",
     ]);
     expect(within(unnamed).getByRole("link")).toHaveTextContent("run-1.fit");
     expect(within(unnamed).getByRole("link")).toHaveAttribute("href", "/activities/1");
@@ -157,5 +158,63 @@ describe("the activity list", () => {
     expect(await within(pages).findByText("101-120 of 120")).toBeInTheDocument();
     expect(within(pages).getByRole("button", { name: "Next" })).toBeDisabled();
     expect(offsets).toEqual(["0", "50", "100"]);
+  });
+
+  describe("reads its filters, sort and page from the URL", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function recordRequests() {
+      const sent: URLSearchParams[] = [];
+      server.use(
+        http.get("/api/activities", ({ request }) => {
+          sent.push(new URL(request.url).searchParams);
+          return HttpResponse.json({ items: [activity(1, {})], total: 1 });
+        }),
+      );
+      return sent;
+    }
+
+    it("asks the API for that view, with this month counted in the athlete's timezone", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2026-03-31T12:00:00Z"));
+      server.use(settingsIn("Pacific/Auckland"));
+      const sent = recordRequests();
+
+      renderAt(
+        "/?q=harbour&sport=running&sport=trail_running&min_km=5&max_km=12.5&sort=-distance_m&page=2&period=this_month",
+      );
+
+      await screen.findByText("1 activity");
+      expect(sent.map((params) => [...params])).toEqual([
+        [
+          ["limit", "50"],
+          ["offset", "50"],
+          ["q", "harbour"],
+          ["sport", "running"],
+          ["sport", "trail_running"],
+          ["min_distance_m", "5000"],
+          ["max_distance_m", "12500"],
+          ["from", "2026-04-01"],
+          ["sort", "-distance_m"],
+        ],
+      ]);
+    });
+
+    it("drops values it cannot use instead of sending them", async () => {
+      server.use(settingsIn(null));
+      const sent = recordRequests();
+
+      renderAt("/?sport=jogging&sort=name&min_km=-3&max_km=x&from=2026-02-30&to=soon&period=week&page=abc&q=%20");
+
+      await screen.findByText("1 activity");
+      expect(sent.map((params) => [...params])).toEqual([
+        [
+          ["limit", "50"],
+          ["offset", "0"],
+        ],
+      ]);
+    });
   });
 });

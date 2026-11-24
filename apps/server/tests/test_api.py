@@ -4,6 +4,8 @@ from pathlib import Path
 import openapi
 import pytest
 from fastapi.testclient import TestClient
+from fit_tool.profile.profile_type import Sport as FitSport
+from fit_tool.profile.profile_type import SubSport
 from makerundev_server import create_app
 from settings_payload import SETTINGS as BASE_SETTINGS
 
@@ -43,6 +45,13 @@ def test_activities_are_paged_newest_first_with_the_total(client):
         ["sun.fit"],
     ]
     assert [page["total"] for page in pages] == [5, 5, 5]
+    assert listed(client, sort="start_time") == [
+        "sun.fit",
+        "mon.fit",
+        "tue.fit",
+        "tie-a.fit",
+        "tie-b.fit",
+    ]
     first = client.get("/api/activities").json()["items"][0]
     assert (first["start_time"], first["avg_heart_rate_bpm"]) == ("2026-03-04T07:00:00Z", 140.0)
 
@@ -53,6 +62,76 @@ def test_a_page_outside_the_limits_is_refused(client, params):
 
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["query", next(iter(params))]
+
+
+def steady(
+    speed: float, seconds: int, hr: int | None = 140, climb: float = 0.0
+) -> list[dict[str, float]]:
+    steps = seconds // 10
+    rows = []
+    for i in range(steps + 1):
+        row = {"t": i * 10.0, "distance": i * 10.0 * speed, "speed": speed}
+        row["altitude"] = 10.0 + climb * i / steps
+        if hr is not None:
+            row["hr"] = hr
+        rows.append(row)
+    return rows
+
+
+def upload(client: TestClient, filename: str, data: bytes) -> None:
+    response = client.post("/api/activities", files=[("files", (filename, data))])
+    assert response.json()["results"][0]["status"] == "imported"
+
+
+def listed(client: TestClient, **params: object) -> list[str]:
+    response = client.get("/api/activities", params=params)
+    assert response.status_code == 200, response.json()
+    return [activity["filename"] for activity in response.json()["items"]]
+
+
+NAMED_GPX = b"""<?xml version="1.0"?>
+<gpx version="1.1" creator="test" xmlns="http://www.topografix.com/GPX/1/1">
+  <trk><name>Harbour loop</name><type>running</type><trkseg>
+    <trkpt lat="55.6700" lon="12.5600"><time>2026-03-20T07:00:00Z</time></trkpt>
+    <trkpt lat="55.6710" lon="12.5600"><time>2026-03-20T07:00:30Z</time></trkpt>
+  </trkseg></trk>
+</gpx>
+"""
+
+
+def test_filters_combine_and_page_with_the_filtered_total(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    library = [
+        ("harbour-10k.fit", 10, FitSport.RUNNING, SubSport.GENERIC, 10_000),
+        ("harbour-5k.fit", 11, FitSport.RUNNING, SubSport.GENERIC, 5_000),
+        ("harbour-ride.fit", 12, FitSport.CYCLING, SubSport.GENERIC, 12_000),
+        ("harbour-trail.fit", 13, FitSport.RUNNING, SubSport.TRAIL, 12_000),
+        ("park-12k.fit", 14, FitSport.RUNNING, SubSport.GENERIC, 12_000),
+        ("HARBOUR-15k.fit", 15, FitSport.RUNNING, SubSport.GENERIC, 15_000),
+        ("harbour-hike.fit", 16, FitSport.HIKING, SubSport.GENERIC, 8_000),
+    ]
+    for filename, day, sport, sub_sport, metres in library:
+        rows = steady(4.0, metres // 4)
+        upload(client, filename, make_fit(rows, sport, sub_sport, start=at(day)))
+    upload(client, "named.gpx", NAMED_GPX)
+    wanted = {
+        "q": "harbour",
+        "sport": ["running", "trail_running"],
+        "min_distance_m": 6_000,
+        "max_distance_m": 14_000,
+        "limit": 1,
+    }
+
+    pages = [client.get("/api/activities", params=wanted | {"offset": n}).json() for n in (0, 1)]
+
+    assert [[a["filename"] for a in page["items"]] for page in pages] == [
+        ["harbour-trail.fit"],
+        ["harbour-10k.fit"],
+    ]
+    assert [page["total"] for page in pages] == [2, 2]
+    assert listed(client, q="HARBOUR-15") == ["HARBOUR-15k.fit"]
+    assert listed(client, q="loop") == ["named.gpx"]
+    assert listed(client, q="  ") == listed(client)
 
 
 DETAIL_ROWS = [
@@ -158,3 +237,86 @@ def test_the_committed_openapi_schema_matches_the_app():
     committed = Path(openapi.SCHEMA).read_text()
 
     assert committed == openapi.render(), "apps/server/openapi.json is stale: run make openapi"
+
+
+def test_from_and_to_are_whole_local_days_in_the_athletes_timezone(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    assert client.put("/api/settings", json=BASE_SETTINGS).status_code == 200
+    starts = {
+        "feb-28-late.fit": dt.datetime(2026, 2, 28, 22, 30, tzinfo=dt.UTC),
+        "mar-1-early.fit": dt.datetime(2026, 2, 28, 23, 30, tzinfo=dt.UTC),
+        "mar-1-late.fit": dt.datetime(2026, 3, 1, 22, 30, tzinfo=dt.UTC),
+        "mar-2-early.fit": dt.datetime(2026, 3, 1, 23, 30, tzinfo=dt.UTC),
+    }
+    for filename, start in starts.items():
+        upload(client, filename, make_fit(steady(3.0, 600), start=start))
+
+    one_day = listed(client, **{"from": "2026-03-01", "to": "2026-03-01"})
+
+    assert one_day == ["mar-1-late.fit", "mar-1-early.fit"]
+    assert listed(client, **{"from": "2026-03-02"}) == ["mar-2-early.fit"]
+    assert listed(client, to="2026-02-28") == ["feb-28-late.fit"]
+    assert len(listed(client, **{"from": "0001-01-01", "to": "9999-12-31"})) == 4
+
+
+def test_search_folds_any_letter_case_and_matches_wildcards_literally(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    for day, filename in enumerate(["Đà Lạt tempo.fit", "100% effort.fit", "easy_run.fit"], 1):
+        upload(client, filename, make_fit(steady(3.0, 600), start=at(day)))
+
+    assert listed(client, q="đà lạt") == ["Đà Lạt tempo.fit"]
+    assert listed(client, q="%") == ["100% effort.fit"]
+    assert listed(client, q="_") == ["easy_run.fit"]
+
+
+@pytest.fixture
+def varied(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    assert client.put("/api/settings", json=BASE_SETTINGS).status_code == 200
+    runs = [
+        ("x.fit", 2, steady(2.5, 600, hr=160, climb=60)),
+        ("y.fit", 4, steady(4.0, 1500, hr=130, climb=40)),
+        ("z.fit", 1, steady(3.0, 3000, hr=145, climb=20)),
+        ("n.fit", 3, steady(1.0, 1300, hr=None)),
+    ]
+    for filename, day, rows in runs:
+        upload(client, filename, make_fit(rows, start=at(day)))
+    return client
+
+
+@pytest.mark.parametrize(
+    ("key", "ascending", "descending"),
+    [
+        ("start_time", "zxny", "ynxz"),
+        ("distance_m", "nxyz", "zyxn"),
+        ("moving_s", "xnyz", "zynx"),
+        ("pace_s_per_km", "yzxn", "nxzy"),
+        ("avg_heart_rate_bpm", "yzxn", "xzyn"),
+        ("elevation_gain_m", "nzyx", "xyzn"),
+        ("trimp", "xyzn", "zyxn"),
+    ],
+)
+def test_sorting_orders_by_the_key_either_way_with_missing_values_last(
+    varied, key, ascending, descending
+):
+    def order(sort: str) -> str:
+        return "".join(name[0] for name in listed(varied, sort=sort))
+
+    assert (order(key), order(f"-{key}")) == (ascending, descending)
+
+
+@pytest.mark.parametrize(
+    ("params", "field"),
+    [
+        ({"from": "2026-03-02", "to": "2026-03-01"}, "from"),
+        ({"min_distance_m": 5000, "max_distance_m": 4000}, "min_distance_m"),
+        ({"sport": "jogging"}, "sport"),
+        ({"sort": "-name"}, "sort"),
+        ({"q": "x" * 101}, "q"),
+    ],
+)
+def test_an_impossible_filter_is_refused(client, params, field):
+    response = client.get("/api/activities", params=params)
+
+    assert response.status_code == 422
+    assert [error["loc"][:2] for error in response.json()["detail"]] == [["query", field]]
