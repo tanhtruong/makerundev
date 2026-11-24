@@ -16,7 +16,7 @@ makerundev reads the activity files that Garmin, Coros, Suunto, Polar and Wahoo 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/activity-dark.jpg">
-  <img alt="makerundev activity page for an interval session: distance, moving time, pace, heart rate and climb, with pace, heart-rate and elevation charts" src="docs/images/activity-light.jpg">
+  <img alt="makerundev activity page for an interval session: distance, moving time, pace, power, heart rate and climb, with the route shape and pace, heart-rate and elevation charts" src="docs/images/activity-light.jpg">
 </picture>
 
 ## Why makerundev
@@ -148,7 +148,7 @@ Then open http://127.0.0.1:8000 and:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/load-dark.jpg">
-  <img alt="makerundev training load page: fitness rising steadily over five months of training, fatigue above it, and form dipping during hard blocks and rising for a race" src="docs/images/load-light.jpg">
+  <img alt="makerundev training load page: fitness rising steadily over six months of training, fatigue above it, and form dipping during hard blocks and rising for a race" src="docs/images/load-light.jpg">
 </picture>
 
 The app has no login, so keep it on `127.0.0.1` or behind a reverse proxy that adds authentication. It refuses form posts and API writes that another website makes your browser send. Configuration, data layout, backups and the JSON API are in the [server README](apps/server/README.md).
