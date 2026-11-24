@@ -121,6 +121,17 @@ class RoutePoint(BaseModel):
     longitude_deg: float
 
 
+class ShapePoint(BaseModel):
+    x: float
+    y: float
+
+
+class RouteShape(BaseModel):
+    points: list[ShapePoint]
+    width: float
+    height: float
+
+
 class ActivityDetail(ActivitySummary):
     strava_url: str | None
     is_running: bool
@@ -142,6 +153,7 @@ class ActivityDetail(ActivitySummary):
     series: list[SeriesRow]
     series_bounds: SeriesBounds
     route: list[RoutePoint] | None
+    route_shape: RouteShape | None
 
 
 class Exclusion(BaseModel):
@@ -277,6 +289,14 @@ def _zones(activity: Activity, settings: AthleteSettings | None) -> list[Zone]:
     ]
 
 
+def _shape(shape: charts.RouteShape) -> RouteShape:
+    return RouteShape(
+        points=[ShapePoint(x=x, y=y) for x, y in shape.points],
+        width=shape.width,
+        height=shape.height,
+    )
+
+
 def _detail(
     row: ActivityRow,
     activity: Activity,
@@ -336,4 +356,5 @@ def _detail(
         route=[RoutePoint(latitude_deg=lat, longitude_deg=lon) for lat, lon in route]
         if route is not None
         else None,
+        route_shape=_shape(charts.route_shape(route)) if route is not None else None,
     )

@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -96,9 +97,13 @@ function ImportResults({ results }: { results: FileImport[] }) {
           {result.activity_id === null ? (
             <span className="min-w-0 truncate font-medium">{result.filename}</span>
           ) : (
-            <a href={`/activities/${result.activity_id}`} className="min-w-0 truncate font-medium hover:underline">
+            <Link
+              to="/activities/$activityId"
+              params={{ activityId: result.activity_id }}
+              className="min-w-0 truncate font-medium hover:underline"
+            >
               {result.filename}
-            </a>
+            </Link>
           )}
           {result.status === "failed" ? (
             <span>{result.error}</span>

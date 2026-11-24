@@ -29,6 +29,10 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": "error",
       "@typescript-eslint/restrict-template-expressions": ["error", { allowNumber: true }],
+      "@typescript-eslint/only-throw-error": [
+        "error",
+        { allow: [{ from: "package", package: "@tanstack/router-core", name: "NotFoundError" }] },
+      ],
       "no-restricted-imports": [
         "error",
         { patterns: [{ group: ["../*"], message: "Import with the @/ alias instead of a parent path." }] },

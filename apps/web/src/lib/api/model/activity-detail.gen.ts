@@ -8,6 +8,7 @@ import type { ActivityDetailSourceFormat } from "./activity-detail-source-format
 import type { BestEffort } from "./best-effort.gen";
 import type { Lap } from "./lap.gen";
 import type { RoutePoint } from "./route-point.gen";
+import type { RouteShape } from "./route-shape.gen";
 import type { RunningDynamics } from "./running-dynamics.gen";
 import type { SeriesBounds } from "./series-bounds.gen";
 import type { SeriesRow } from "./series-row.gen";
@@ -53,4 +54,5 @@ export interface ActivityDetail {
   series: SeriesRow[];
   series_bounds: SeriesBounds;
   route: RoutePoint[] | null;
+  route_shape: RouteShape | null;
 }

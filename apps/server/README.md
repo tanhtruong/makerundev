@@ -83,9 +83,8 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | --- | --- |
 | `GET /` | The activity list with the import form (the React app; every path the server does not own returns it) |
 | `GET /load?days=90\|180\|365\|all` | Fitness, fatigue and form from daily TRIMP (default 180 days), in the React app |
-| `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP |
-| `GET /settings` | Athlete settings form |
-| `POST /settings` | Save athlete settings and recompute TRIMP if needed |
+| `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP (the React app) |
+| `GET /settings` | Athlete settings form (the React app) |
 | `GET /strava` | Strava connection, sync status and skipped activities (the React app) |
 | `POST /strava/connect` | Start connecting: redirects to Strava's authorisation page |
 | `GET /strava/callback` | Where Strava sends you back after authorising; redirects to the Strava page |
@@ -109,7 +108,7 @@ The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob
 
 ## Development
 
-The app is FastAPI with Jinja templates and inline SVG charts, which the React app in `apps/web` replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). The activity list and the Strava and Garmin pages are already React. `make check` at the repository root runs the server's tests along with the library's and needs no Node. From a clone, run `make build-web` once to serve the React pages; without it they show how to build them. See [docs/frontend.md](https://github.com/tanhtruong/makerundev/blob/main/docs/frontend.md) and [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
+The app is a FastAPI JSON API with the React app in `apps/web` on top ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). `make check` at the repository root runs the server's tests along with the library's and needs no Node. From a clone, run `make build-web` once to serve the React pages; without it they show how to build them. See [docs/frontend.md](https://github.com/tanhtruong/makerundev/blob/main/docs/frontend.md) and [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
 
 After changing a JSON route or its models, run `make openapi` at the repository root and commit `apps/server/openapi.json`; a test fails while it is stale.
 

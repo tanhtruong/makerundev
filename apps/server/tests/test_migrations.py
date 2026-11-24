@@ -78,7 +78,7 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
         ).fetchall()
     assert identity == [("ab", "ab", None, None)]
     assert len(client.get(f"/api/activities/{activities[0]['id']}/records").json()) == 1
-    assert client.get(f"/activities/{activities[0]['id']}").status_code == 200
+    assert client.get(f"/api/activities/{activities[0]['id']}").status_code == 200
     with sqlite3.connect(tmp_path / "pacelab.db") as db:
         assert db.execute("SELECT laps FROM activities").fetchall() == [("[]",)]
     duplicate = (

@@ -1,6 +1,6 @@
 # The web app
 
-The React app in `apps/web` replaces the server's Jinja pages one page at a time ([ADR 8](adr/0008-react-front-end.md)). The activity list at `/`, with the import form, was the first page, and the Strava, Garmin, training load and settings pages at `/strava`, `/garmin`, `/load` and `/settings` are ported too. The activity page at `/activities/{id}` is still Jinja until its port merges. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
+Every page of the web app is a React single-page app in `apps/web` ([ADR 8](adr/0008-react-front-end.md)), which replaced the server's Jinja pages in 0.8.0. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
 
 ## Set up
 
@@ -14,14 +14,14 @@ corepack enable
 make sync-web
 ```
 
-Python-only work needs none of this. `make sync` and `make check` never touch Node. Without a build, the server answers the React routes with a "UI not built: run `make build-web`" page, and the Jinja pages and the JSON API work as before.
+Python-only work needs none of this. `make sync` and `make check` never touch Node. Without a build, the server answers the React routes with a "UI not built: run `make build-web`" page, and the JSON API works as before.
 
 ## Commands
 
 | Command | What it does |
 | --- | --- |
 | `make sync-web` | Install the locked dependencies |
-| `make dev-web` | Vite on http://localhost:5173, with `/api`, `/static` and the remaining Jinja pages proxied to `make serve` on port 8000 |
+| `make dev-web` | Vite on http://localhost:5173, with `/api`, `/static` and the Strava OAuth routes proxied to `make serve` on port 8000 |
 | `make build-web` | Typecheck and build into `apps/server/src/makerundev_server/web/`, which the server serves |
 | `make check-web` | ESLint, Prettier, `tsc`, Vitest, a check that the generated files are fresh, a build, and Playwright |
 
@@ -29,7 +29,7 @@ Inside `apps/web`, `pnpm generate` regenerates the API client and `pnpm format` 
 
 ## How the server serves it
 
-`/api` routes and the remaining Jinja routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links from React to a page that is still Jinja are plain `<a href>`, never router links, because the router does not know those pages. `src/lib/server-pages.ts` lists the paths the server still answers itself, for `make dev-web`'s proxy; porting a page removes it there, from the Jinja nav in `templates/base.html`, and from the server's routes, and its link in the top bar becomes a router link. The list also holds the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
+`/api` routes and the server's own routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links between pages are router links. `src/lib/server-pages.ts` lists the paths the server answers itself, for `make dev-web`'s proxy: `/api`, `/static` (the favicons) and the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
 
 ## Structure
 
