@@ -1,6 +1,6 @@
 import datetime as dt
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from alembic import command
 from alembic.config import Config
@@ -108,12 +108,25 @@ class AthleteSettingsRow(Base):
     body_mass_kg: Mapped[float | None] = mapped_column(Float)
 
 
+Outcome = Literal[
+    "up_to_date",
+    "paused_short",
+    "paused_daily",
+    "paused",
+    "rejected",
+    "unreachable",
+    "failed",
+    "interrupted",
+]
+
+
 class SyncState:
     newest_synced: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     backfill_before: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     backfill_done: Mapped[bool] = mapped_column(Boolean, default=False)
     syncing: Mapped[bool] = mapped_column(Boolean, default=False)
-    sync_message: Mapped[str | None] = mapped_column(String(255))
+    sync_outcome: Mapped[Outcome | None] = mapped_column(String(32))
+    resume_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     last_sync_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
     imported: Mapped[int] = mapped_column(Integer, default=0)
     matched: Mapped[int] = mapped_column(Integer, default=0)

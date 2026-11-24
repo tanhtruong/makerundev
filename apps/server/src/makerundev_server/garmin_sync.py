@@ -11,17 +11,11 @@ from makerundev.io import unzip
 from sqlalchemy.exc import SQLAlchemyError
 
 from makerundev_server import garmin
-from makerundev_server.db import activity_name
+from makerundev_server.db import Outcome, activity_name
 from makerundev_server.matching import strava_id_in
 from makerundev_server.store import Store
-from makerundev_server.sync_state import FAILED, REFRESH_MARGIN, UP_TO_DATE, Phase, utc
+from makerundev_server.sync_state import REFRESH_MARGIN, Phase, utc
 
-PAUSED = "Garmin asked to slow down. Sync again later."
-EXPIRED = (
-    "Garmin no longer accepts this key: it has expired or was revoked."
-    " Create a new one in Garmin Connect under Settings, Personal API Key, and save it below."
-)
-UNREACHABLE = "Garmin could not be reached. Sync again later."
 UNREADABLE = "the file could not be imported; see the server log"
 MANUAL = "a manual entry, with no file"
 NOT_A_ZIP = "Garmin did not send a ZIP"
@@ -46,22 +40,24 @@ class GarminSync:
         self.client = client
 
     def run(self) -> None:
-        message = FAILED
+        outcome: Outcome = "failed"
+        resume_at = None
         try:
             self._newer()
             self._backfill()
-            message = UP_TO_DATE
+            outcome = "up_to_date"
         except garmin.RateLimited as limit:
-            message = _paused(limit.retry_after)
+            outcome = "paused"
+            resume_at = garmin.retry_at(limit.retry_after, dt.datetime.now(dt.UTC))
         except garmin.Unauthorized:
-            message = EXPIRED
+            outcome = "rejected"
         except (httpx2.HTTPError, garmin.GarminError) as error:
             log.warning("Garmin sync stopped: %s", type(error).__name__)
-            message = UNREACHABLE
+            outcome = "unreachable"
         except Exception:
             log.exception("Garmin sync failed")
         finally:
-            self.store.garmin.finish_sync(message)
+            self.store.garmin.finish_sync(outcome, resume_at)
 
     def access_token(self) -> str:
         row = self.store.garmin.connection()
@@ -175,11 +171,3 @@ def _garmin_file(activity_id: str, data: bytes) -> tuple[str, bytes]:
     if strava_id_in(entry.name) is not None:
         return f"garmin-{activity_id}{PurePosixPath(entry.name).suffix}", entry.data
     return entry.name, entry.data
-
-
-def _paused(retry_after: str | None) -> str:
-    minutes = garmin.retry_minutes(retry_after, dt.datetime.now(dt.UTC))
-    if minutes is None:
-        return PAUSED
-    unit = "minute" if minutes == 1 else "minutes"
-    return f"Garmin asked to slow down. Sync again in {minutes} {unit}."

@@ -22,6 +22,7 @@ Every route under `/api` follows these rules, so that the React app's client can
 
 - A 4xx error is FastAPI's `{"detail": "activity not found"}`, lower case with no full stop.
 - A validation error is FastAPI's 422 list of `loc`, `msg` and `type`. Where a form shows the message next to a field, write our own `msg` rather than Pydantic's.
+- A request the resource's current state refuses, such as starting a Strava sync before Strava is connected, is a 409.
 - A route that acts on several items in one request, such as `POST /api/activities` importing files, answers 200 whenever the request itself is well formed, even when every item failed, and reports each item's outcome in the body in the order sent. A 4xx would make the generated client treat the response as an error and drop the per-item results.
 
 ## Lists
@@ -34,6 +35,10 @@ Every route under `/api` follows these rules, so that the React app's client can
 ## Live status
 
 A sync's progress is polled with an ordinary `GET`. There are no server-sent events or websockets.
+
+- A status route polled while work runs, such as `GET /api/strava`, sends `Cache-Control: no-store`, so no cache serves a stale state.
+- An action that starts background work, such as `POST /api/strava/sync`, answers 202 with the same body as the status route. Starting it again while it runs is the same 202, not an error: the client keeps polling.
+- How the last sync ended is a code (`up_to_date`, `paused_short`, `rejected`, ...), not text. The client writes the words; `resume_at` says when a paused sync can go on, where the service told us.
 
 ## Requests from other sites
 

@@ -177,3 +177,32 @@ def test_activities_synced_from_strava_before_laps_are_marked_to_fetch_their_lap
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         laps = db.execute("SELECT storage_key, laps FROM activities ORDER BY id").fetchall()
     assert laps == [("strava-1", None), ("ab", file_laps)]
+
+
+def test_stored_sync_messages_become_outcome_codes(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'makerundev.db'}")
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "0010")
+    columns = "(id, backfill_done, syncing, sync_message, imported, matched, skipped{})"
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(
+            f"INSERT INTO strava_connection {columns.format('')} VALUES (1, 0, 0, ?, 0, 0, '[]')",
+            ("Paused at Strava's 15-minute rate limit. Sync again in a quarter of an hour.",),
+        )
+        db.execute(
+            f"INSERT INTO garmin_connection {columns.format(', api_key')}"
+            " VALUES (1, 0, 0, ?, 0, 0, '[]', 'key')",
+            ("Garmin asked to slow down. Sync again in 7 minutes.",),
+        )
+
+    connect(tmp_path)
+
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        outcomes = [
+            db.execute(f"SELECT sync_outcome, resume_at FROM {table}").fetchone()
+            for table in ("strava_connection", "garmin_connection")
+        ]
+    assert outcomes == [("paused_short", None), ("paused", None)]

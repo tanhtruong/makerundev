@@ -1,28 +1,27 @@
 import datetime as dt
 from typing import Any, Literal
 
-from makerundev_server.db import SyncState
+from makerundev_server.db import Outcome, SyncState
 
 CONNECTION_ID = 1
 SKIPPED_KEPT = 50
 REFRESH_MARGIN = dt.timedelta(hours=1)
-UP_TO_DATE = "Up to date."
-FAILED = "The sync stopped on an unexpected error. See the server log."
-INTERRUPTED = "The last sync was interrupted. Sync again to continue."
 
 Phase = Literal["newer", "backfill"]
 
 
 def begin_sync(row: SyncState) -> None:
     row.syncing = True
-    row.sync_message = None
+    row.sync_outcome = None
+    row.resume_at = None
     row.imported = 0
     row.matched = 0
 
 
-def end_sync(row: SyncState, message: str) -> None:
+def end_sync(row: SyncState, outcome: Outcome, resume_at: dt.datetime | None = None) -> None:
     row.syncing = False
-    row.sync_message = message
+    row.sync_outcome = outcome
+    row.resume_at = resume_at
     row.last_sync_at = dt.datetime.now(dt.UTC)
 
 

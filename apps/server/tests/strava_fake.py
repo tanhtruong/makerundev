@@ -151,7 +151,7 @@ def sync(store, fake) -> str:
     StravaSync(store, client).run()
     connection = store.strava_connection()
     assert connection is not None and not connection.syncing
-    return connection.sync_message
+    return connection.sync_outcome
 
 
 def upload(client, name, data):

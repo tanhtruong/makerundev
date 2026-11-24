@@ -3,7 +3,6 @@ import gzip
 
 import pytest
 from makerundev_server.matching import same_activity
-from makerundev_server.sync import UP_TO_DATE
 from strava_fake import FIT_START, FakeStrava, connected, summary, sync, upload
 
 GPX = b"""<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
@@ -22,7 +21,7 @@ def test_a_strava_activity_already_imported_from_a_file_is_matched_not_duplicate
     client, store = connected(tmp_path, fake)
     upload(client, "morning.fit", steady_run_fit)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == []
     activities = client.get("/api/activities").json()["items"]

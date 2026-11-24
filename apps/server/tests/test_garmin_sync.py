@@ -6,7 +6,6 @@ from makerundev.io.strava import read_strava
 from makerundev_server import garmin
 from makerundev_server.garmin import Token
 from makerundev_server.strava import Tokens
-from makerundev_server.sync_state import UP_TO_DATE
 from strava_fake import FAR, streams, summary, upload
 
 
@@ -36,7 +35,7 @@ def test_a_saved_key_syncs_every_activity_as_a_file_newest_first(tmp_path, make_
     ]
     assert {row.sha256 for row in store.list()} == {sha256(fake.fit(day)) for day in (1, 2, 3)}
     page = client.get("/garmin").text
-    assert UP_TO_DATE in page
+    assert "Up to date." in page
     assert KEY not in page
 
     fake.run(4, 4)
@@ -64,7 +63,7 @@ def test_runs_already_here_are_not_downloaded_and_strava_only_ones_are_replaced(
     store.add_strava(strava_run, streams(), read_strava(strava_run, streams()), "backfill")
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["2"]
     rows = {row.start_time.day: row for row in store.list()}
@@ -95,7 +94,7 @@ def test_the_garmin_name_wins_over_the_name_in_the_downloaded_file(tmp_path, mak
     client, store = app_with(tmp_path, fake)
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert [(row.source_format, row.name) for row in store.list()] == [("gpx", "Run 1")]
 
@@ -110,7 +109,8 @@ def test_a_throttled_sync_stops_and_the_next_one_resumes_where_it_stopped(
     save_key(client)
     fake.throttle_after = 3
 
-    assert "Sync again in 2 minutes." in sync(store, fake)
+    assert sync(store, fake) == "paused"
+    assert "Sync again in 2 minutes." in client.get("/garmin").text
 
     assert fake.downloads == ["4", "3"]
     assert store.garmin.connection().backfill_done is False
@@ -118,7 +118,7 @@ def test_a_throttled_sync_stops_and_the_next_one_resumes_where_it_stopped(
     token = store.garmin.connection().token
     store.garmin.save_token(Token(token, dt.datetime.now(dt.UTC) + dt.timedelta(minutes=10)))
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["4", "3", "2", "1"]
     assert len(store.list()) == 4
@@ -138,7 +138,7 @@ def test_activities_deleted_on_garmin_during_a_sync_do_not_hide_older_ones(
     client, store = app_with(tmp_path, fake)
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["7", "6", "5", "4", "3", "2", "1"]
     assert len(store.list()) == 7
@@ -153,7 +153,7 @@ def test_a_crowded_day_does_not_end_the_backfill_early(tmp_path, make_fit, make_
     client, store = app_with(tmp_path, fake)
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["5", "4", "3", "2", "1"]
     assert len(store.list()) == 5
@@ -172,7 +172,7 @@ def test_runs_starting_in_the_same_second_are_both_imported(
     client, store = app_with(tmp_path, fake)
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["5", "4", "3", "2", "1"]
     assert sorted(row.distance_m for row in store.list()) == [3000.0] * 4 + [5000.0]
@@ -192,8 +192,8 @@ def test_activities_that_cannot_be_imported_are_listed_and_not_downloaded_again(
     client, store = app_with(tmp_path, fake)
     save_key(client)
 
-    assert sync(store, fake) == UP_TO_DATE
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.downloads == ["5", "4", "1"]
     assert [(item["id"], item["reason"]) for item in store.garmin.connection().skipped] == [
@@ -209,9 +209,11 @@ def test_activities_that_cannot_be_imported_are_listed_and_not_downloaded_again(
 def test_retry_after_is_read_as_seconds_or_as_a_date():
     now = dt.datetime(2026, 11, 21, 12, 0, tzinfo=dt.UTC)
 
-    assert garmin.retry_minutes("120", now) == 2
-    assert garmin.retry_minutes("61", now) == 2
-    assert garmin.retry_minutes("Sat, 21 Nov 2026 12:05:00 GMT", now) == 5
-    assert garmin.retry_minutes("Sat, 21 Nov 2026 11:00:00 GMT", now) == 1
-    assert garmin.retry_minutes("soon", now) is None
-    assert garmin.retry_minutes(None, now) is None
+    assert garmin.retry_at("120", now) == dt.datetime(2026, 11, 21, 12, 2, tzinfo=dt.UTC)
+    assert garmin.retry_at("61", now) == dt.datetime(2026, 11, 21, 12, 1, 1, tzinfo=dt.UTC)
+    assert garmin.retry_at("Sat, 21 Nov 2026 12:05:00 GMT", now) == dt.datetime(
+        2026, 11, 21, 12, 5, tzinfo=dt.UTC
+    )
+    assert garmin.retry_at("9" * 30, now) is None
+    assert garmin.retry_at("soon", now) is None
+    assert garmin.retry_at(None, now) is None

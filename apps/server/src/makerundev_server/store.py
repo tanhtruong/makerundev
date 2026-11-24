@@ -24,6 +24,7 @@ from makerundev_server.db import (
     ActivityRow,
     AthleteSettingsRow,
     GarminConnectionRow,
+    Outcome,
     StravaConnectionRow,
     SyncState,
     activity_name,
@@ -35,7 +36,6 @@ from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneM
 from makerundev_server.strava import Tokens, Unauthorized
 from makerundev_server.sync_state import (
     CONNECTION_ID,
-    INTERRUPTED,
     Phase,
     advance,
     begin_sync,
@@ -246,11 +246,11 @@ class Store:
             session.commit()
             return True
 
-    def finish_strava_sync(self, message: str) -> None:
+    def finish_strava_sync(self, outcome: Outcome) -> None:
         with self.writing, Session(self.engine) as session:
             row = session.get(StravaConnectionRow, CONNECTION_ID)
             if row is not None:
-                end_sync(row, message)
+                end_sync(row, outcome)
                 session.commit()
 
     def reset_syncs(self) -> None:
@@ -262,7 +262,8 @@ class Store:
             for row in rows:
                 if row is not None and row.syncing:
                     row.syncing = False
-                    row.sync_message = INTERRUPTED
+                    row.sync_outcome = "interrupted"
+                    row.resume_at = None
             session.commit()
 
     def finish_strava_backfill(self) -> None:

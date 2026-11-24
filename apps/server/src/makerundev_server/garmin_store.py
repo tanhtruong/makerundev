@@ -7,7 +7,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
 from makerundev_server import garmin
-from makerundev_server.db import GarminConnectionRow
+from makerundev_server.db import GarminConnectionRow, Outcome
 from makerundev_server.matching import nearby, same_activity
 from makerundev_server.sync_state import (
     CONNECTION_ID,
@@ -45,7 +45,8 @@ class GarminStore:
             row.api_key = key
             row.token = token.value
             row.token_expires_at = token.expires_at
-            row.sync_message = None
+            row.sync_outcome = None
+            row.resume_at = None
             session.commit()
 
     def save_token(self, token: garmin.Token) -> None:
@@ -64,11 +65,11 @@ class GarminStore:
             session.commit()
             return True
 
-    def finish_sync(self, message: str) -> None:
+    def finish_sync(self, outcome: Outcome, resume_at: dt.datetime | None = None) -> None:
         with self.writing, Session(self.engine) as session:
             row = session.get(GarminConnectionRow, CONNECTION_ID)
             if row is not None:
-                end_sync(row, message)
+                end_sync(row, outcome, resume_at)
                 session.commit()
 
     def finish_backfill(self) -> None:
