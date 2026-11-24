@@ -1,12 +1,9 @@
-import itertools
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 import polars as pl
 from makerundev import format
-
-from makerundev_server.training import Day, load_ranges
 
 WIDTH = 720
 HEIGHT = 160
@@ -207,91 +204,3 @@ def zone_bars(seconds: Sequence[float], boundaries_bpm: Sequence[float]) -> list
         )
         for zone, zone_seconds in enumerate(seconds)
     ]
-
-
-@dataclass(frozen=True, slots=True)
-class Hit:
-    x: float
-    width: float
-    title: str
-
-
-@dataclass(frozen=True, slots=True)
-class Line:
-    path: str
-    end: float
-
-
-LABEL_GAP = 12.0
-
-
-def spread_labels(ends: dict[str, float]) -> list[tuple[str, float]]:
-    placed: list[tuple[str, float]] = []
-    for name, top in sorted(ends.items(), key=lambda item: item[1]):
-        top = max(top, placed[-1][1] + LABEL_GAP if placed else LABEL_GAP)
-        placed.append((name, top))
-    overflow = placed[-1][1] - 100.0 if placed else 0.0
-    if overflow > 0:
-        placed = [(name, top - overflow) for name, top in placed]
-    return placed
-
-
-@dataclass(frozen=True, slots=True)
-class LoadChart:
-    fitness: Line
-    fatigue: Line
-    form: Line
-    load_top: float
-    form_low: float
-    form_high: float
-    zero: float
-    hits: list[Hit]
-
-    @property
-    def end_labels(self) -> list[tuple[str, float]]:
-        return spread_labels({"Fitness": self.fitness.end, "Fatigue": self.fatigue.end})
-
-
-def load_chart(days: Sequence[Day]) -> LoadChart:
-    last = len(days) - 1
-    indices = list(range(0, len(days), max(1, len(days) // MAX_POINTS)))
-    if indices[-1] != last:
-        indices.append(last)
-    sampled = [days[index] for index in indices]
-    xs = [index / last * WIDTH for index in indices] if last else [WIDTH / 2]
-    ranges = load_ranges(days)
-    load_top, form_low, form_high = ranges.load_top, ranges.form_low, ranges.form_high
-
-    def y(value: float, low: float, high: float) -> float:
-        fraction = (value - low) / ((high - low) or 1.0)
-        return INSET + (1 - fraction) * (HEIGHT - 2 * INSET)
-
-    def line(key: str, low: float, high: float) -> Line:
-        values = [getattr(day, key) for day in sampled]
-        points = [f"{x:.1f},{y(v, low, high):.1f}" for x, v in zip(xs, values, strict=True)]
-        if len(points) == 1:
-            points = [f"0,{y(values[0], low, high):.1f}", f"{WIDTH},{y(values[0], low, high):.1f}"]
-        return Line(path="M" + " L".join(points), end=y(values[-1], low, high) / HEIGHT * 100)
-
-    edges = [0.0, *((a + b) / 2 for a, b in itertools.pairwise(xs)), float(WIDTH)]
-    hits = [
-        Hit(
-            x=edges[position],
-            width=edges[position + 1] - edges[position],
-            title=(
-                f"{day.date:%Y-%m-%d}: fitness {day.fitness:.0f}, fatigue {day.fatigue:.0f}, "
-                f"form {round(day.form):+d}, TRIMP {day.load:.0f}"
-            ),
-        )
-        for position, day in enumerate(sampled)
-    ]
-    return LoadChart(
-        fitness=line("fitness", 0.0, load_top),
-        fatigue=line("fatigue", 0.0, load_top),
-        form=line("form", form_low, form_high),
-        load_top=load_top,
-        form_low=form_low,
-        form_high=form_high,
-        zero=y(0.0, form_low, form_high),
-        hits=hits,
-    )

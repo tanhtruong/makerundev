@@ -20,6 +20,9 @@
   --tartan: #c8462b;
   --tartan-foreground: #ffffff;
   --lane: #c8462b;
+  --series-fitness: #2a78d6;
+  --series-fatigue: #1baf7a;
+  --series-form: #6250d6;
   --radius: 0.25rem;
 }
 
@@ -35,6 +38,9 @@
     --ring: #eceae6;
     --accent: #1f2326;
     --lane: #e5694a;
+    --series-fitness: #3987e5;
+    --series-fatigue: #199e70;
+    --series-form: #9085e9;
   }
 }
 

@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { distance, duration, pace, wholeNumber } from "@/lib/format";
+import { calendarDay, decimal, distance, distanceName, duration, pace, signed, wholeNumber } from "@/lib/format";
 
 describe("formatting matches makerundev.format", () => {
   it.each([
@@ -38,5 +38,54 @@ describe("formatting matches makerundev.format", () => {
     [null, "-"],
   ])("wholeNumber(%s) is %s", (value, expected) => {
     expect(wholeNumber(value)).toBe(expected);
+  });
+
+  it.each([
+    [52.25, "52.2"],
+    [47.54, "47.5"],
+  ])("decimal(%s, 1) is %s", (value, expected) => {
+    expect(decimal(value, 1)).toBe(expected);
+  });
+
+  it.each([
+    [0.4, "0"],
+    [-0.4, "0"],
+    [0.5, "0"],
+    [2.5, "+2"],
+    [3.5, "+4"],
+    [-2.5, "-2"],
+    [-3.6, "-4"],
+    [12, "+12"],
+  ])("signed(%s) is %s", (value, expected) => {
+    expect(signed(value)).toBe(expected);
+  });
+
+  it.each([
+    [400, "400 m"],
+    [402.5, "402.5 m"],
+    [1000, "1 km"],
+    [1609.344, "1 mile"],
+    [3218.688, "2 miles"],
+    [15000, "15 km"],
+    [21097.5, "Half marathon"],
+    [42195, "Marathon"],
+  ])("distanceName(%s) is %s", (metres, expected) => {
+    expect(distanceName(metres)).toBe(expected);
+  });
+});
+
+describe("calendar dates", () => {
+  it("shows a calendar date as the date it names, also in a zone behind UTC", async () => {
+    expect([calendarDay("2026-03-01"), calendarDay("2026-12-31")]).toEqual(["1 Mar 2026", "31 Dec 2026"]);
+    const zone = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+    try {
+      vi.resetModules();
+      const behindUtc = await import("@/lib/format");
+      expect(behindUtc.calendarDay("2026-03-01")).toBe("1 Mar 2026");
+    } finally {
+      process.env.TZ = zone;
+      vi.resetModules();
+    }
   });
 });

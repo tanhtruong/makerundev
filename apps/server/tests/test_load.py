@@ -1,16 +1,16 @@
 import datetime as dt
-import itertools
 import re
 import sqlite3
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from fit_tool.profile.profile_type import Sport, SubSport
 from makerundev.metrics import training_load
 from makerundev_server import create_app
-from makerundev_server.charts import WIDTH, load_chart, zone_bars
+from makerundev_server.charts import zone_bars
 from makerundev_server.db import ActivityRow
-from makerundev_server.training import Day, load_view
+from makerundev_server.training import load_view
 
 SETTINGS = {
     "max_hr": "190",
@@ -43,11 +43,22 @@ def steady(make_fit, metres: float, seconds: int, day: int, **kwargs) -> bytes:
     return make_fit(rows, start=dt.datetime(2026, 3, day, 7, tzinfo=dt.UTC), **kwargs)
 
 
-def performance(client: TestClient) -> str:
-    page = client.get("/load").text
-    found = re.search(r'<section class="performance".*?</section>', page, re.S)
-    assert found is not None
-    return " ".join(re.sub(r"<[^>]+>", " ", found.group()).split())
+def performance(client: TestClient) -> dict[str, Any]:
+    response = client.get("/api/training-load")
+    assert response.status_code == 200
+    found: dict[str, Any] = response.json()["performance"]
+    return found
+
+
+def effort(activity_id: int, name: str, day: int, metres: float, seconds: float) -> dict[str, Any]:
+    return {
+        "activity_id": activity_id,
+        "activity_name": name,
+        "start_time": f"2026-03-{day:02d}T07:00:00Z",
+        "date": f"2026-03-{day:02d}",
+        "distance_m": metres,
+        "elapsed_s": pytest.approx(seconds, abs=0.5),
+    }
 
 
 def ids(client: TestClient) -> dict[str, int]:
@@ -56,7 +67,6 @@ def ids(client: TestClient) -> dict[str, int]:
 
 @pytest.fixture
 def march_10(monkeypatch):
-    monkeypatch.setattr("makerundev_server.app.today_in", lambda _timezone: dt.date(2026, 3, 10))
     monkeypatch.setattr(
         "makerundev_server.training_api.today_in", lambda _timezone: dt.date(2026, 3, 10)
     )
@@ -128,6 +138,7 @@ def test_training_load_api_returns_days_weeks_bounds_and_current_performance(
         "activity_id": activity["reps.fit"],
         "activity_name": "reps.fit",
         "start_time": "2026-03-03T07:00:00Z",
+        "date": "2026-03-03",
         "distance_m": 1000.0,
         "elapsed_s": 200.0,
     }
@@ -136,6 +147,7 @@ def test_training_load_api_returns_days_weeks_bounds_and_current_performance(
         "activity_id": activity["tempo.fit"],
         "activity_name": "tempo.fit",
         "start_time": "2026-03-05T07:00:00Z",
+        "date": "2026-03-05",
     }
     assert performance["fitted"] == [
         reps,
@@ -160,15 +172,30 @@ def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(
         ("treadmill.fit", steady(make_fit, 5000, 1000, 7, sub_sport=SubSport.TREADMILL)),
     )
 
-    text = performance(client)
+    found = performance(client)
 
-    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in text
-    assert f'<a href="/activities/{ids(client)["reps.fit"]}">' in client.get("/load").text
-    assert "Critical speed 4:32 /km D\u2032 213 m" in text
-    assert (
-        "Critical speed fitted on 1 km in 3:20, reps.fit, 3 Mar 1 mile in 6:42, tempo.fit, 5 Mar"
-        " 3 km in 12:30, tempo.fit, 5 Mar" in text
-    )
+    activity = ids(client)
+    reps, tempo = activity["reps.fit"], activity["tempo.fit"]
+    assert found["vdot"] == pytest.approx(52.2, abs=0.05)
+    assert found["vdot_effort"] == effort(reps, "reps.fit", 3, 1000.0, 200.0)
+    assert found["critical_speed"]["pace_s_per_km"] == pytest.approx(272.0, abs=0.5)
+    assert found["critical_speed"]["d_prime_m"] == pytest.approx(213.0, abs=0.5)
+    assert found["fitted"] == [
+        effort(reps, "reps.fit", 3, 1000.0, 200.0),
+        effort(tempo, "tempo.fit", 5, 1609.344, 402.336),
+        effort(tempo, "tempo.fit", 5, 3000.0, 750.0),
+    ]
+
+
+def test_an_effort_is_dated_by_the_local_day_it_started(tmp_path, make_fit, march_10):
+    rows = [{"t": float(i), "distance": 5.0 * i} for i in range(201)]
+    late = make_fit(rows, start=dt.datetime(2026, 3, 3, 23, 30, tzinfo=dt.UTC))
+    client = client_with(tmp_path, ("late.fit", late))
+
+    found = performance(client)
+
+    assert found["vdot_effort"]["start_time"] == "2026-03-03T23:30:00Z"
+    assert found["vdot_effort"]["date"] == "2026-03-04"
 
 
 def test_excluding_the_source_activity_moves_vdot_to_the_next_best_effort(
@@ -186,9 +213,10 @@ def test_excluding_the_source_activity_moves_vdot_to_the_next_best_effort(
     )
 
     assert (response.status_code, response.headers["location"]) == (303, f"/activities/{reps}")
-    text = performance(client)
-    assert "VDOT 47.5 5 km in 20:50, tempo.fit, 5 Mar" in text
-    assert "1 activity in the last 6 weeks is excluded" in text
+    found = performance(client)
+    assert found["vdot"] == pytest.approx(47.5, abs=0.05)
+    assert found["vdot_effort"] == effort(ids(client)["tempo.fit"], "tempo.fit", 5, 5000.0, 1250.0)
+    assert found["excluded"] == 1
 
 
 def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
@@ -205,12 +233,12 @@ def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
 
     assert (response.status_code, response.json()) == (200, {"excluded": True})
     assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is True
-    assert "VDOT 47.5 5 km in 20:50, tempo.fit, 5 Mar" in performance(client)
+    assert performance(client)["vdot_effort"]["activity_name"] == "tempo.fit"
 
     client.put(f"/api/activities/{reps}/exclusion", json={"excluded": False})
 
     assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is False
-    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in performance(client)
+    assert performance(client)["vdot_effort"]["activity_name"] == "reps.fit"
 
 
 def test_training_load_api_refuses_an_unknown_range(tmp_path):
@@ -240,6 +268,19 @@ def test_training_load_api_thins_a_long_history_and_keeps_weeks_from_every_day(
     assert len(load["weeks"]) == 167
     assert load["weeks"][-1]["week_ending"] == "2023-01-03"
     assert (len(year["days"]), len(default["days"])) == (365, 180)
+
+
+def test_training_load_api_keeps_a_minimum_scale_when_no_run_has_heart_rate(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(tmp_path, ("reps.fit", steady(make_fit, 1000, 200, 3)))
+
+    load = client.get("/api/training-load").json()["load"]
+
+    assert load["bounds"] == {
+        "fitness_fatigue": {"low": 0.0, "high": 10.0},
+        "form": {"low": -5.0, "high": 5.0},
+    }
 
 
 def test_training_load_api_answers_before_settings_and_before_any_activity(
@@ -278,14 +319,16 @@ def test_a_sport_that_does_not_count_cannot_be_excluded(tmp_path, make_fit):
     assert client.get(f"/api/activities/{ride}").json()["excluded_from_performance"] is False
 
 
-def test_an_activity_stored_without_efforts_gets_them_when_the_load_page_opens(
+def test_an_activity_stored_without_efforts_gets_them_when_training_load_is_read(
     tmp_path, make_fit, march_10
 ):
     client = client_with(tmp_path, ("reps.fit", steady(make_fit, 1000, 200, 3)))
     with sqlite3.connect(tmp_path / "makerundev.db") as database:
         database.execute("UPDATE activities SET best_efforts = NULL")
 
-    assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in performance(client)
+    found = performance(client)
+    assert found["vdot"] == pytest.approx(52.2, abs=0.05)
+    assert found["vdot_effort"] == effort(ids(client)["reps.fit"], "reps.fit", 3, 1000.0, 200.0)
 
 
 def test_daily_load_is_bucketed_by_local_date_and_runs_through_today():
@@ -322,39 +365,6 @@ def test_a_range_keeps_the_history_before_it_in_fitness():
     assert recent.today == whole.today
     assert recent.days[0].fitness > 0
     assert recent.activities == 1
-
-
-def test_load_page_opens_before_settings_are_saved(tmp_path, steady_run_fit):
-    client = client_with(tmp_path, ("run.fit", steady_run_fit), settings=False)
-
-    assert client.get("/load").status_code == 200
-
-
-def test_load_page_shows_charts_ranges_and_activities_without_heart_rate(
-    tmp_path, steady_run_fit, make_fit, monkeypatch
-):
-    monkeypatch.setattr("makerundev_server.app.today_in", lambda _timezone: dt.date(2026, 12, 1))
-    no_heart_rate = make_fit([{"t": float(i), "distance": i * 3.0} for i in range(301)])
-    client = client_with(tmp_path, ("run.fit", steady_run_fit), ("no-hr.fit", no_heart_rate))
-
-    page = client.get("/load?days=all")
-
-    assert page.status_code == 200
-    assert 'href="/load?days=all" aria-current="page"' in page.text
-    for days in ("90", "180", "365"):
-        assert f'href="/load?days={days}"' in page.text
-    assert 'aria-label="Fitness and fatigue by day"' in page.text
-    assert 'aria-label="Form by day"' in page.text
-    assert "1 activity in this range had no heart rate, so it counts as 0." in page.text
-    assert "2026-03-01: fitness" in page.text
-
-
-def test_unknown_range_falls_back_to_180_days(tmp_path, steady_run_fit):
-    client = client_with(tmp_path, ("run.fit", steady_run_fit))
-
-    page = client.get("/load?days=7")
-
-    assert 'href="/load?days=180" aria-current="page"' in page.text
 
 
 def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
@@ -395,22 +405,3 @@ def test_zone_labels_name_the_whole_bpm_values_in_each_zone():
 
     assert [bar.bpm for bar in bars] == ["under 111 bpm", "111-134 bpm", "135 bpm and up"]
     assert [bar.share for bar in bars] == [0.5, 0.5, 0.0]
-
-
-def test_a_single_day_draws_flat_lines_and_one_hover_target():
-    chart = load_chart([Day(dt.date(2026, 3, 1), 40.0, 1.0, 5.0, 0.0)])
-
-    assert chart.fitness.path.startswith("M0,") and f" L{WIDTH}," in chart.fitness.path
-    assert [(hit.x, hit.width) for hit in chart.hits] == [(0.0, WIDTH)]
-    assert chart.load_top == 10.0
-
-
-def test_hover_targets_tile_the_chart_without_gaps():
-    days = [Day(dt.date(2026, 3, 1) + dt.timedelta(days=i), 10.0, i, i, 0.0) for i in range(90)]
-
-    hits = load_chart(days).hits
-
-    assert hits[0].x == 0.0
-    assert sum(hit.width for hit in hits) == pytest.approx(WIDTH)
-    for left, right in itertools.pairwise(hits):
-        assert right.x == pytest.approx(left.x + left.width)

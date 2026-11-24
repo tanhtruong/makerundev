@@ -22,6 +22,14 @@ export function AppHeader() {
           >
             Activities
           </Link>
+          <Link
+            to="/load"
+            className={ITEM}
+            activeOptions={{ includeSearch: false }}
+            activeProps={{ "aria-current": "page" }}
+          >
+            Training load
+          </Link>
           <Link to="/garmin" className={ITEM} activeProps={{ "aria-current": "page" }}>
             Garmin
           </Link>

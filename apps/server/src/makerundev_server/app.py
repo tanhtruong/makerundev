@@ -34,7 +34,7 @@ from makerundev_server import (
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import Outcome, SyncState, connect
 from makerundev_server.lookups import activity_or_404
-from makerundev_server.performance import COUNTED_SPORTS, current_performance
+from makerundev_server.performance import COUNTED_SPORTS
 from makerundev_server.settings import (
     DEFAULT_ZONE_MODEL,
     FORM_FIELDS,
@@ -46,7 +46,6 @@ from makerundev_server.settings import (
 )
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
-from makerundev_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
 HERE = Path(__file__).parent
 STRAVA_NOTICES = {
@@ -91,7 +90,6 @@ def create_app(
         decoupling=format.decoupling,
         power=format.power,
         distance_name=format.distance_name,
-        signed=_signed,
         local=_local,
         strava_outcome=_strava_outcome,
     )
@@ -211,28 +209,6 @@ def create_app(
         query = f"recomputed={result.recomputed}&unreadable={result.unreadable}"
         return RedirectResponse(f"/settings?{query}", status_code=303)
 
-    @pages.get("/load", response_class=HTMLResponse)
-    def load(request: Request, days: str = DEFAULT_RANGE) -> HTMLResponse:
-        selected = days if days in RANGES else DEFAULT_RANGE
-        settings = store.athlete_settings()
-        timezone_name = settings.timezone if settings else "UTC"
-        today = today_in(timezone_name)
-        rows = store.list()
-        view = load_view(rows, timezone_name, today, RANGES[selected]) if settings else None
-        return templates.TemplateResponse(
-            request,
-            "load.html",
-            {
-                "settings_set": settings is not None,
-                "view": view,
-                "current": current_performance(rows, timezone_name, today, store.performance.fill),
-                "plot": charts.load_chart(view.days) if view else None,
-                "ranges": RANGES,
-                "selected": selected,
-                "chart": {"width": charts.WIDTH, "height": charts.HEIGHT},
-            },
-        )
-
     def strava_client() -> StravaClient | None:
         return strava_api.strava_client(strava_transport)
 
@@ -314,11 +290,6 @@ def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") 
 def _strava_outcome(connection: SyncState) -> str:
     outcome = connection.sync_outcome
     return STRAVA_OUTCOMES.get(outcome, "") if outcome else ""
-
-
-def _signed(value: float) -> str:
-    rounded = round(value)
-    return f"{rounded:+d}" if rounded else "0"
 
 
 def _count(template: str, count: int) -> str:

@@ -9,12 +9,12 @@ export function roundHalfEven(value: number, digits = 0): number {
   return Math.round(scaled) / scale;
 }
 
-function fixed(value: number, digits: number): string {
+export function decimal(value: number, digits: number): string {
   return roundHalfEven(value, digits).toFixed(digits);
 }
 
 export function distance(metres: number): string {
-  return `${fixed(metres / 1000, 2)} km`;
+  return `${decimal(metres / 1000, 2)} km`;
 }
 
 export function duration(seconds: number): string {
@@ -31,11 +31,38 @@ export function pace(secondsPerKm: number | null): string {
   return secondsPerKm === null ? "-" : `${duration(secondsPerKm)} /km`;
 }
 
+export function signed(value: number): string {
+  const rounded = roundHalfEven(value);
+  return rounded > 0 ? `+${rounded}` : String(rounded);
+}
+
+const METRES_PER_MILE = 1609.344;
+const NAMED_DISTANCES_M = new Map([
+  [21097.5, "Half marathon"],
+  [42195, "Marathon"],
+]);
+
+function sixSignificantDigits(value: number): string {
+  return String(Number(value.toPrecision(6)));
+}
+
+export function distanceName(metres: number): string {
+  const named = NAMED_DISTANCES_M.get(metres);
+  if (named) {
+    return named;
+  }
+  const miles = roundHalfEven(metres / METRES_PER_MILE, 6);
+  if (miles >= 1 && Number.isInteger(miles)) {
+    return miles === 1 ? "1 mile" : `${sixSignificantDigits(miles)} miles`;
+  }
+  return metres < 1000 ? `${sixSignificantDigits(metres)} m` : `${sixSignificantDigits(metres / 1000)} km`;
+}
+
 export function wholeNumber(value: number | null, unit = ""): string {
   if (value === null) {
     return "-";
   }
-  return unit ? `${fixed(value, 0)} ${unit}` : fixed(value, 0);
+  return unit ? `${decimal(value, 0)} ${unit}` : decimal(value, 0);
 }
 
 const DAY: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
@@ -58,4 +85,8 @@ export function localDay(iso: string, timeZone: string): string {
 
 export function localTime(iso: string, timeZone: string): string {
   return inZone(times, TIME, timeZone).format(new Date(iso));
+}
+
+export function calendarDay(isoDate: string): string {
+  return inZone(days, DAY, "UTC").format(new Date(`${isoDate}T00:00:00Z`));
 }

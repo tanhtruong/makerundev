@@ -9,6 +9,7 @@ export interface PerformanceEffort {
   activity_id: number;
   activity_name: string;
   start_time: string;
+  date: string;
   distance_m: number;
   elapsed_s: number;
 }
