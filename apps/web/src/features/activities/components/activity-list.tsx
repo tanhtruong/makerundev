@@ -4,21 +4,30 @@ import type { ReactNode } from "react";
 
 import { Page, PageHeading } from "@/components/layouts/page";
 import { LoadError } from "@/components/load-error";
-import { Button } from "@/components/ui/button";
 import { ActivityTable } from "@/features/activities/components/activity-table";
-import { useTimeZone } from "@/hooks/use-time-zone";
+import { FilterBar } from "@/features/activities/components/filter-bar";
 import { ImportForm } from "@/features/activities/components/import-form";
+import { Paging } from "@/features/activities/components/paging";
+import {
+  apiParams,
+  DEFAULT_SORT,
+  isFiltered,
+  type ListSearch,
+  withoutFilters,
+} from "@/features/activities/utils/list-search";
+import { useTimeZone } from "@/hooks/use-time-zone";
 import { useListActivities } from "@/lib/api/endpoints/activities/activities.gen";
 import type { ActivityPage } from "@/lib/api/model/activity-page.gen";
 import { activityCount } from "@/lib/format";
 
-const PAGE_SIZE = 50;
-
-export function ActivityList({ page }: { page: number }) {
-  const offset = (page - 1) * PAGE_SIZE;
-  const query = useListActivities({ limit: PAGE_SIZE, offset }, { query: { placeholderData: keepPreviousData } });
+export function ActivityList({ search }: { search: ListSearch }) {
   const timeZone = useTimeZone();
+  const params = apiParams(search, timeZone.data ?? "UTC", new Date());
+  const query = useListActivities(params, {
+    query: { placeholderData: keepPreviousData, enabled: !search.period || timeZone.isSuccess },
+  });
   const total = query.data?.total ?? 0;
+  const empty = query.isSuccess && total === 0 && !isFiltered(search);
 
   return (
     <Page>
@@ -26,7 +35,8 @@ export function ActivityList({ page }: { page: number }) {
         Activities
       </PageHeading>
       <ImportForm />
-      <ListBody query={query} timeZone={timeZone} page={page} />
+      {!empty && <FilterBar search={search} />}
+      <ListBody query={query} timeZone={timeZone} search={search} />
     </Page>
   );
 }
@@ -34,15 +44,12 @@ export function ActivityList({ page }: { page: number }) {
 function ListBody({
   query,
   timeZone,
-  page,
+  search,
 }: {
   query: UseQueryResult<ActivityPage, unknown>;
   timeZone: UseQueryResult<string, unknown>;
-  page: number;
+  search: ListSearch;
 }): ReactNode {
-  if (query.isPending || timeZone.isPending) {
-    return <LoadingRows />;
-  }
   if (query.isError || timeZone.isError) {
     return (
       <LoadError
@@ -55,16 +62,20 @@ function ListBody({
       </LoadError>
     );
   }
+  if (query.isPending || timeZone.isPending) {
+    return <LoadingRows />;
+  }
   const { items, total } = query.data;
+  const page = search.page ?? 1;
   if (total === 0) {
-    return <EmptyState />;
+    return isFiltered(search) ? <NoMatches search={search} /> : <EmptyState />;
   }
   if (items.length === 0) {
     return (
       <p className="border-y border-border py-6">
         There is no page {page}.{" "}
-        <Link to="/" search={{ page: 1 }} className="underline">
-          Go to the newest activities
+        <Link to="/" search={(previous) => ({ ...previous, page: undefined })} className="underline">
+          Go to the first page
         </Link>
         .
       </p>
@@ -72,42 +83,21 @@ function ListBody({
   }
   return (
     <div aria-busy={query.isPlaceholderData} className="transition-opacity duration-150 aria-busy:opacity-60">
-      <ActivityTable activities={items} timeZone={timeZone.data} />
+      <ActivityTable activities={items} timeZone={timeZone.data} sort={search.sort ?? DEFAULT_SORT} />
       <Paging page={page} shown={items.length} total={total} loading={query.isPlaceholderData} />
     </div>
   );
 }
 
-function Paging({ page, shown, total, loading }: { page: number; shown: number; total: number; loading: boolean }) {
-  const offset = (page - 1) * PAGE_SIZE;
-
+function NoMatches({ search }: { search: ListSearch }) {
   return (
-    <nav aria-label="Pages" className="mt-5 flex items-center justify-between gap-4">
-      <span className="text-muted-foreground">
-        {loading ? `Loading page ${page}` : `${offset + 1}-${offset + shown} of ${total}`}
-      </span>
-      <div className="flex gap-2">
-        <PageLink page={page - 1} enabled={page > 1 && !loading}>
-          Previous
-        </PageLink>
-        <PageLink page={page + 1} enabled={offset + shown < total && !loading}>
-          Next
-        </PageLink>
-      </div>
-    </nav>
-  );
-}
-
-function PageLink({ page, enabled, children }: { page: number; enabled: boolean; children: ReactNode }) {
-  if (!enabled) {
-    return <Button disabled>{children}</Button>;
-  }
-  return (
-    <Button asChild>
-      <Link to="/" search={{ page }}>
-        {children}
+    <p className="border-y border-border py-6">
+      No activities match these filters.{" "}
+      <Link to="/" search={withoutFilters(search)} className="underline">
+        Clear the filters
       </Link>
-    </Button>
+      .
+    </p>
   );
 }
 

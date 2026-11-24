@@ -44,15 +44,15 @@ All definitions live in [GLOSSARY.md](../GLOSSARY.md). v1 ships:
 ### Self-hosted app
 
 - Import one or many files; duplicates (same bytes) are skipped.
-- Activity list and activity page with pace, heart rate and elevation charts, the route shape, splits, laps, running dynamics averages, best efforts, average power, estimated power, time in zones and TRIMP.
+- Activity list, searchable by name or file, filtered by date, sport and distance, sorted by any column and paged, with the view kept in the URL; and an activity page with pace, heart rate and elevation charts, the route shape, splits, laps, running dynamics averages, best efforts, average power, estimated power, time in zones and TRIMP.
 - Training load page: fitness, fatigue and form over time from daily TRIMP, and current VDOT and critical speed from the best efforts of the last 6 weeks. A run can be excluded from those two on its activity page.
 - Athlete settings: max and resting heart rate, TRIMP coefficients, zones, timezone and body mass; TRIMP is stored per activity and recomputed when its inputs change, while estimated power is worked out when the page opens.
 - Strava sync page: connect, sync by hand, see what was skipped, disconnect.
 - Garmin sync page: save a Personal API key, sync by hand, see what was skipped, remove the key.
-- JSON API: `GET /api/activities` (paged), `POST /api/activities` (import files), `GET /api/activities/{id}` (what the activity page shows), `PUT /api/activities/{id}/exclusion`, `GET /api/activities/{id}/records`, `GET` and `PUT /api/settings` (athlete settings), `GET /api/training-load` (what the training load page shows), following the convention in [`docs/api.md`](api.md); the React app replaces the Jinja pages on top of it in 0.8.0 ([ADR 8](adr/0008-react-front-end.md)).
+- JSON API: `GET /api/activities` (paged, filtered and sorted), `POST /api/activities` (import files), `GET /api/activities/{id}` (what the activity page shows), `PUT /api/activities/{id}/exclusion`, `GET /api/activities/{id}/records`, `GET` and `PUT /api/settings` (athlete settings), `GET /api/training-load` (what the training load page shows), following the convention in [`docs/api.md`](api.md); the React app replaces the Jinja pages on top of it in 0.8.0 ([ADR 8](adr/0008-react-front-end.md)).
 - One process, SQLite, files on local disk. Runs with `uv run makerundev-server` or Docker.
 
-Next: map view, search and filters, multi-user with login.
+Next: map view, multi-user with login.
 
 ## Non-goals
 

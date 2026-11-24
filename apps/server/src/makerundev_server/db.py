@@ -1,4 +1,5 @@
 import datetime as dt
+import sqlite3
 from pathlib import Path
 from typing import Any, Literal
 
@@ -17,6 +18,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     create_engine,
+    event,
     false,
     inspect,
 )
@@ -160,8 +162,17 @@ BASELINE_REVISION = "0001"
 
 def connect(data_dir: Path) -> Engine:
     engine = create_engine(f"sqlite:///{database_path(data_dir)}")
+    event.listen(engine, "connect", _add_functions)
     upgrade(engine)
     return engine
+
+
+def _add_functions(connection: sqlite3.Connection, _record: object) -> None:
+    connection.create_function("casefold", 1, _casefold, deterministic=True)
+
+
+def _casefold(text: str | None) -> str | None:
+    return None if text is None else text.casefold()
 
 
 def upgrade(engine: Engine) -> None:
