@@ -1,7 +1,7 @@
 import functools
 import os
 import zoneinfo
-from collections.abc import Mapping, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -20,10 +20,6 @@ class ZoneModel(StrEnum):
 
 
 DEFAULT_ZONE_MODEL = ZoneModel.MAX_HR_PERCENT
-ZONE_MODEL_LABELS: dict[str, str] = {
-    ZoneModel.MAX_HR_PERCENT: "max heart rate",
-    ZoneModel.HR_RESERVE_PERCENT: "heart-rate reserve",
-}
 
 
 class TrimpCoefficients(StrEnum):
@@ -35,29 +31,12 @@ COEFFICIENTS = {TrimpCoefficients.MALE: BANISTER_MALE, TrimpCoefficients.FEMALE:
 ZONE_COUNT = 5
 MAX_HR_RANGE = (100, 250)
 RESTING_HR_RANGE = (20, 120)
-ZONE_FIELDS = tuple(f"zone_{zone}" for zone in range(2, ZONE_COUNT + 1))
 ZONE_THRESHOLDS = "zone_thresholds_percent"
 type Location = tuple[str] | tuple[str, int]
 MAX_HR: Location = ("max_heart_rate_bpm",)
 RESTING_HR: Location = ("resting_heart_rate_bpm",)
 BODY_MASS: Location = ("body_mass_kg",)
 TIMEZONE: Location = ("timezone",)
-FORM_NAMES: dict[Location, str] = {
-    MAX_HR: "max_hr",
-    RESTING_HR: "resting_hr",
-    BODY_MASS: "body_mass_kg",
-    TIMEZONE: "timezone",
-    **{(ZONE_THRESHOLDS, index): name for index, name in enumerate(ZONE_FIELDS)},
-}
-FORM_FIELDS = (
-    "max_hr",
-    "resting_hr",
-    "trimp_coefficients",
-    "timezone",
-    "zone_model",
-    "body_mass_kg",
-    *ZONE_FIELDS,
-)
 
 
 @functools.cache
@@ -97,41 +76,21 @@ class AthleteSettings:
         return self.max_hr, self.resting_hr, self.trimp_coefficients
 
 
-def form_values(settings: AthleteSettings | None) -> dict[str, str]:
-    values = {
-        "max_hr": str(settings.max_hr) if settings else "",
-        "resting_hr": str(settings.resting_hr) if settings else "",
-        "trimp_coefficients": settings.trimp_coefficients if settings else TrimpCoefficients.MALE,
-        "timezone": settings.timezone if settings else default_timezone(),
-        "zone_model": settings.zone_model if settings else DEFAULT_ZONE_MODEL,
-        "body_mass_kg": _number(settings.body_mass_kg)
-        if settings and settings.body_mass_kg is not None
-        else "",
-    }
-    thresholds = settings.zone_thresholds if settings else DEFAULT_ZONE_THRESHOLDS
-    values.update(zip(ZONE_FIELDS, map(_number, thresholds), strict=False))
-    return values
-
-
-def _number(value: float) -> str:
-    return str(int(value)) if value.is_integer() else repr(value)
-
-
 def rule_errors(
-    max_hr: int | None,
-    resting_hr: int | None,
+    max_hr: int,
+    resting_hr: int,
     body_mass_kg: float | None,
     timezone: str,
-    thresholds: Sequence[float | None],
+    thresholds: Sequence[float],
 ) -> dict[Location, str]:
     errors: dict[Location, str] = {}
     for key, beats, (low, high) in (
         (MAX_HR, max_hr, MAX_HR_RANGE),
         (RESTING_HR, resting_hr, RESTING_HR_RANGE),
     ):
-        if beats is not None and not low <= beats <= high:
+        if not low <= beats <= high:
             errors[key] = f"Enter a value from {low} to {high} bpm."
-    if max_hr is not None and resting_hr is not None and not errors and resting_hr >= max_hr:
+    if not errors and resting_hr >= max_hr:
         errors[RESTING_HR] = "Resting heart rate must be below max heart rate."
 
     if body_mass_kg is not None:
@@ -144,8 +103,6 @@ def rule_errors(
 
     previous: float | None = None
     for index, threshold in enumerate(thresholds):
-        if threshold is None:
-            continue
         if not 0 < threshold < 100:
             errors[(ZONE_THRESHOLDS, index)] = "Enter a percentage between 0 and 100."
             continue
@@ -153,62 +110,3 @@ def rule_errors(
             errors[(ZONE_THRESHOLDS, index)] = "Each zone must start above the one before it."
         previous = threshold
     return errors
-
-
-def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[str, str]]:
-    errors: dict[str, str] = {}
-
-    def whole(name: str) -> int | None:
-        try:
-            return int(values.get(name, "").strip())
-        except ValueError:
-            errors[name] = "Enter a whole number of beats per minute."
-            return None
-
-    max_hr = whole("max_hr")
-    resting_hr = whole("resting_hr")
-
-    try:
-        coefficients = TrimpCoefficients(values.get("trimp_coefficients", ""))
-    except ValueError:
-        errors["trimp_coefficients"] = "Choose male or female coefficients."
-        coefficients = TrimpCoefficients.MALE
-
-    try:
-        zone_model = ZoneModel(values.get("zone_model", ""))
-    except ValueError:
-        errors["zone_model"] = "Choose a zone model."
-        zone_model = DEFAULT_ZONE_MODEL
-
-    body_mass_kg: float | None = None
-    if mass := values.get("body_mass_kg", "").strip():
-        try:
-            body_mass_kg = float(mass)
-        except ValueError:
-            errors["body_mass_kg"] = "Enter a body mass in kilograms."
-
-    timezone = values.get("timezone", "").strip()
-
-    thresholds: list[float | None] = []
-    for name in ZONE_FIELDS:
-        try:
-            thresholds.append(float(values.get(name, "").strip()))
-        except ValueError:
-            errors[name] = "Enter a percentage."
-            thresholds.append(None)
-
-    rules = rule_errors(max_hr, resting_hr, body_mass_kg, timezone, thresholds)
-    errors.update((FORM_NAMES[key], message) for key, message in rules.items())
-
-    if errors or max_hr is None or resting_hr is None:
-        return None, errors
-    settings = AthleteSettings(
-        max_hr=max_hr,
-        resting_hr=resting_hr,
-        trimp_coefficients=coefficients,
-        timezone=timezone,
-        zone_model=zone_model,
-        zone_thresholds=tuple(threshold for threshold in thresholds if threshold is not None),
-        body_mass_kg=body_mass_kg,
-    )
-    return settings, {}

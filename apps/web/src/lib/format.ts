@@ -58,6 +58,10 @@ export function distanceName(metres: number): string {
   return metres < 1000 ? `${sixSignificantDigits(metres)} m` : `${sixSignificantDigits(metres / 1000)} km`;
 }
 
+export function activityCount(count: number): string {
+  return `${count} ${count === 1 ? "activity" : "activities"}`;
+}
+
 export function wholeNumber(value: number | null, unit = ""): string {
   if (value === null) {
     return "-";

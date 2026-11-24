@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 
 import { PAGE_WIDTH } from "@/components/layouts/page-width";
-import { SERVER_NAV } from "@/lib/server-pages";
 
 const FOCUS = "focus-visible:outline-tartan-foreground";
 const ITEM = `border-b-2 border-transparent py-1 font-medium whitespace-nowrap hover:border-tartan-foreground/60 data-[status=active]:border-tartan-foreground ${FOCUS}`;
@@ -36,11 +35,9 @@ export function AppHeader() {
           <Link to="/garmin" className={ITEM} activeProps={{ "aria-current": "page" }}>
             Garmin
           </Link>
-          {SERVER_NAV.map((page) => (
-            <a key={page.href} href={page.href} className={ITEM}>
-              {page.label}
-            </a>
-          ))}
+          <Link to="/settings" className={ITEM} activeProps={{ "aria-current": "page" }}>
+            Settings
+          </Link>
         </nav>
       </div>
       <div className="h-[3px] bg-tartan-foreground" />
