@@ -12,6 +12,7 @@ A change to a metric definition is always listed, with how results shift for exi
 - `makerundev-server` from PyPI and the Docker image ship with the web app built in, so running it still needs no Node.
 - `GET /api/activities/{id}` returns everything the activity page shows as typed JSON: the summary, power, decoupling, running dynamics, splits, laps, best efforts, time in zones, chart series thinned to about 1,000 points that keep short spikes with their axis ranges, and the route as up to 600 latitude and longitude points. `PUT /api/activities/{id}/exclusion` excludes an activity from VDOT and critical speed or includes it again.
 - `POST /api/activities` imports one or more FIT, GPX or TCX files, gzipped or zipped, and returns a result for each file in the order sent: `imported` or `already_imported` with the activity's id, or `failed` with the reason. It answers 200 even when every file failed, so the reasons always come back.
+- `GET /api/settings` returns the athlete settings, or `null` before the first save together with the defaults the form starts from, plus where each zone starts in bpm, the highest heart rate recorded and the timezone names the server accepts. `PUT /api/settings` saves them, recomputes TRIMP when heart rate or coefficients change and says for how many activities; an invalid value is refused with 422 and the same message the settings page shows, next to the field it belongs to.
 
 ### Changed
 

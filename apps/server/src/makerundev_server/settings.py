@@ -1,7 +1,7 @@
 import functools
 import os
 import zoneinfo
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
@@ -36,6 +36,19 @@ ZONE_COUNT = 5
 MAX_HR_RANGE = (100, 250)
 RESTING_HR_RANGE = (20, 120)
 ZONE_FIELDS = tuple(f"zone_{zone}" for zone in range(2, ZONE_COUNT + 1))
+ZONE_THRESHOLDS = "zone_thresholds_percent"
+type Location = tuple[str] | tuple[str, int]
+MAX_HR: Location = ("max_heart_rate_bpm",)
+RESTING_HR: Location = ("resting_heart_rate_bpm",)
+BODY_MASS: Location = ("body_mass_kg",)
+TIMEZONE: Location = ("timezone",)
+FORM_NAMES: dict[Location, str] = {
+    MAX_HR: "max_hr",
+    RESTING_HR: "resting_hr",
+    BODY_MASS: "body_mass_kg",
+    TIMEZONE: "timezone",
+    **{(ZONE_THRESHOLDS, index): name for index, name in enumerate(ZONE_FIELDS)},
+}
 FORM_FIELDS = (
     "max_hr",
     "resting_hr",
@@ -104,23 +117,56 @@ def _number(value: float) -> str:
     return str(int(value)) if value.is_integer() else repr(value)
 
 
+def rule_errors(
+    max_hr: int | None,
+    resting_hr: int | None,
+    body_mass_kg: float | None,
+    timezone: str,
+    thresholds: Sequence[float | None],
+) -> dict[Location, str]:
+    errors: dict[Location, str] = {}
+    for key, beats, (low, high) in (
+        (MAX_HR, max_hr, MAX_HR_RANGE),
+        (RESTING_HR, resting_hr, RESTING_HR_RANGE),
+    ):
+        if beats is not None and not low <= beats <= high:
+            errors[key] = f"Enter a value from {low} to {high} bpm."
+    if max_hr is not None and resting_hr is not None and not errors and resting_hr >= max_hr:
+        errors[RESTING_HR] = "Resting heart rate must be below max heart rate."
+
+    if body_mass_kg is not None:
+        low, high = BODY_MASS_RANGE_KG
+        if not low <= body_mass_kg <= high:
+            errors[BODY_MASS] = f"Enter a body mass from {low} to {high} kg."
+
+    if timezone not in timezones():
+        errors[TIMEZONE] = "Enter a timezone name such as Europe/Copenhagen."
+
+    previous: float | None = None
+    for index, threshold in enumerate(thresholds):
+        if threshold is None:
+            continue
+        if not 0 < threshold < 100:
+            errors[(ZONE_THRESHOLDS, index)] = "Enter a percentage between 0 and 100."
+            continue
+        if previous is not None and threshold <= previous:
+            errors[(ZONE_THRESHOLDS, index)] = "Each zone must start above the one before it."
+        previous = threshold
+    return errors
+
+
 def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[str, str]]:
     errors: dict[str, str] = {}
 
-    def whole(name: str, low: int, high: int) -> int:
+    def whole(name: str) -> int | None:
         try:
-            number = int(values.get(name, "").strip())
+            return int(values.get(name, "").strip())
         except ValueError:
             errors[name] = "Enter a whole number of beats per minute."
-            return 0
-        if not low <= number <= high:
-            errors[name] = f"Enter a value from {low} to {high} bpm."
-        return number
+            return None
 
-    max_hr = whole("max_hr", *MAX_HR_RANGE)
-    resting_hr = whole("resting_hr", *RESTING_HR_RANGE)
-    if not errors and resting_hr >= max_hr:
-        errors["resting_hr"] = "Resting heart rate must be below max heart rate."
+    max_hr = whole("max_hr")
+    resting_hr = whole("resting_hr")
 
     try:
         coefficients = TrimpCoefficients(values.get("trimp_coefficients", ""))
@@ -136,34 +182,25 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
 
     body_mass_kg: float | None = None
     if mass := values.get("body_mass_kg", "").strip():
-        low, high = BODY_MASS_RANGE_KG
         try:
             body_mass_kg = float(mass)
         except ValueError:
             errors["body_mass_kg"] = "Enter a body mass in kilograms."
-        else:
-            if not low <= body_mass_kg <= high:
-                errors["body_mass_kg"] = f"Enter a body mass from {low} to {high} kg."
 
     timezone = values.get("timezone", "").strip()
-    if timezone not in timezones():
-        errors["timezone"] = "Enter a timezone name such as Europe/Copenhagen."
 
-    thresholds: list[float] = []
+    thresholds: list[float | None] = []
     for name in ZONE_FIELDS:
         try:
-            threshold = float(values.get(name, "").strip())
+            thresholds.append(float(values.get(name, "").strip()))
         except ValueError:
             errors[name] = "Enter a percentage."
-            continue
-        if not 0 < threshold < 100:
-            errors[name] = "Enter a percentage between 0 and 100."
-            continue
-        if thresholds and threshold <= thresholds[-1]:
-            errors[name] = "Each zone must start above the one before it."
-        thresholds.append(threshold)
+            thresholds.append(None)
 
-    if errors:
+    rules = rule_errors(max_hr, resting_hr, body_mass_kg, timezone, thresholds)
+    errors.update((FORM_NAMES[key], message) for key, message in rules.items())
+
+    if errors or max_hr is None or resting_hr is None:
         return None, errors
     settings = AthleteSettings(
         max_hr=max_hr,
@@ -171,7 +208,7 @@ def parse_form(values: Mapping[str, str]) -> tuple[AthleteSettings | None, dict[
         trimp_coefficients=coefficients,
         timezone=timezone,
         zone_model=zone_model,
-        zone_thresholds=tuple(thresholds),
+        zone_thresholds=tuple(threshold for threshold in thresholds if threshold is not None),
         body_mass_kg=body_mass_kg,
     )
     return settings, {}
