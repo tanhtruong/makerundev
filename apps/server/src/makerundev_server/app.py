@@ -1,5 +1,4 @@
 import datetime as dt
-import math
 import secrets
 from pathlib import Path
 from typing import Annotated, Any
@@ -71,19 +70,6 @@ STRAVA_OUTCOMES: dict[Outcome, str] = {
     "rejected": "Strava no longer accepts this connection. Disconnect and connect again.",
     "unreachable": "Strava could not be reached. Sync again later.",
 }
-GARMIN_OUTCOMES: dict[Outcome, str] = {
-    **SYNC_OUTCOMES,
-    "paused": "Garmin asked to slow down. Sync again later.",
-    "rejected": "Garmin no longer accepts this key: it has expired or was revoked."
-    " Create a new one in Garmin Connect under Settings, Personal API Key, and save it below.",
-    "unreachable": "Garmin could not be reached. Sync again later.",
-}
-GARMIN_NOTICES = {
-    "saved": "Key saved. Start a sync to bring your activities in.",
-    **garmin_api.KEY_ERRORS,
-    "unreachable": "Garmin could not be reached to check the key. Try again later.",
-    "removed": "Key removed. Activities imported from Garmin stay.",
-}
 
 
 def create_app(
@@ -108,7 +94,6 @@ def create_app(
         signed=_signed,
         local=_local,
         strava_outcome=_strava_outcome,
-        garmin_outcome=_garmin_outcome,
     )
     templates.env.globals.update(
         format_pace=format.pace,
@@ -340,40 +325,6 @@ def create_app(
         strava_api.disconnect(store, strava_client())
         return to_strava("disconnected")
 
-    def garmin_client() -> garmin.GarminClient:
-        return garmin.GarminClient(garmin_transport, pause=garmin_pause)
-
-    def to_garmin(notice: str = "") -> RedirectResponse:
-        return RedirectResponse(f"/garmin?notice={notice}" if notice else "/garmin", 303)
-
-    @pages.get("/garmin", response_class=HTMLResponse)
-    def garmin_page(request: Request, notice: str = "") -> HTMLResponse:
-        return templates.TemplateResponse(
-            request,
-            "garmin.html",
-            {
-                "connection": store.garmin.connection(),
-                "notice": GARMIN_NOTICES.get(notice),
-                "activity_url": garmin.ACTIVITY_URL,
-                "timezone": timezone(),
-            },
-        )
-
-    @pages.post("/garmin/key", response_model=None)
-    async def garmin_key(request: Request) -> Response:
-        key = str((await request.form()).get("key", ""))
-        return to_garmin(await run_in_threadpool(garmin_api.save_key, store, garmin_client(), key))
-
-    @pages.post("/garmin/sync", response_model=None)
-    def garmin_sync() -> Response:
-        garmin_api.begin_sync(app, store, garmin_client())
-        return to_garmin()
-
-    @pages.post("/garmin/remove", response_model=None)
-    def garmin_remove() -> Response:
-        store.garmin.remove_key()
-        return to_garmin("removed")
-
     app.include_router(pages)
     app.include_router(api.router(store))
     app.include_router(settings_api.router(store))
@@ -391,17 +342,6 @@ def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") 
 def _strava_outcome(connection: SyncState) -> str:
     outcome = connection.sync_outcome
     return STRAVA_OUTCOMES.get(outcome, "") if outcome else ""
-
-
-def _garmin_outcome(connection: SyncState) -> str:
-    if connection.sync_outcome == "paused" and connection.resume_at is not None:
-        left = (connection.resume_at - dt.datetime.now(dt.UTC)).total_seconds()
-        if left > 0:
-            minutes = math.ceil(left / 60)
-            unit = "minute" if minutes == 1 else "minutes"
-            return f"Garmin asked to slow down. Sync again in {minutes} {unit}."
-    outcome = connection.sync_outcome
-    return GARMIN_OUTCOMES.get(outcome, "") if outcome else ""
 
 
 def _signed(value: float) -> str:

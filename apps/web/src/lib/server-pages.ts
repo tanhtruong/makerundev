@@ -2,7 +2,6 @@ export const SERVER_NAV = [
   { href: "/import", label: "Import" },
   { href: "/load", label: "Training load" },
   { href: "/strava", label: "Strava" },
-  { href: "/garmin", label: "Garmin" },
   { href: "/settings", label: "Settings" },
 ];
 

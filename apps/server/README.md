@@ -93,16 +93,17 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `GET /strava/callback` | Where Strava sends you back after authorising |
 | `POST /strava/sync` | Start a sync in the background |
 | `POST /strava/disconnect` | Revoke access and delete Strava-only activities |
-| `GET /garmin` | Garmin key form, sync status and skipped activities |
-| `POST /garmin/key` | Check a Personal API key with Garmin and save it (form field `key`) |
-| `POST /garmin/sync` | Start a sync in the background |
-| `POST /garmin/remove` | Delete the key and sync progress; imported activities stay |
+| `GET /garmin` | Garmin key form, sync status and skipped activities (the React app) |
 | `GET /api/activities?limit=50&offset=0` | Activities newest first with their summaries and TRIMP, as `{items, total}` JSON (`limit` up to 200) |
 | `POST /api/activities` | Import one or more files (multipart field `files`) and report each as `imported`, `already_imported` or `failed`, with the activity id or the reason |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
 | `GET /api/settings` | The saved athlete settings (or `null`), the defaults a first save starts from, zone starts in bpm, the highest recorded heart rate and the accepted timezone names |
 | `PUT /api/settings` | Save the athlete settings and report how many activities had TRIMP recomputed; an invalid value is refused with 422 naming the field |
 | `GET /api/training-load` | Fitness, fatigue and form per day over `days` (`90`, `180`, `365` or `all`), the weekly table, and current VDOT and critical speed with their efforts |
+| `GET /api/garmin` | Whether a Garmin key is saved, and the sync's progress, outcome and skipped activities; never the key |
+| `PUT /api/garmin/key` | Check a Personal API key with Garmin and save it; a key Garmin refuses is a 422, and Garmin out of reach a 502 |
+| `POST /api/garmin/sync` | Start a sync in the background (202), or keep the one running |
+| `DELETE /api/garmin/key` | Delete the key and sync progress; imported activities stay |
 | `GET /openapi.json` | The JSON API's OpenAPI schema |
 
 The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob/main/docs/api.md). It is public but unversioned before 1.0, so a breaking change is listed in the changelog.

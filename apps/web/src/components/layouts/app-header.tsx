@@ -22,6 +22,9 @@ export function AppHeader() {
           >
             Activities
           </Link>
+          <Link to="/garmin" className={ITEM} activeProps={{ "aria-current": "page" }}>
+            Garmin
+          </Link>
           {SERVER_NAV.map((page) => (
             <a key={page.href} href={page.href} className={ITEM}>
               {page.label}

@@ -82,6 +82,15 @@ components:
   lane-bar:
     backgroundColor: "{colors.lane}"
     height: "8px"
+  input:
+    backgroundColor: "{colors.background}"
+    textColor: "{colors.foreground}"
+    typography: "{typography.body}"
+    rounded: "0"
+    padding: "0 10px"
+    height: "32px"
+  input-invalid:
+    backgroundColor: "{colors.muted}"
 ---
 
 # Design System: makerundev
@@ -117,7 +126,7 @@ A warm off-white ground and near-black ink, with tartan red kept for place and d
 - **Track Ink** (foreground): body text, headings and figures. Dark mode: #eceae6.
 - **Start Line Ink** (rule): the 1px rule under table headers and the 2px start line of the lane column. It is the same value as Track Ink, so rules carry full ink weight.
 - **Stand Grey** (muted-foreground): secondary text such as start times, counts, column labels and the paging range. Dark mode: #a3a6a9.
-- **Infield Wash** (muted / accent): loading placeholders and row hover. Dark mode: muted #1c1f22, accent #1f2326.
+- **Infield Wash** (muted / accent): loading placeholders, row hover and the fill of an invalid field. Dark mode: muted #1c1f22, accent #1f2326.
 - **Hairline** (border): the 1px divider between rows and around empty and error states. Dark mode: #2a2e32.
 - **Field Edge** (input): disabled outline borders and the scrollbar thumb. Dark mode: #3a3f44.
 - **Lane White** (tartan-foreground): text, underlines and the lane line on the tartan bar.
@@ -194,6 +203,17 @@ Quiet and functional. They sit beside data and never outshout it. There is no fi
 The run's distance drawn true to scale. A 2px Start Line Ink start line runs down the left of the column. From it, a square-ended 8px Lane Red bar extends to `distance / longest distance on the page` of the track width. The distance figure sits at the right of the track on desktop and above the bar on phones. The bar is decorative to assistive technology, and the figure carries the value.
 
 **The True Length Rule.** A lane bar's length is the exact ratio to the page's longest run. Never round its ends, add a gradient, a track background or a minimum stub, or scale it to anything other than distance.
+
+### Inputs and labels
+- **Label:** Barlow 500 at 0.875rem in Track Ink, above its field.
+- **Field:** 32px tall, square, a 1px Start Line Ink border on the ground, with 10px side padding and Body type. A form sits in a column at most 448px wide, with its message and its outline button under the field.
+- **Invalid:** the field keeps its solid border and fills with Infield Wash. The message sits under it in Track Ink at 0.875rem, linked to the field as its description. A dashed border always means disabled, never invalid.
+
+### Stat list
+Up to four figures in a row (two on phones), each a Label above its value in Barlow Semi Condensed 600 at 1.25rem. Its line of prose, such as how the last sync ended, follows in Stand Grey. There are no boxes, borders or dividers around the figures.
+
+### Status notice
+A notice that confirms an action, such as "Key saved.", is a line of Body text in Track Ink between Hairline rules above and below. It carries `role="status"`, has no colour or icon, and stays until the next action replaces it.
 
 ### Loading, empty and error states
 - **Loading:** eight placeholder rows of Infield Wash blocks, square, under an ink top rule, with no shimmer.

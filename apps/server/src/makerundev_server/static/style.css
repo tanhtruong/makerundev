@@ -195,9 +195,6 @@ ul.fitted { margin: 4px 0 0; padding-left: 18px; line-height: 1.7; }
 
 .strava-link { color: #fc5200; font-weight: 600; text-decoration: underline; text-decoration-color: currentColor; }
 .sync-actions { margin: 20px 0 0; }
-.key-form { display: grid; gap: 12px; margin: 32px 0 0; max-width: 520px; }
-.key-form .field input { max-width: 420px; }
-.key-form button { justify-self: start; }
 button:disabled { opacity: 0.5; cursor: default; }
 button.danger { background: transparent; color: var(--text); border: 1px solid var(--accent); }
 button.quiet { background: transparent; color: var(--text); border: 1px solid var(--line); font-weight: 500; }

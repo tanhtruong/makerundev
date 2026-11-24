@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
 import { Page, PageHeading } from "@/components/layouts/page";
+import { LoadError } from "@/components/load-error";
 import { Button } from "@/components/ui/button";
 import { ActivityTable } from "@/features/activities/components/activity-table";
 import { useTimeZone } from "@/hooks/use-time-zone";
@@ -45,17 +46,14 @@ function ListBody({
   }
   if (query.isError || timeZone.isError) {
     return (
-      <div role="alert" className="flex items-center gap-4 border-y border-border py-6">
-        <span>The activity list could not be loaded.</span>
-        <Button
-          onClick={() => {
-            void query.refetch();
-            void timeZone.refetch();
-          }}
-        >
-          Try again
-        </Button>
-      </div>
+      <LoadError
+        onRetry={() => {
+          void query.refetch();
+          void timeZone.refetch();
+        }}
+      >
+        The activity list could not be loaded.
+      </LoadError>
     );
   }
   const { items, total } = query.data;
@@ -143,9 +141,9 @@ function EmptyState() {
           Strava
         </a>{" "}
         or{" "}
-        <a href="/garmin" className="text-foreground underline">
+        <Link to="/garmin" className="text-foreground underline">
           Garmin Connect
-        </a>
+        </Link>
         .
       </p>
     </div>
