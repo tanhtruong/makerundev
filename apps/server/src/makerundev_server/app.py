@@ -22,7 +22,7 @@ from makerundev.metrics import (
     time_in_zones,
 )
 
-from makerundev_server import api, charts, config, garmin, web
+from makerundev_server import api, charts, config, garmin, settings_api, web
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import connect
 from makerundev_server.garmin_sync import GarminSync
@@ -371,6 +371,7 @@ def create_app(
 
     app.include_router(pages)
     app.include_router(api.router(store))
+    app.include_router(settings_api.router(store))
     web.serve(app, web_dir or HERE / "web")
     return app
 

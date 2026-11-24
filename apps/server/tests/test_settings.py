@@ -39,6 +39,110 @@ def save(client: TestClient, **changes: str):
     return client.post("/settings", data=FORM | changes, follow_redirects=False)
 
 
+SETTINGS = {
+    "max_heart_rate_bpm": 190,
+    "resting_heart_rate_bpm": 50,
+    "trimp_coefficients": "male",
+    "zone_model": "max_hr_percent",
+    "zone_thresholds_percent": [60, 70, 80, 90],
+    "body_mass_kg": None,
+    "timezone": "Europe/Copenhagen",
+}
+
+
+def test_settings_are_read_and_saved_through_the_api(tmp_path, steady_run_fit, monkeypatch):
+    monkeypatch.setenv("TZ", "America/Denver")
+    client = TestClient(create_app(data_dir=tmp_path))
+    upload(client, "run.fit", steady_run_fit)
+
+    unset = client.get("/api/settings").json()
+
+    assert unset["settings"] is None
+    assert unset["zone_starts_bpm"] is None
+    assert unset["defaults"] == {
+        "trimp_coefficients": "male",
+        "zone_model": "max_hr_percent",
+        "zone_thresholds_percent": [60, 70, 80, 90],
+        "timezone": "America/Denver",
+    }
+    assert unset["highest_heart_rate_bpm"] == 140
+    assert {"Europe/Copenhagen", "UTC"} <= set(unset["timezones"])
+    assert "Mars/Olympus" not in unset["timezones"]
+
+    chosen = SETTINGS | {
+        "zone_model": "hr_reserve_percent",
+        "zone_thresholds_percent": [60, 72.5, 80, 90],
+        "body_mass_kg": 68.5,
+    }
+    saved = client.put("/api/settings", json=chosen)
+
+    assert saved.status_code == 200
+    assert saved.json() == {
+        "settings": chosen,
+        "zone_starts_bpm": [134, 152, 162, 176],
+        "trimp_recomputed": 1,
+        "trimp_unreadable": 0,
+    }
+    assert stored_trimp(tmp_path) == [pytest.approx(STEADY_RUN_TRIMP)]
+    reread = TestClient(create_app(data_dir=tmp_path)).get("/api/settings").json()
+    assert reread["settings"] == chosen
+    assert reread["zone_starts_bpm"] == [134, 152, 162, 176]
+
+
+def refused(field: str | tuple[str, int], message: str) -> dict[str, object]:
+    loc = ["body", *field] if isinstance(field, tuple) else ["body", field]
+    return {"loc": loc, "msg": message, "type": "value_error"}
+
+
+ZONES = "zone_thresholds_percent"
+BEATS = "Enter a value from 100 to 250 bpm."
+RESTING_BEATS = "Enter a value from 20 to 120 bpm."
+PERCENT = "Enter a percentage between 0 and 100."
+ASCENDING = "Each zone must start above the one before it."
+TIMEZONE = "Enter a timezone name such as Europe/Copenhagen."
+MASS = "Enter a body mass from 30 to 200 kg."
+
+
+@pytest.mark.parametrize(
+    ("changes", "errors"),
+    [
+        ({"max_heart_rate_bpm": 300}, [refused("max_heart_rate_bpm", BEATS)]),
+        ({"resting_heart_rate_bpm": 190}, [refused("resting_heart_rate_bpm", RESTING_BEATS)]),
+        (
+            {"max_heart_rate_bpm": 110, "resting_heart_rate_bpm": 110},
+            [refused("resting_heart_rate_bpm", "Resting heart rate must be below max heart rate.")],
+        ),
+        ({ZONES: [60, 70, 65, 90]}, [refused((ZONES, 2), ASCENDING)]),
+        ({ZONES: [60, 70, 80, 100]}, [refused((ZONES, 3), PERCENT)]),
+        ({ZONES: [60, 150, 80, 90]}, [refused((ZONES, 1), PERCENT)]),
+        ({"timezone": "Mars/Olympus"}, [refused("timezone", TIMEZONE)]),
+        ({"body_mass_kg": 29.9}, [refused("body_mass_kg", MASS)]),
+        ({"body_mass_kg": 200.1}, [refused("body_mass_kg", MASS)]),
+        (
+            {"max_heart_rate_bpm": 300, "timezone": "Mars/Olympus"},
+            [refused("max_heart_rate_bpm", BEATS), refused("timezone", TIMEZONE)],
+        ),
+    ],
+)
+def test_invalid_settings_are_refused_field_by_field_and_not_saved(tmp_path, changes, errors):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    response = client.put("/api/settings", json=SETTINGS | changes)
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": errors}
+    assert client.get("/api/settings").json()["settings"] is None
+
+
+def test_a_zone_list_of_the_wrong_length_is_refused(tmp_path):
+    client = TestClient(create_app(data_dir=tmp_path))
+
+    response = client.put("/api/settings", json=SETTINGS | {ZONES: [60, 70, 80]})
+
+    assert response.status_code == 422
+    assert [error["loc"] for error in response.json()["detail"]] == [["body", ZONES]]
+
+
 def test_saved_settings_persist_across_restarts(tmp_path):
     response = save(
         TestClient(create_app(data_dir=tmp_path)),
@@ -123,28 +227,21 @@ def test_a_malformed_notice_query_still_shows_the_form(tmp_path):
     assert "Settings saved." not in page.text
 
 
-def test_an_out_of_range_zone_does_not_flag_the_next_one(tmp_path):
-    response = save(TestClient(create_app(data_dir=tmp_path)), zone_3="150")
-
-    assert response.status_code == 422
-    assert response.text.count("Enter a percentage between 0 and 100.") == 1
-    assert "Each zone must start above the one before it." not in response.text
-
-
 @pytest.mark.parametrize(
     ("changes", "field", "message"),
     [
         ({"max_hr": "abc"}, "max_hr", "Enter a whole number of beats per minute."),
         ({"max_hr": "300"}, "max_hr", "Enter a value from 100 to 250 bpm."),
-        ({"resting_hr": "190"}, "resting_hr", "Enter a value from 20 to 120 bpm."),
-        ({"max_hr": "110", "resting_hr": "110"}, "resting_hr", "must be below max heart rate"),
         ({"zone_4": "65"}, "zone_4", "Each zone must start above the one before it."),
-        ({"zone_5": "100"}, "zone_5", "Enter a percentage between 0 and 100."),
+        (
+            {"max_hr": "110", "resting_hr": "110"},
+            "resting_hr",
+            "Resting heart rate must be below max heart rate.",
+        ),
         ({"timezone": "Mars/Olympus"}, "timezone", "Enter a timezone name"),
+        ({"body_mass_kg": "29.9"}, "body_mass_kg", "Enter a body mass from 30 to 200 kg."),
         ({"trimp_coefficients": "other"}, "trimp_coefficients", "Choose male or female"),
         ({"zone_model": "other"}, "zone_model", "Choose a zone model."),
-        ({"body_mass_kg": "29.9"}, "body_mass_kg", "Enter a body mass from 30 to 200 kg."),
-        ({"body_mass_kg": "200.1"}, "body_mass_kg", "Enter a body mass from 30 to 200 kg."),
         ({"body_mass_kg": "heavy"}, "body_mass_kg", "Enter a body mass in kilograms."),
     ],
 )
@@ -155,6 +252,8 @@ def test_invalid_settings_are_shown_back_and_not_saved(tmp_path, changes, field,
 
     assert response.status_code == 422
     assert message in response.text
+    if field != "trimp_coefficients":
+        assert f'id="{field}-note">{message}' in response.text
     assert "Nothing was saved." in response.text
     for name, value in changes.items():
         if name not in ("trimp_coefficients", "zone_model"):

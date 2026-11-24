@@ -100,6 +100,8 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `GET /api/activities?limit=50&offset=0` | Activities newest first with their summaries and TRIMP, as `{items, total}` JSON (`limit` up to 200) |
 | `POST /api/activities` | Import one or more files (multipart field `files`) and report each as `imported`, `already_imported` or `failed`, with the activity id or the reason |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
+| `GET /api/settings` | The saved athlete settings (or `null`), the defaults a first save starts from, zone starts in bpm, the highest recorded heart rate and the accepted timezone names |
+| `PUT /api/settings` | Save the athlete settings and report how many activities had TRIMP recomputed; an invalid value is refused with 422 naming the field |
 | `GET /openapi.json` | The JSON API's OpenAPI schema |
 
 The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob/main/docs/api.md). It is public but unversioned before 1.0, so a breaking change is listed in the changelog.

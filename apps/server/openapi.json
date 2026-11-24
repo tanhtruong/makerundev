@@ -280,6 +280,66 @@
           }
         }
       }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Settings",
+        "operationId": "getSettings",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Save Settings",
+        "operationId": "saveSettings",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AthleteSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -796,6 +856,59 @@
         ],
         "title": "ActivitySummary"
       },
+      "AthleteSettings": {
+        "properties": {
+          "max_heart_rate_bpm": {
+            "type": "integer",
+            "title": "Max Heart Rate Bpm"
+          },
+          "resting_heart_rate_bpm": {
+            "type": "integer",
+            "title": "Resting Heart Rate Bpm"
+          },
+          "trimp_coefficients": {
+            "$ref": "#/components/schemas/TrimpCoefficients"
+          },
+          "zone_model": {
+            "$ref": "#/components/schemas/ZoneModel"
+          },
+          "zone_thresholds_percent": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Zone Thresholds Percent"
+          },
+          "body_mass_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Mass Kg"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "max_heart_rate_bpm",
+          "resting_heart_rate_bpm",
+          "trimp_coefficients",
+          "zone_model",
+          "zone_thresholds_percent",
+          "body_mass_kg",
+          "timezone"
+        ],
+        "title": "AthleteSettings"
+      },
       "BestEffort": {
         "properties": {
           "distance_m": {
@@ -1157,6 +1270,125 @@
         ],
         "title": "SeriesRow"
       },
+      "SettingsDefaults": {
+        "properties": {
+          "trimp_coefficients": {
+            "$ref": "#/components/schemas/TrimpCoefficients"
+          },
+          "zone_model": {
+            "$ref": "#/components/schemas/ZoneModel"
+          },
+          "zone_thresholds_percent": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Zone Thresholds Percent"
+          },
+          "timezone": {
+            "type": "string",
+            "title": "Timezone"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trimp_coefficients",
+          "zone_model",
+          "zone_thresholds_percent",
+          "timezone"
+        ],
+        "title": "SettingsDefaults"
+      },
+      "SettingsSaved": {
+        "properties": {
+          "settings": {
+            "$ref": "#/components/schemas/AthleteSettings"
+          },
+          "zone_starts_bpm": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Zone Starts Bpm"
+          },
+          "trimp_recomputed": {
+            "type": "integer",
+            "title": "Trimp Recomputed"
+          },
+          "trimp_unreadable": {
+            "type": "integer",
+            "title": "Trimp Unreadable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings",
+          "zone_starts_bpm",
+          "trimp_recomputed",
+          "trimp_unreadable"
+        ],
+        "title": "SettingsSaved"
+      },
+      "SettingsView": {
+        "properties": {
+          "settings": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AthleteSettings"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/SettingsDefaults"
+          },
+          "zone_starts_bpm": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zone Starts Bpm"
+          },
+          "highest_heart_rate_bpm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highest Heart Rate Bpm"
+          },
+          "timezones": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Timezones"
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings",
+          "defaults",
+          "zone_starts_bpm",
+          "highest_heart_rate_bpm",
+          "timezones"
+        ],
+        "title": "SettingsView"
+      },
       "Split": {
         "properties": {
           "distance_m": {
@@ -1205,6 +1437,14 @@
           "other"
         ],
         "title": "Sport"
+      },
+      "TrimpCoefficients": {
+        "type": "string",
+        "enum": [
+          "male",
+          "female"
+        ],
+        "title": "TrimpCoefficients"
       },
       "ValidationError": {
         "properties": {
@@ -1292,6 +1532,14 @@
           "share"
         ],
         "title": "Zone"
+      },
+      "ZoneModel": {
+        "type": "string",
+        "enum": [
+          "max_hr_percent",
+          "hr_reserve_percent"
+        ],
+        "title": "ZoneModel"
       }
     }
   }
