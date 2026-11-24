@@ -1,8 +1,8 @@
 import hashlib
 import json
-import re
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import polars as pl
 import pytest
@@ -14,7 +14,7 @@ from makerundev_server.settings import AthleteSettings
 from makerundev_server.store import Store
 
 
-def test_uploaded_activity_is_listed_and_viewable(tmp_path, steady_run_fit):
+def test_uploaded_activity_is_listed(tmp_path, steady_run_fit):
     client = TestClient(create_app(data_dir=tmp_path))
 
     response = client.post(
@@ -28,15 +28,6 @@ def test_uploaded_activity_is_listed_and_viewable(tmp_path, steady_run_fit):
     assert activities[0]["distance_m"] == 3000.0
     assert activities[0]["sport"] == "running"
     assert activities[0]["start_time"] == "2026-03-01T07:00:00Z"
-
-    detail = client.get(f"/activities/{activities[0]['id']}")
-    assert detail.status_code == 200
-    assert "5:33 /km" in detail.text
-    assert table_cells(detail.text, "splits") == [
-        *("1", "1.00 km", "5:33", "5:33 /km"),
-        *("2", "1.00 km", "5:33", "5:33 /km"),
-        *("3", "1.00 km", "5:33", "5:33 /km"),
-    ]
 
 
 def test_api_import_reports_each_file_in_order_and_lists_the_new_activity_once(
@@ -85,16 +76,20 @@ LAPS = [
     {"t": 0.0, "elapsed": 330.0, "distance": 1000.0},
     {"t": 330.0, "elapsed": 270.0, "distance": 800.0},
 ]
-LAP_CELLS = ["1", "5:30", "1.00 km", "5:30 /km", "2", "4:30", "0.80 km", "5:38 /km"]
+DETAIL_LAPS = [
+    {"number": 1, "distance_m": 1000.0, "elapsed_s": 330.0, "pace_s_per_km": 330.0},
+    {"number": 2, "distance_m": 800.0, "elapsed_s": 270.0, "pace_s_per_km": 337.5},
+]
 
 
-def table_cells(page: str, name: str) -> list[str]:
-    table = re.search(rf'<table class="{name}">.*?<tbody>(.*?)</tbody>', page, re.S)
-    assert table is not None
-    return [cell.strip() for cell in re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>", table[1], re.S)]
+def detail(client: TestClient, activity_id: int) -> dict[str, Any]:
+    response = client.get(f"/api/activities/{activity_id}")
+    assert response.status_code == 200
+    body: dict[str, Any] = response.json()
+    return body
 
 
-def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
+def test_uploaded_activity_keeps_its_laps_with_their_pace(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(LAP_ROWS, laps=LAPS)
     client.post("/api/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
@@ -106,7 +101,7 @@ def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
         {"start_time": "2026-03-01T07:00:00+00:00", "elapsed_s": 330.0, "distance_m": 1000.0},
         {"start_time": "2026-03-01T07:05:30+00:00", "elapsed_s": 270.0, "distance_m": 800.0},
     ]
-    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
+    assert detail(client, activity_id)["laps"] == DETAIL_LAPS
 
 
 def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_path, make_fit):
@@ -117,12 +112,12 @@ def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_p
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         db.execute("UPDATE activities SET laps = NULL")
 
-    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
+    assert detail(client, activity_id)["laps"] == DETAIL_LAPS
     (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).unlink()
-    assert table_cells(client.get(f"/activities/{activity_id}").text, "laps") == LAP_CELLS
+    assert detail(client, activity_id)["laps"] == DETAIL_LAPS
 
 
-def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
+def test_outdoor_activity_has_a_route_and_treadmill_run_has_none(
     tmp_path, steady_run_fit, make_fit
 ):
     client = TestClient(create_app(data_dir=tmp_path))
@@ -131,16 +126,9 @@ def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
         client.post("/api/activities", files=[("files", (name, fit, "application/octet-stream"))])
     ids = {row["filename"]: row["id"] for row in client.get("/api/activities").json()["items"]}
 
-    outdoor = client.get(f"/activities/{ids['outdoor.fit']}").text
-    assert '<figure class="route">' in outdoor
-    polyline = re.search(r'<polyline points="([^"]+)"', outdoor)
-    assert polyline is not None
-    assert len(polyline[1].split()) > 2
-    assert outdoor.index('<figure class="route">') < outdoor.index("Pace over distance")
-
-    indoor = client.get(f"/activities/{ids['treadmill.fit']}").text
-    assert '<figure class="route">' not in indoor
-    assert "<polyline" not in indoor
+    outdoor = detail(client, ids["outdoor.fit"])["route"]
+    assert len(outdoor) > 2
+    assert detail(client, ids["treadmill.fit"])["route"] is None
 
 
 DYNAMICS_COLUMNS = ["ground_contact_time", "vertical_oscillation", "step_length"]
@@ -154,22 +142,12 @@ DYNAMICS_ROWS = [
     }
     for i in range(601)
 ]
-DYNAMICS_TILES = {
-    "Ground contact": "250 ms",
-    "Vertical oscillation": "8.5 cm",
-    "Step length": "1.10 m",
+DYNAMICS = {
+    "ground_contact_time_ms": 250.0,
+    "vertical_oscillation_mm": 85.0,
+    "step_length_m": pytest.approx(1.1),
 }
-
-
-def stats(page: str) -> dict[str, str]:
-    block = re.search(r'<dl class="stats">(.*?)</dl>', page, re.S)
-    assert block is not None
-    tiles = re.findall(r"<dt>(.*?)</dt><dd>(.*?)</dd>", block[1])
-    return {name: " ".join(re.sub(r"<[^>]+>", " ", value).split()) for name, value in tiles}
-
-
-def dynamics_tiles(page: str) -> dict[str, str]:
-    return {name: value for name, value in stats(page).items() if name in DYNAMICS_TILES}
+NO_DYNAMICS = dict.fromkeys(DYNAMICS)
 
 
 def upload(client: TestClient, filename: str, data: bytes) -> int:
@@ -182,7 +160,9 @@ def upload(client: TestClient, filename: str, data: bytes) -> int:
     return activity_id
 
 
-def test_activity_page_shows_grade_adjusted_pace_and_decoupling_for_runs_only(tmp_path, make_fit):
+def test_activity_detail_gives_grade_adjusted_pace_and_decoupling_and_marks_a_ride(
+    tmp_path, make_fit
+):
     client = TestClient(create_app(data_dir=tmp_path))
     hill = [
         {
@@ -198,21 +178,17 @@ def test_activity_page_shows_grade_adjusted_pace_and_decoupling_for_runs_only(tm
     hill_id = upload(client, "hill.fit", make_fit(hill))
     bare_id = upload(client, "bare.fit", make_fit(bare))
     ride_id = upload(client, "ride.fit", make_fit(hill, sport=Sport.CYCLING))
-    hill_stats, bare_stats, ride_stats = (
-        stats(client.get(f"/activities/{activity_id}").text)
-        for activity_id in (hill_id, bare_id, ride_id)
-    )
+    hill, bare, ride = (detail(client, activity_id) for activity_id in (hill_id, bare_id, ride_id))
 
-    assert hill_stats["Grade-adjusted pace"] == "3:01 /km"
-    assert hill_stats["Aerobic decoupling"] == "+4.8%"
-    assert bare_stats["Grade-adjusted pace"] == "-"
-    assert bare_stats["Aerobic decoupling"] == "-"
-    assert ride_stats["Pace"] == "5:00 /km"
-    assert "Grade-adjusted pace" not in ride_stats
-    assert "Aerobic decoupling" not in ride_stats
+    assert hill["is_running"] is True
+    assert hill["grade_adjusted_pace_s_per_km"] == pytest.approx(181.0, abs=0.5)
+    assert hill["aerobic_decoupling_percent"] == pytest.approx(4.8, abs=0.05)
+    assert bare["grade_adjusted_pace_s_per_km"] is None
+    assert bare["aerobic_decoupling_percent"] is None
+    assert (ride["is_running"], ride["pace_s_per_km"]) == (False, pytest.approx(300.0))
 
 
-def test_activity_page_shows_estimated_power_once_body_mass_is_set(tmp_path, make_fit):
+def test_activity_detail_gives_estimated_power_once_body_mass_is_set(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     flat = [
         {"t": float(i), "distance": round(i * 10 / 3, 2), "altitude": 10.0, "power": 250}
@@ -223,23 +199,24 @@ def test_activity_page_shows_estimated_power_once_body_mass_is_set(tmp_path, mak
     bare_id = upload(client, "bare.fit", make_fit(no_altitude))
     ride_id = upload(client, "ride.fit", make_fit(flat, sport=Sport.CYCLING))
 
-    before = stats(client.get(f"/activities/{run_id}").text)
-    assert before["Avg power"] == "250 W"
-    assert "Estimated power" not in before
+    before = detail(client, run_id)
+    assert (before["avg_power_w"], before["avg_power_w_per_kg"]) == (250.0, None)
+    assert before["estimated_power_w"] is None
 
     Store(tmp_path, connect(tmp_path)).save_athlete_settings(
         AthleteSettings(max_hr=190, resting_hr=50, body_mass_kg=70.0)
     )
-    run_stats, bare_stats, ride_stats = (
-        stats(client.get(f"/activities/{activity_id}").text)
-        for activity_id in (run_id, bare_id, ride_id)
-    )
+    run, bare, ride = (detail(client, activity_id) for activity_id in (run_id, bare_id, ride_id))
 
-    assert run_stats["Estimated power"] == "234 W 3.34 W/kg"
-    assert run_stats["Avg power"] == "250 W 3.57 W/kg"
-    assert bare_stats["Estimated power"] == "-"
-    assert "Avg power" not in bare_stats
-    assert "Estimated power" not in ride_stats
+    assert run["estimated_power_w"] == pytest.approx(234.0, abs=0.5)
+    assert run["estimated_power_w_per_kg"] == pytest.approx(3.34, abs=0.005)
+    assert (run["avg_power_w"], run["avg_power_w_per_kg"]) == (
+        250.0,
+        pytest.approx(3.57, abs=0.005),
+    )
+    assert bare["estimated_power_w"] is None
+    assert bare["avg_power_w"] is None
+    assert ride["is_running"] is False
 
 
 def strip_dynamics(tmp_path, data: bytes) -> Path:
@@ -254,7 +231,7 @@ def test_activity_imported_before_running_dynamics_gets_them_on_first_view(tmp_p
     activity_id = upload(client, "dynamics.fit", fit)
     stream = strip_dynamics(tmp_path, fit)
 
-    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == DYNAMICS_TILES
+    assert detail(client, activity_id)["running_dynamics"] == DYNAMICS
     stored = pl.read_parquet(stream)
     assert stored["ground_contact_time"].to_list() == [250.0] * 601
     assert stored["step_length"].to_list() == pytest.approx([1.1] * 601)
@@ -272,7 +249,7 @@ def test_activity_whose_original_no_longer_matches_gets_empty_running_dynamics(t
         make_fit(DYNAMICS_ROWS[:-1])
     )
 
-    assert dynamics_tiles(client.get(f"/activities/{activity_id}").text) == {}
+    assert detail(client, activity_id)["running_dynamics"] == NO_DYNAMICS
     stored = pl.read_parquet(stream)
     for column in DYNAMICS_COLUMNS:
         assert stored[column].null_count() == stored.height

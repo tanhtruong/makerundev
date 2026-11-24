@@ -36,11 +36,11 @@ test("runs imported through the form are reported per file, listed newest first 
   expect([...origins]).toEqual([new URL(page.url()).origin]);
 
   await results.first().getByRole("link", { name: "harbour.gpx" }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Running on 2026-03-01");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Running on 1 Mar 2026 at 07:00");
   await page.goBack();
 
   const lane = await rows.nth(1).getByTestId("lane").boundingBox();
   if (!lane) throw new Error("the lane bar is not on screen");
   await page.mouse.click(lane.x + lane.width / 2, lane.y + lane.height / 2);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("Running on 2026-03-03 23:30");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Running on 3 Mar 2026 at 23:30");
 });

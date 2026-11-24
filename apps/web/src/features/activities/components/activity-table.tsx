@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { sportLabel } from "@/features/activities/utils/sport-label";
 import type { ActivitySummary } from "@/lib/api/model/activity-summary.gen";
@@ -33,12 +35,13 @@ export function ActivityTable({ activities, timeZone }: { activities: ActivitySu
               <span className="ml-2 text-muted-foreground">{localTime(activity.start_time, timeZone)}</span>
             </TableCell>
             <TableCell className="max-w-44 whitespace-normal sm:max-w-72 sm:truncate sm:whitespace-nowrap">
-              <a
-                href={`/activities/${activity.id}`}
+              <Link
+                to="/activities/$activityId"
+                params={{ activityId: activity.id }}
                 className="line-clamp-2 after:absolute after:inset-0 after:z-10 hover:underline sm:line-clamp-none"
               >
                 {activity.name ?? activity.filename}
-              </a>
+              </Link>
               <div className="text-sm text-muted-foreground sm:hidden">
                 {localDay(activity.start_time, timeZone)} {localTime(activity.start_time, timeZone)}
               </div>

@@ -13,32 +13,24 @@ def positions(lat: list[float | None], lon: list[float | None]) -> pl.DataFrame:
     )
 
 
-def points(route: charts.Route) -> list[tuple[float, float]]:
-    pairs = (point.split(",") for point in route.points.split())
-    return [(float(x), float(y)) for x, y in pairs]
+def test_route_shape_puts_north_up_and_east_right():
+    shape = charts.route_shape([(55.0, 12.0), (55.01, 12.01)])
+
+    assert shape.points == [(0.0, pytest.approx(1000.0)), (pytest.approx(573.50, abs=0.01), 0.0)]
 
 
-def test_route_puts_north_up_and_east_right():
-    route = charts.route(positions([55.0, 55.01], [12.0, 12.01]))
-    assert route is not None
-    (x_start, y_start), (x_end, y_end) = points(route)
-    assert y_end < y_start
-    assert x_end > x_start
+def test_route_shape_keeps_the_aspect_ratio_of_the_ground():
+    shape = charts.route_shape([(60.0, 10.0), (60.01, 10.01)])
+
+    assert shape.height == pytest.approx(1000.0)
+    assert shape.width == pytest.approx(499.92, abs=0.01)
 
 
-def test_route_keeps_the_aspect_ratio_of_the_ground():
-    route = charts.route(positions([60.0, 60.01], [10.0, 10.01]))
-    assert route is not None
-    inner_width = route.width - 2 * charts.INSET
-    inner_height = route.height - 2 * charts.INSET
-    assert inner_height == pytest.approx(charts.ROUTE_SIZE)
-    assert inner_width / inner_height == pytest.approx(0.5, abs=0.001)
-
-
-def test_route_drops_rows_without_a_position():
-    route = charts.route(positions([55.0, None, 55.01, 55.02], [12.0, 12.005, None, 12.01]))
-    assert route is not None
-    assert len(points(route)) == 2
+def test_route_points_drop_rows_without_a_position():
+    sampled = charts.route_points(
+        positions([55.0, None, 55.01, 55.02], [12.0, 12.005, None, 12.01])
+    )
+    assert sampled == [(55.0, 12.0), (55.02, 12.01)]
 
 
 @pytest.mark.parametrize(
@@ -46,7 +38,7 @@ def test_route_drops_rows_without_a_position():
     [([], []), ([None, None], [None, None]), ([55.0, None], [12.0, None])],
 )
 def test_route_is_none_without_two_positions(lat, lon):
-    assert charts.route(positions(lat, lon)) is None
+    assert charts.route_points(positions(lat, lon)) is None
 
 
 @pytest.mark.parametrize("count", [1200, 6000])

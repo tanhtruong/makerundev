@@ -1,5 +1,4 @@
 import datetime as dt
-import re
 import sqlite3
 from typing import Any
 
@@ -8,7 +7,6 @@ from fastapi.testclient import TestClient
 from fit_tool.profile.profile_type import Sport, SubSport
 from makerundev.metrics import training_load
 from makerundev_server import create_app
-from makerundev_server.charts import zone_bars
 from makerundev_server.db import ActivityRow
 from makerundev_server.training import load_view
 from settings_payload import SETTINGS
@@ -187,27 +185,6 @@ def test_an_effort_is_dated_by_the_local_day_it_started(tmp_path, make_fit, marc
     assert found["vdot_effort"]["date"] == "2026-03-04"
 
 
-def test_excluding_the_source_activity_moves_vdot_to_the_next_best_effort(
-    tmp_path, make_fit, march_10
-):
-    client = client_with(
-        tmp_path,
-        ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
-        ("reps.fit", steady(make_fit, 1000, 200, 3)),
-    )
-    reps = ids(client)["reps.fit"]
-
-    response = client.post(
-        f"/activities/{reps}/exclusion", data={"excluded": "true"}, follow_redirects=False
-    )
-
-    assert (response.status_code, response.headers["location"]) == (303, f"/activities/{reps}")
-    found = performance(client)
-    assert found["vdot"] == pytest.approx(47.5, abs=0.05)
-    assert found["vdot_effort"] == effort(ids(client)["tempo.fit"], "tempo.fit", 5, 5000.0, 1250.0)
-    assert found["excluded"] == 1
-
-
 def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
     tmp_path, make_fit, march_10
 ):
@@ -222,7 +199,9 @@ def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
 
     assert (response.status_code, response.json()) == (200, {"excluded": True})
     assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is True
-    assert performance(client)["vdot_effort"]["activity_name"] == "tempo.fit"
+    found = performance(client)
+    assert found["vdot_effort"]["activity_name"] == "tempo.fit"
+    assert found["excluded"] == 1
 
     client.put(f"/api/activities/{reps}/exclusion", json={"excluded": False})
 
@@ -356,41 +335,22 @@ def test_a_range_keeps_the_history_before_it_in_fitness():
     assert recent.activities == 1
 
 
-def test_activity_page_shows_time_in_zones_and_trimp(tmp_path, steady_run_fit):
-    client = client_with(tmp_path, ("run.fit", steady_run_fit))
-    activity = client.get("/api/activities").json()["items"][0]
-
-    page = client.get(f"/activities/{activity['id']}")
-
-    assert activity["trimp"] == pytest.approx(23.56, abs=0.01)
-    assert "<dt>TRIMP</dt><dd>24</dd>" in page.text
-    assert "Zone 3 <span>133-151 bpm</span>" in page.text
-    assert "Zone 1 <span>under 114 bpm</span>" in page.text
-    assert "Zone 5 <span>171 bpm and up</span>" in page.text
-    assert re.search(r"Zone 3 <span>133-151 bpm</span>(?:(?!</tr>).)*>100%<", page.text, re.S)
-
-
-def test_heart_rate_reserve_zones_start_from_resting_heart_rate(tmp_path, steady_run_fit):
+def test_heart_rate_reserve_zones_start_from_resting_heart_rate_at_whole_bpm(
+    tmp_path, steady_run_fit
+):
     client = client_with(tmp_path, ("run.fit", steady_run_fit), settings=False)
-    client.put("/api/settings", json=SETTINGS | {"zone_model": "hr_reserve_percent"})
+    client.put(
+        "/api/settings",
+        json=SETTINGS | {"zone_model": "hr_reserve_percent", "resting_heart_rate_bpm": 49},
+    )
     activity = client.get("/api/activities").json()["items"][0]
 
-    page = client.get(f"/activities/{activity['id']}")
+    zones = client.get(f"/api/activities/{activity['id']}").json()["zones"]
 
-    assert "Zone 1 <span>under 134 bpm</span>" in page.text
-    assert "Zone 4 <span>162-175 bpm</span>" in page.text
-    assert re.search(r"Zone 2 <span>134-147 bpm</span>(?:(?!</tr>).)*>100%<", page.text, re.S)
-
-
-def test_activity_times_show_in_the_settings_timezone(tmp_path, steady_run_fit):
-    client = client_with(tmp_path, ("run.fit", steady_run_fit))
-    activity = client.get("/api/activities").json()["items"][0]
-
-    assert "2026-03-01 08:00 CET" in client.get(f"/activities/{activity['id']}").text
-
-
-def test_zone_labels_name_the_whole_bpm_values_in_each_zone():
-    bars = zone_bars([60.0, 60.0, 0.0], [111.0, 134.1])
-
-    assert [bar.bpm for bar in bars] == ["under 111 bpm", "111-134 bpm", "135 bpm and up"]
-    assert [bar.share for bar in bars] == [0.5, 0.5, 0.0]
+    assert [(z["low_bpm"], z["high_bpm"], z["share"]) for z in zones] == [
+        (None, 133, 0.0),
+        (134, 147, 1.0),
+        (148, 161, 0.0),
+        (162, 175, 0.0),
+        (176, None, 0.0),
+    ]

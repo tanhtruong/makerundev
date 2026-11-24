@@ -1,7 +1,6 @@
 import datetime as dt
 import gzip
 import json
-import re
 import sqlite3
 
 import httpx2
@@ -38,13 +37,9 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     assert newest["trimp"] > 0
     records = client.get(f"/api/activities/{newest['id']}/records").json()
     assert records[0]["cadence"] == 170.0
-    page = client.get(f"/activities/{newest['id']}")
-    assert 'href="https://www.strava.com/activities/3"' in page.text
-    assert "View on Strava" in page.text
-    assert lap_rows(page.text) == [
-        ["1", "5:00", "1.00 km", "5:00 /km"],
-        ["2", "11:40", "2.00 km", "5:50 /km"],
-    ]
+    detail = client.get(f"/api/activities/{newest['id']}").json()
+    assert detail["strava_url"] == "https://www.strava.com/activities/3"
+    assert detail["laps"] == TWO_LAPS
     original = json.loads(gzip.decompress((tmp_path / "originals" / "strava-3").read_bytes()))
     assert original["activity"]["id"] == 3
     assert [item["distance"] for item in original["activity"]["laps"]] == [1000.0, 2000.0]
@@ -52,12 +47,15 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     assert (connection.imported, connection.matched, connection.backfill_done) == (3, 0, True)
 
 
-def lap_rows(page: str) -> list[list[str]]:
-    if '<table class="laps">' not in page:
-        return []
-    table = page.split('<table class="laps">')[1].split("</table>")[0]
-    body = table.split("<tbody>")[1]
-    return [re.findall(r'<td class="num">([^<]*)</td>', row) for row in body.split("</tr>")[:-1]]
+TWO_LAPS = [
+    {"number": 1, "distance_m": 1000.0, "elapsed_s": 300.0, "pace_s_per_km": 300.0},
+    {"number": 2, "distance_m": 2000.0, "elapsed_s": 700.0, "pace_s_per_km": 350.0},
+]
+
+
+def laps(client: TestClient, activity_id: int) -> list[dict[str, float]]:
+    found: list[dict[str, float]] = client.get(f"/api/activities/{activity_id}").json()["laps"]
+    return found
 
 
 def test_a_later_sync_only_asks_for_what_is_new(tmp_path):
@@ -205,7 +203,7 @@ def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_nex
     assert sync(store, fake) == "up_to_date"
 
     [activity] = client.get("/api/activities").json()["items"]
-    assert len(lap_rows(client.get(f"/activities/{activity['id']}").text)) == 2
+    assert laps(client, activity["id"]) == TWO_LAPS
 
 
 def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, steady_run_fit):
@@ -222,20 +220,17 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, s
     fake.without_detail.add("2")
     fake.requests.clear()
     ids = {a["external_id"]: a["id"] for a in client.get("/api/activities").json()["items"]}
-    assert lap_rows(client.get(f"/activities/{ids['1']}").text) == []
+    assert laps(client, ids["1"]) == []
 
     assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == []
     assert sorted(fake.detail_requests()) == ["1", "2"]
-    assert lap_rows(client.get(f"/activities/{ids['1']}").text) == [
-        ["1", "5:00", "1.00 km", "5:00 /km"],
-        ["2", "11:40", "2.00 km", "5:50 /km"],
-    ]
+    assert laps(client, ids["1"]) == TWO_LAPS
     original = json.loads(gzip.decompress((tmp_path / "originals" / "strava-1").read_bytes()))
     assert len(original["activity"]["laps"]) == 2
     assert len(original["streams"]["time"]["data"]) == 1001
-    assert lap_rows(client.get(f"/activities/{ids['2']}").text) == []
+    assert laps(client, ids["2"]) == []
     fake.requests.clear()
 
     assert sync(store, fake) == "up_to_date"

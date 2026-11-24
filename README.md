@@ -138,7 +138,7 @@ uv sync
 uv run makerundev-server
 ```
 
-From a clone, the activity list says how to build the web app until you run `make sync-web` and `make build-web` once (Node and pnpm, see [docs/frontend.md](docs/frontend.md)); the other pages and the JSON API work without it.
+From a clone, the app's pages say how to build them until you run `make sync-web` and `make build-web` once (Node and pnpm, see [docs/frontend.md](docs/frontend.md)); the JSON API works without it.
 
 Then open http://127.0.0.1:8000 and:
 

@@ -25,7 +25,7 @@ makerundev turns the owner's activity files and synced activities into running a
 
 - The owner imports files exported from a watch, or syncs from Strava or Garmin Connect, then browses activities and the training load page.
 - The app runs on a home server or laptop, often on `127.0.0.1` or behind the owner's reverse proxy.
-- The web app is moving from server-rendered Jinja pages to a React single-page app, page by page, during 0.8.0 (ADR 8). Until a page is ported, its Jinja version stays and looks different.
+- The web app is a React single-page app (ADR 8) that ships inside the server's wheel and Docker image, so the owner never needs Node.
 
 ## Capabilities and Constraints
 

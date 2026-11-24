@@ -1,3 +1,5 @@
+import { Link } from "@tanstack/react-router";
+
 import { Figure, Figures, SectionHeading } from "@/features/training-load/components/figures";
 import { activityCount } from "@/features/training-load/utils/count";
 import type { Performance } from "@/lib/api/model/performance.gen";
@@ -12,10 +14,10 @@ const NO_FIT_REASONS = {
 
 function EffortLink({ effort }: { effort: PerformanceEffort }) {
   return (
-    <a href={`/activities/${effort.activity_id}`} className="underline">
+    <Link to="/activities/$activityId" params={{ activityId: effort.activity_id }} className="underline">
       {distanceName(effort.distance_m)} in {duration(effort.elapsed_s)}, {effort.activity_name},{" "}
       {calendarDay(effort.date)}
-    </a>
+    </Link>
   );
 }
 

@@ -94,3 +94,36 @@ export function localTime(iso: string, timeZone: string): string {
 export function calendarDay(isoDate: string): string {
   return inZone(days, DAY, "UTC").format(new Date(`${isoDate}T00:00:00Z`));
 }
+
+export function decoupling(percent: number | null): string {
+  if (percent === null) {
+    return "-";
+  }
+  return `${percent < 0 ? "-" : "+"}${decimal(Math.abs(percent), 1)}%`;
+}
+
+export function power(watts: number | null): string {
+  return wholeNumber(watts, "W");
+}
+
+export function perKg(wattsPerKg: number): string {
+  return `${decimal(wattsPerKg, 2)} W/kg`;
+}
+
+export function centimetres(millimetres: number): string {
+  return `${decimal(millimetres / 10, 1)} cm`;
+}
+
+export function percent(share: number): string {
+  return `${decimal(share * 100, 0)}%`;
+}
+
+export function zoneRange(lowBpm: number | null, highBpm: number | null): string {
+  if (lowBpm === null && highBpm !== null) {
+    return `up to ${highBpm} bpm`;
+  }
+  if (highBpm === null && lowBpm !== null) {
+    return `${lowBpm} bpm and up`;
+  }
+  return `${lowBpm ?? "-"}-${highBpm ?? "-"} bpm`;
+}

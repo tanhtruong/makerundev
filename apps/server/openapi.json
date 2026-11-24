@@ -877,6 +877,16 @@
               }
             ],
             "title": "Route"
+          },
+          "route_shape": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RouteShape"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -917,7 +927,8 @@
           "zones",
           "series",
           "series_bounds",
-          "route"
+          "route",
+          "route_shape"
         ],
         "title": "ActivityDetail"
       },
@@ -1670,6 +1681,32 @@
         ],
         "title": "RoutePoint"
       },
+      "RouteShape": {
+        "properties": {
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ShapePoint"
+            },
+            "type": "array",
+            "title": "Points"
+          },
+          "width": {
+            "type": "number",
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points",
+          "width",
+          "height"
+        ],
+        "title": "RouteShape"
+      },
       "RunningDynamics": {
         "properties": {
           "ground_contact_time_ms": {
@@ -1927,6 +1964,24 @@
           "timezones"
         ],
         "title": "SettingsView"
+      },
+      "ShapePoint": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          }
+        },
+        "type": "object",
+        "required": [
+          "x",
+          "y"
+        ],
+        "title": "ShapePoint"
       },
       "SkippedActivity": {
         "properties": {

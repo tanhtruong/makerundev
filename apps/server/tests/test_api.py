@@ -128,6 +128,10 @@ def test_activity_detail_returns_what_the_activity_page_shows(tmp_path, make_fit
         "heart_rate_bpm": {"low": 150.0, "high": 150.0},
         "altitude_m": {"low": 10.0, "high": 10.0},
     }
+    shape = detail["route_shape"]
+    assert (shape["width"], shape["height"]) == (0.0, pytest.approx(1000.0))
+    assert shape["points"][0] == {"x": 0.0, "y": pytest.approx(1000.0)}
+    assert shape["points"][-1] == {"x": 0.0, "y": 0.0}
     route = detail["route"]
     assert len(route) == 501
     assert route[0] == {"latitude_deg": pytest.approx(55.67), "longitude_deg": pytest.approx(12.56)}

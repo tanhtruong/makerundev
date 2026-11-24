@@ -3,55 +3,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 import polars as pl
-from makerundev import format
 
-WIDTH = 720
-HEIGHT = 160
-INSET = 12
 MAX_POINTS = 600
-
-
-@dataclass(frozen=True, slots=True)
-class Series:
-    path: str
-    low: float
-    high: float
-
-
-def series(records: pl.DataFrame, column: str, invert: bool = False) -> Series | None:
-    if column == "pace":
-        frame = records.filter(pl.col("speed") > 0.5).select(
-            "distance", pace=1000 / pl.col("speed")
-        )
-    else:
-        frame = records.select("distance", column).drop_nulls()
-    if frame.height < 2:
-        return None
-    step = max(1, frame.height // MAX_POINTS)
-    frame = frame.gather_every(step)
-    x = frame["distance"].to_list()
-    y = frame[column].to_list()
-    x0, x1 = x[0], x[-1]
-    low, high = min(y), max(y)
-    span_x = (x1 - x0) or 1.0
-    span_y = (high - low) or 1.0
-    points = []
-    for xi, yi in zip(x, y, strict=True):
-        fraction = (yi - low) / span_y
-        top = fraction if invert else 1 - fraction
-        y_px = INSET + top * (HEIGHT - 2 * INSET)
-        points.append(f"{(xi - x0) / span_x * WIDTH:.1f},{y_px:.1f}")
-    return Series(path="M" + " L".join(points), low=low, high=high)
-
-
-ROUTE_SIZE = 1000.0
-
-
-@dataclass(frozen=True, slots=True)
-class Route:
-    points: str
-    width: float
-    height: float
 
 
 def route_points(records: pl.DataFrame) -> list[tuple[float, float]] | None:
@@ -65,25 +18,27 @@ def route_points(records: pl.DataFrame) -> list[tuple[float, float]] | None:
     return list(zip(frame["latitude"].to_list(), frame["longitude"].to_list(), strict=True))
 
 
-def route(records: pl.DataFrame) -> Route | None:
-    sampled = route_points(records)
-    if sampled is None:
-        return None
-    lat = [point[0] for point in sampled]
-    lon = [point[1] for point in sampled]
+ROUTE_SIZE = 1000.0
+
+
+@dataclass(frozen=True, slots=True)
+class RouteShape:
+    points: list[tuple[float, float]]
+    width: float
+    height: float
+
+
+def route_shape(positions: Sequence[tuple[float, float]]) -> RouteShape:
+    lat = [point[0] for point in positions]
     squash = math.cos(math.radians(sum(lat) / len(lat)))
-    x = [value * squash for value in lon]
-    left, right = min(x), max(x)
-    bottom, top = min(lat), max(lat)
-    scale = ROUTE_SIZE / (max(right - left, top - bottom) or 1.0)
-    points = " ".join(
-        f"{INSET + (xi - left) * scale:.1f},{INSET + (top - yi) * scale:.1f}"
-        for xi, yi in zip(x, lat, strict=True)
-    )
-    return Route(
-        points=points,
-        width=(right - left) * scale + 2 * INSET,
-        height=(top - bottom) * scale + 2 * INSET,
+    x = [point[1] * squash for point in positions]
+    left, top = min(x), max(lat)
+    width, height = max(x) - left, top - min(lat)
+    scale = ROUTE_SIZE / (max(width, height) or 1.0)
+    return RouteShape(
+        points=[((xi - left) * scale, (top - yi) * scale) for xi, yi in zip(x, lat, strict=True)],
+        width=width * scale,
+        height=height * scale,
     )
 
 
@@ -181,26 +136,3 @@ def series_bounds(records: pl.DataFrame) -> SeriesBounds:
         heart_rate_bpm=bounds("heart_rate_bpm", 0.0, 1.0),
         altitude_m=bounds("altitude_m", 0.0, 1.0),
     )
-
-
-@dataclass(frozen=True, slots=True)
-class ZoneBar:
-    name: str
-    bpm: str
-    seconds: float
-    share: float
-
-
-def zone_bars(seconds: Sequence[float], boundaries_bpm: Sequence[float]) -> list[ZoneBar]:
-    total = sum(seconds)
-    if not total:
-        return []
-    return [
-        ZoneBar(
-            f"Zone {zone + 1}",
-            format.zone_range(zone, boundaries_bpm),
-            zone_seconds,
-            zone_seconds / total,
-        )
-        for zone, zone_seconds in enumerate(seconds)
-    ]

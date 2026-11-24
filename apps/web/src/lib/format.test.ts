@@ -1,6 +1,19 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { calendarDay, decimal, distance, distanceName, duration, pace, signed, wholeNumber } from "@/lib/format";
+import {
+  calendarDay,
+  centimetres,
+  decimal,
+  decoupling,
+  distance,
+  distanceName,
+  duration,
+  pace,
+  perKg,
+  signed,
+  wholeNumber,
+  zoneRange,
+} from "@/lib/format";
 
 describe("formatting matches makerundev.format", () => {
   it.each([
@@ -66,11 +79,43 @@ describe("formatting matches makerundev.format", () => {
     [1000, "1 km"],
     [1609.344, "1 mile"],
     [3218.688, "2 miles"],
+    [11265.408, "7 miles"],
     [15000, "15 km"],
     [21097.5, "Half marathon"],
     [42195, "Marathon"],
   ])("distanceName(%s) is %s", (metres, expected) => {
     expect(distanceName(metres)).toBe(expected);
+  });
+
+  it.each([
+    [4.75, "+4.8%"],
+    [0, "+0.0%"],
+    [-2.04, "-2.0%"],
+    [null, "-"],
+  ])("decoupling(%s) is %s", (value, expected) => {
+    expect(decoupling(value)).toBe(expected);
+  });
+
+  it.each([
+    [250 / 70, "3.57 W/kg"],
+    [234 / 70, "3.34 W/kg"],
+  ])("perKg(%s) is %s", (value, expected) => {
+    expect(perKg(value)).toBe(expected);
+  });
+
+  it.each([
+    [85, "8.5 cm"],
+    [84, "8.4 cm"],
+  ])("centimetres(%s) is %s", (millimetres, expected) => {
+    expect(centimetres(millimetres)).toBe(expected);
+  });
+
+  it.each([
+    [null, 110, "up to 110 bpm"],
+    [111, 134, "111-134 bpm"],
+    [135, null, "135 bpm and up"],
+  ])("zoneRange(%s, %s) is %s", (low, high, expected) => {
+    expect(zoneRange(low, high)).toBe(expected);
   });
 });
 
