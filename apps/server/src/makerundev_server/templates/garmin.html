@@ -26,8 +26,8 @@
 </dl>
 <p class="meta">
   {% if connection.syncing %}Syncing now, about one activity a second. This page refreshes on its own.
-  {% elif connection.last_sync_at %}{{ connection.sync_message }} Last sync {{ connection.last_sync_at | local(timezone) }}.
-  {% elif connection.sync_message %}{{ connection.sync_message }}
+  {% elif connection.last_sync_at %}{{ connection | garmin_outcome }} Last sync {{ connection.last_sync_at | local(timezone) }}.
+  {% elif connection.sync_outcome %}{{ connection | garmin_outcome }}
   {% else %}Nothing synced yet.{% endif %}
   {% if connection.backfill_before and not connection.backfill_done %}History reaches back to {{ connection.backfill_before | local(timezone, "%Y-%m-%d") }} so far.{% endif %}
 </p>

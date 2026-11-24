@@ -132,4 +132,4 @@ def sync(store, fake) -> str:
     GarminSync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
     connection = store.garmin.connection()
     assert connection is not None and not connection.syncing
-    return connection.sync_message
+    return connection.sync_outcome

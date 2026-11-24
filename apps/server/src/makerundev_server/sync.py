@@ -7,6 +7,7 @@ import httpx2
 from makerundev import ActivityFileError
 from makerundev.io.strava import read_strava, strava_laps
 
+from makerundev_server.db import Outcome
 from makerundev_server.store import Store
 from makerundev_server.strava import (
     RateLimited,
@@ -15,12 +16,7 @@ from makerundev_server.strava import (
     StravaError,
     Unauthorized,
 )
-from makerundev_server.sync_state import FAILED, REFRESH_MARGIN, UP_TO_DATE, Phase, utc
-
-PAUSED_SHORT = "Paused at Strava's 15-minute rate limit. Sync again in a quarter of an hour."
-PAUSED_DAILY = "Paused at Strava's daily rate limit. Sync again after midnight UTC."
-REJECTED = "Strava no longer accepts this connection. Disconnect and connect again."
-UNREACHABLE = "Strava could not be reached. Sync again later."
+from makerundev_server.sync_state import REFRESH_MARGIN, Phase, utc
 
 log = logging.getLogger(__name__)
 
@@ -31,23 +27,23 @@ class StravaSync:
         self.client = client
 
     def run(self) -> None:
-        message = FAILED
+        outcome: Outcome = "failed"
         try:
             self._newer()
             self._backfill()
             self._laps()
-            message = UP_TO_DATE
+            outcome = "up_to_date"
         except RateLimited as limit:
-            message = PAUSED_DAILY if limit.daily else PAUSED_SHORT
+            outcome = "paused_daily" if limit.daily else "paused_short"
         except Unauthorized:
-            message = REJECTED
+            outcome = "rejected"
         except (httpx2.HTTPError, StravaError) as error:
             log.warning("Strava sync stopped: %s", type(error).__name__)
-            message = UNREACHABLE
+            outcome = "unreachable"
         except Exception:
             log.exception("Strava sync failed")
         finally:
-            self.store.finish_strava_sync(message)
+            self.store.finish_strava_sync(outcome)
 
     def access_token(self) -> str:
         row = self.store.strava_connection()

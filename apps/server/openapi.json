@@ -389,6 +389,77 @@
           }
         }
       }
+    },
+    "/api/strava": {
+      "get": {
+        "tags": [
+          "strava"
+        ],
+        "summary": "Strava Status",
+        "operationId": "stravaStatus",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StravaStatus"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "strava"
+        ],
+        "summary": "Disconnect Strava",
+        "operationId": "disconnectStrava",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StravaDisconnected"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/strava/sync": {
+      "post": {
+        "tags": [
+          "strava"
+        ],
+        "summary": "Start Strava Sync",
+        "operationId": "startStravaSync",
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StravaStatus"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Strava is not configured or not connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1692,6 +1763,40 @@
         ],
         "title": "SettingsView"
       },
+      "SkippedActivity": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "start_time",
+          "reason",
+          "url"
+        ],
+        "title": "SkippedActivity"
+      },
       "Split": {
         "properties": {
           "distance_m": {
@@ -1740,6 +1845,150 @@
           "other"
         ],
         "title": "Sport"
+      },
+      "StravaDisconnected": {
+        "properties": {
+          "removed_activities": {
+            "type": "integer",
+            "title": "Removed Activities"
+          }
+        },
+        "type": "object",
+        "required": [
+          "removed_activities"
+        ],
+        "title": "StravaDisconnected"
+      },
+      "StravaStatus": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "connected": {
+            "type": "boolean",
+            "title": "Connected"
+          },
+          "callback_domain": {
+            "type": "string",
+            "title": "Callback Domain"
+          },
+          "sync": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "connected",
+          "callback_domain",
+          "sync"
+        ],
+        "title": "StravaStatus"
+      },
+      "SyncStatus": {
+        "properties": {
+          "syncing": {
+            "type": "boolean",
+            "title": "Syncing"
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "imported": {
+            "type": "integer",
+            "title": "Imported"
+          },
+          "matched": {
+            "type": "integer",
+            "title": "Matched"
+          },
+          "backfill_done": {
+            "type": "boolean",
+            "title": "Backfill Done"
+          },
+          "backfill_before": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Backfill Before"
+          },
+          "outcome": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "up_to_date",
+                  "paused_short",
+                  "paused_daily",
+                  "paused",
+                  "rejected",
+                  "unreachable",
+                  "failed",
+                  "interrupted"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outcome"
+          },
+          "resume_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resume At"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedActivity"
+            },
+            "type": "array",
+            "title": "Skipped"
+          }
+        },
+        "type": "object",
+        "required": [
+          "syncing",
+          "last_sync_at",
+          "imported",
+          "matched",
+          "backfill_done",
+          "backfill_before",
+          "outcome",
+          "resume_at",
+          "skipped"
+        ],
+        "title": "SyncStatus"
       },
       "TrainingLoad": {
         "properties": {

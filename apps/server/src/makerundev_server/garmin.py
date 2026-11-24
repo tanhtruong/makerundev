@@ -3,7 +3,6 @@ import binascii
 import datetime as dt
 import email.utils
 import json
-import math
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -133,16 +132,14 @@ def _expiry(token: str) -> dt.datetime:
         return fallback
 
 
-def retry_minutes(retry_after: str | None, now: dt.datetime) -> int | None:
+def retry_at(retry_after: str | None, now: dt.datetime) -> dt.datetime | None:
     text = (retry_after or "").strip()
-    if text.isdigit():
-        seconds = float(text)
-    else:
-        try:
-            when = email.utils.parsedate_to_datetime(text)
-        except (TypeError, ValueError):
-            return None
-        if when.tzinfo is None:
-            when = when.replace(tzinfo=dt.UTC)
-        seconds = (when - now).total_seconds()
-    return max(1, math.ceil(seconds / 60))
+    try:
+        if text.isdigit():
+            return now + dt.timedelta(seconds=int(text))
+        when = email.utils.parsedate_to_datetime(text)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if when.tzinfo is None:
+        return when.replace(tzinfo=dt.UTC)
+    return when.astimezone(dt.UTC)

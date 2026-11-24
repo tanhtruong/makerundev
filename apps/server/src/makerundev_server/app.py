@@ -1,7 +1,6 @@
-import contextlib
 import datetime as dt
+import math
 import secrets
-import threading
 from pathlib import Path
 from typing import Annotated, Any
 from zoneinfo import ZoneInfo
@@ -22,9 +21,18 @@ from makerundev.metrics import (
     time_in_zones,
 )
 
-from makerundev_server import api, charts, config, garmin, settings_api, training_api, web
+from makerundev_server import (
+    api,
+    charts,
+    config,
+    garmin,
+    settings_api,
+    strava_api,
+    training_api,
+    web,
+)
 from makerundev_server.cross_site import CrossSiteGuard
-from makerundev_server.db import connect
+from makerundev_server.db import Outcome, SyncState, connect
 from makerundev_server.garmin_sync import GarminSync
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS, current_performance
@@ -39,7 +47,7 @@ from makerundev_server.settings import (
 )
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
-from makerundev_server.sync import StravaSync
+from makerundev_server.sync_api import run_in_background
 from makerundev_server.training import DEFAULT_RANGE, RANGES, load_view, today_in
 
 HERE = Path(__file__).parent
@@ -51,6 +59,25 @@ STRAVA_NOTICES = {
     " Connect again and leave that box ticked.",
     "failed": "Strava did not complete the connection. Check the client id and secret.",
     "disconnected": "Disconnected from Strava.",
+}
+SYNC_OUTCOMES: dict[Outcome, str] = {
+    "up_to_date": "Up to date.",
+    "failed": "The sync stopped on an unexpected error. See the server log.",
+    "interrupted": "The last sync was interrupted. Sync again to continue.",
+}
+STRAVA_OUTCOMES: dict[Outcome, str] = {
+    **SYNC_OUTCOMES,
+    "paused_short": "Paused at Strava's 15-minute rate limit. Sync again in a quarter of an hour.",
+    "paused_daily": "Paused at Strava's daily rate limit. Sync again after midnight UTC.",
+    "rejected": "Strava no longer accepts this connection. Disconnect and connect again.",
+    "unreachable": "Strava could not be reached. Sync again later.",
+}
+GARMIN_OUTCOMES: dict[Outcome, str] = {
+    **SYNC_OUTCOMES,
+    "paused": "Garmin asked to slow down. Sync again later.",
+    "rejected": "Garmin no longer accepts this key: it has expired or was revoked."
+    " Create a new one in Garmin Connect under Settings, Personal API Key, and save it below.",
+    "unreachable": "Garmin could not be reached. Sync again later.",
 }
 GARMIN_NOTICES = {
     "saved": "Key saved. Start a sync to bring your activities in.",
@@ -82,6 +109,8 @@ def create_app(
         distance_name=format.distance_name,
         signed=_signed,
         local=_local,
+        strava_outcome=_strava_outcome,
+        garmin_outcome=_garmin_outcome,
     )
     templates.env.globals.update(
         format_pace=format.pace,
@@ -250,8 +279,7 @@ def create_app(
         )
 
     def strava_client() -> StravaClient | None:
-        configured = credentials()
-        return StravaClient(configured, strava_transport) if configured else None
+        return strava_api.strava_client(strava_transport)
 
     def to_strava(notice: str = "") -> RedirectResponse:
         return RedirectResponse(f"/strava?notice={notice}" if notice else "/strava", 303)
@@ -264,7 +292,7 @@ def create_app(
             "strava.html",
             {
                 "configured": credentials() is not None,
-                "connected": connection is not None and connection.access_token is not None,
+                "connected": strava_api.is_connected(connection),
                 "connection": connection,
                 "notice": STRAVA_NOTICES.get(notice),
                 "callback_domain": request.url.hostname,
@@ -305,19 +333,13 @@ def create_app(
     @pages.post("/strava/sync", response_model=None)
     def strava_sync() -> Response:
         client = strava_client()
-        if client is not None and store.start_strava_sync():
-            worker = threading.Thread(target=StravaSync(store, client).run, daemon=True)
-            app.state.strava_sync = worker
-            worker.start()
+        if client is not None:
+            strava_api.begin_sync(app, store, client)
         return to_strava()
 
     @pages.post("/strava/disconnect", response_model=None)
     def strava_disconnect() -> Response:
-        client = strava_client()
-        if client is not None:
-            with contextlib.suppress(StravaError, httpx2.HTTPError, KeyError):
-                client.revoke(StravaSync(store, client).access_token())
-        store.disconnect_strava()
+        strava_api.disconnect(store, strava_client())
         return to_strava("disconnected")
 
     def garmin_client() -> garmin.GarminClient:
@@ -355,13 +377,9 @@ def create_app(
 
     @pages.post("/garmin/sync", response_model=None)
     def garmin_sync() -> Response:
-        running = getattr(app.state, "garmin_sync", None)
-        if running is not None and running.is_alive():
-            return to_garmin()
-        if store.garmin.start_sync():
-            worker = threading.Thread(target=GarminSync(store, garmin_client()).run, daemon=True)
-            app.state.garmin_sync = worker
-            worker.start()
+        run_in_background(
+            app, "garmin_sync", store.garmin.start_sync, GarminSync(store, garmin_client()).run
+        )
         return to_garmin()
 
     @pages.post("/garmin/remove", response_model=None)
@@ -373,12 +391,29 @@ def create_app(
     app.include_router(api.router(store))
     app.include_router(settings_api.router(store))
     app.include_router(training_api.router(store))
+    app.include_router(strava_api.router(store, strava_transport))
     web.serve(app, web_dir or HERE / "web")
     return app
 
 
 def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") -> str:
     return moment.astimezone(ZoneInfo(timezone)).strftime(pattern)
+
+
+def _strava_outcome(connection: SyncState) -> str:
+    outcome = connection.sync_outcome
+    return STRAVA_OUTCOMES.get(outcome, "") if outcome else ""
+
+
+def _garmin_outcome(connection: SyncState) -> str:
+    if connection.sync_outcome == "paused" and connection.resume_at is not None:
+        left = (connection.resume_at - dt.datetime.now(dt.UTC)).total_seconds()
+        if left > 0:
+            minutes = math.ceil(left / 60)
+            unit = "minute" if minutes == 1 else "minutes"
+            return f"Garmin asked to slow down. Sync again in {minutes} {unit}."
+    outcome = connection.sync_outcome
+    return GARMIN_OUTCOMES.get(outcome, "") if outcome else ""
 
 
 def _signed(value: float) -> str:

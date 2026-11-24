@@ -8,7 +8,6 @@ import httpx2
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.settings import AthleteSettings
-from makerundev_server.sync import PAUSED_DAILY, PAUSED_SHORT, UP_TO_DATE
 from strava_fake import FakeStrava, connected, lap, summary, sync, upload
 
 
@@ -21,7 +20,7 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     client, store = connected(tmp_path, fake)
     store.save_athlete_settings(AthleteSettings(max_hr=190, resting_hr=50))
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == ["3", "2", "1"]
     activities = client.get("/api/activities").json()["items"]
@@ -68,7 +67,7 @@ def test_a_later_sync_only_asks_for_what_is_new(tmp_path):
     fake.activities.append(summary(3, 3))
     fake.requests.clear()
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == ["3"]
     assert len(client.get("/api/activities").json()["items"]) == 3
@@ -79,14 +78,14 @@ def test_sync_pauses_before_the_rate_limit_and_resumes_where_it_stopped(tmp_path
     fake = FakeStrava([summary(i, i) for i in range(1, 9)], limit=(10, 1000))
     client, store = connected(tmp_path, fake)
 
-    assert sync(store, fake) == PAUSED_SHORT
+    assert sync(store, fake) == "paused_short"
 
     assert fake.usage[0] == 5
     assert fake.stream_requests() == ["8", "7"]
     assert store.strava_connection().backfill_done is False
     fake.limit = (100, 1000)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == ["8", "7", "6", "5", "4", "3", "2", "1"]
     assert len(client.get("/api/activities").json()["items"]) == 8
@@ -96,7 +95,7 @@ def test_sync_pauses_for_the_day_when_the_daily_limit_is_close(tmp_path):
     fake = FakeStrava([summary(1, 1), summary(2, 2)], limit=(100, 21))
     _, store = connected(tmp_path, fake)
 
-    assert sync(store, fake) == PAUSED_DAILY
+    assert sync(store, fake) == "paused_daily"
 
     assert fake.stream_requests() == []
 
@@ -109,7 +108,7 @@ def test_activities_without_usable_streams_are_listed_and_not_tried_again(tmp_pa
     fake.broken_streams["4"] = {"time": {"data": []}}
     client, store = connected(tmp_path, fake)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == ["4", "3", "1"]
     assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["1"]
@@ -133,7 +132,7 @@ def test_an_access_token_about_to_expire_is_refreshed_and_the_new_pair_kept(tmp_
     soon = dt.datetime.now(dt.UTC) + dt.timedelta(minutes=30)
     _, store = connected(tmp_path, fake, expires_at=soon)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.token_grants == [
         {
@@ -156,7 +155,7 @@ def test_sync_now_runs_in_the_background_and_the_page_reports_it(tmp_path):
 
     assert response.headers["location"] == "/strava"
     page = client.get("/strava").text
-    assert UP_TO_DATE in page
+    assert "Up to date." in page
     assert len(client.get("/api/activities").json()["items"]) == 1
 
 
@@ -177,7 +176,7 @@ def test_an_activity_strava_refuses_to_serve_is_skipped_and_the_sync_goes_on(tmp
     fake.refused.add("2")
     client, store = connected(tmp_path, fake)
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["3", "1"]
     assert [item["reason"] for item in store.strava_connection().skipped] == ["Strava answered 403"]
@@ -198,7 +197,7 @@ def test_an_activity_without_a_start_time_does_not_stop_the_sync(tmp_path):
 
     fake.listed = without_start
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert [a["external_id"] for a in client.get("/api/activities").json()["items"]] == ["2", "1"]
 
@@ -212,13 +211,13 @@ def test_an_activity_cut_off_between_its_streams_and_its_laps_comes_in_whole_nex
     fake.throttled_detail.add("1")
     client, store = connected(tmp_path, fake)
 
-    assert sync(store, fake) == PAUSED_SHORT
+    assert sync(store, fake) == "paused_short"
 
     assert fake.stream_requests() == ["1"]
     assert client.get("/api/activities").json()["items"] == []
     fake.throttled_detail.clear()
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     [activity] = client.get("/api/activities").json()["items"]
     assert len(lap_rows(client.get(f"/activities/{activity['id']}").text)) == 2
@@ -240,7 +239,7 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, s
     ids = {a["external_id"]: a["id"] for a in client.get("/api/activities").json()["items"]}
     assert lap_rows(client.get(f"/activities/{ids['1']}").text) == []
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.stream_requests() == []
     assert sorted(fake.detail_requests()) == ["1", "2"]
@@ -254,6 +253,6 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, s
     assert lap_rows(client.get(f"/activities/{ids['2']}").text) == []
     fake.requests.clear()
 
-    assert sync(store, fake) == UP_TO_DATE
+    assert sync(store, fake) == "up_to_date"
 
     assert fake.detail_requests() == []
