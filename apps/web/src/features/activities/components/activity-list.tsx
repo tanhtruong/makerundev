@@ -135,9 +135,9 @@ function EmptyState() {
       <p className="font-semibold">No activities yet.</p>
       <p className="mt-2 max-w-[65ch] text-muted-foreground">
         Export a FIT, GPX or TCX file from your watch and import it above, or sync from{" "}
-        <a href="/strava" className="text-foreground underline">
+        <Link to="/strava" className="text-foreground underline">
           Strava
-        </a>{" "}
+        </Link>{" "}
         or{" "}
         <Link to="/garmin" className="text-foreground underline">
           Garmin Connect

@@ -21,9 +21,8 @@ def test_disconnect_removes_what_came_only_from_strava_even_if_revoking_fails(
     sync(store, fake)
     assert (tmp_path / "streams" / "strava-78.parquet").exists()
 
-    response = client.post("/strava/disconnect", follow_redirects=False)
+    client.delete("/api/strava")
 
-    assert response.headers["location"] == "/strava?notice=disconnected"
     activities = client.get("/api/activities").json()["items"]
     assert [(a["filename"], a["external_source"], a["external_id"]) for a in activities] == [
         ("morning.fit", None, None)
@@ -31,14 +30,14 @@ def test_disconnect_removes_what_came_only_from_strava_even_if_revoking_fails(
     assert not (tmp_path / "streams" / "strava-78.parquet").exists()
     assert not (tmp_path / "originals" / "strava-78").exists()
     assert store.strava_connection() is None
-    assert "Connect with Strava" in client.get("/strava").text
+    assert client.get("/api/strava").json()["connected"] is False
 
 
 def test_disconnect_revokes_the_token(tmp_path):
     fake = FakeStrava([])
     client, _ = connected(tmp_path, fake)
 
-    client.post("/strava/disconnect")
+    client.delete("/api/strava")
 
     assert fake.revoked == ["access-0"]
 
@@ -69,10 +68,10 @@ def test_connecting_goes_through_strava_and_stores_the_tokens(tmp_path):
     connection = store.strava_connection()
     assert (connection.access_token, connection.refresh_token) == ("access-1", "refresh-1")
     assert connection.oauth_state is None
-    page = client.get("/strava?notice=connected").text
-    assert "Sync now" in page and "Powered by Strava" in page
-    assert "access-1" not in page and "refresh-1" not in page
-    assert "application-secret" not in page
+    status = client.get("/api/strava")
+    assert status.json()["connected"] is True
+    assert "access-1" not in status.text and "refresh-1" not in status.text
+    assert "application-secret" not in status.text
 
 
 @pytest.mark.parametrize(
@@ -97,14 +96,15 @@ def test_a_callback_that_is_forged_denied_or_too_narrow_connects_nothing(tmp_pat
 
     assert callback.headers["location"] == f"/strava?notice={notice}"
     assert store.strava_connection().access_token is None
-    assert "Connect with Strava" in client.get(callback.headers["location"]).text
 
 
-def test_without_an_api_application_the_pages_open_and_connect_goes_nowhere(tmp_path, monkeypatch):
+def test_without_an_api_application_strava_is_unconfigured_and_connect_goes_nowhere(
+    tmp_path, monkeypatch
+):
     monkeypatch.delenv("MAKERUNDEV_STRAVA_CLIENT_ID")
     client = TestClient(create_app(data_dir=tmp_path))
 
-    assert client.get("/strava").status_code == 200
+    assert client.get("/api/strava").json()["configured"] is False
     assert client.post("/strava/connect", follow_redirects=False).headers["location"] == "/strava"
 
 
@@ -113,7 +113,7 @@ def test_a_sync_still_running_after_disconnect_stores_nothing(tmp_path):
     client, store = connected(tmp_path, fake)
     held = summary(5, 5)
     activity = read_strava(held, streams())
-    client.post("/strava/disconnect")
+    client.delete("/api/strava")
 
     with pytest.raises(Unauthorized):
         store.add_strava(held, streams(), activity, "backfill")

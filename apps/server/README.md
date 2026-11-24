@@ -86,11 +86,9 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP |
 | `GET /settings` | Athlete settings form |
 | `POST /settings` | Save athlete settings and recompute TRIMP if needed |
-| `GET /strava` | Strava connection, sync status and skipped activities |
+| `GET /strava` | Strava connection, sync status and skipped activities (the React app) |
 | `POST /strava/connect` | Start connecting: redirects to Strava's authorisation page |
-| `GET /strava/callback` | Where Strava sends you back after authorising |
-| `POST /strava/sync` | Start a sync in the background |
-| `POST /strava/disconnect` | Revoke access and delete Strava-only activities |
+| `GET /strava/callback` | Where Strava sends you back after authorising; redirects to the Strava page |
 | `GET /garmin` | Garmin key form, sync status and skipped activities (the React app) |
 | `GET /api/activities?limit=50&offset=0` | Activities newest first with their summaries and TRIMP, as `{items, total}` JSON (`limit` up to 200) |
 | `POST /api/activities` | Import one or more files (multipart field `files`) and report each as `imported`, `already_imported` or `failed`, with the activity id or the reason |
@@ -98,6 +96,9 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `GET /api/settings` | The saved athlete settings (or `null`), the defaults a first save starts from, zone starts in bpm, the highest recorded heart rate and the accepted timezone names |
 | `PUT /api/settings` | Save the athlete settings and report how many activities had TRIMP recomputed; an invalid value is refused with 422 naming the field |
 | `GET /api/training-load` | Fitness, fatigue and form per day over `days` (`90`, `180`, `365` or `all`), the weekly table, and current VDOT and critical speed with their efforts |
+| `GET /api/strava` | Whether Strava is configured and connected, the sync's progress, how the last sync ended and the skipped activities |
+| `POST /api/strava/sync` | Start a sync in the background (202 with the same body as `GET /api/strava`; 409 before Strava is connected) |
+| `DELETE /api/strava` | Revoke access, delete Strava-only activities and report how many were removed |
 | `GET /api/garmin` | Whether a Garmin key is saved, and the sync's progress, outcome and skipped activities; never the key |
 | `PUT /api/garmin/key` | Check a Personal API key with Garmin and save it; a key Garmin refuses is a 422, and Garmin out of reach a 502 |
 | `POST /api/garmin/sync` | Start a sync in the background (202), or keep the one running |
@@ -108,7 +109,7 @@ The JSON API follows [docs/api.md](https://github.com/tanhtruong/makerundev/blob
 
 ## Development
 
-The app is FastAPI with Jinja templates and inline SVG charts, which the React app in `apps/web` replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). The activity list is already React. `make check` at the repository root runs the server's tests along with the library's and needs no Node. From a clone, run `make build-web` once to serve the React pages; without it they show how to build them. See [docs/frontend.md](https://github.com/tanhtruong/makerundev/blob/main/docs/frontend.md) and [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
+The app is FastAPI with Jinja templates and inline SVG charts, which the React app in `apps/web` replaces page by page in 0.8.0 ([ADR 8](https://github.com/tanhtruong/makerundev/blob/main/docs/adr/0008-react-front-end.md)). The activity list and the Strava and Garmin pages are already React. `make check` at the repository root runs the server's tests along with the library's and needs no Node. From a clone, run `make build-web` once to serve the React pages; without it they show how to build them. See [docs/frontend.md](https://github.com/tanhtruong/makerundev/blob/main/docs/frontend.md) and [CONTRIBUTING.md](https://github.com/tanhtruong/makerundev/blob/main/CONTRIBUTING.md).
 
 After changing a JSON route or its models, run `make openapi` at the repository root and commit `apps/server/openapi.json`; a test fails while it is stale.
 

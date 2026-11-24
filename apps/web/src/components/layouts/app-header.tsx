@@ -30,6 +30,9 @@ export function AppHeader() {
           >
             Training load
           </Link>
+          <Link to="/strava" className={ITEM} activeProps={{ "aria-current": "page" }}>
+            Strava
+          </Link>
           <Link to="/garmin" className={ITEM} activeProps={{ "aria-current": "page" }}>
             Garmin
           </Link>
