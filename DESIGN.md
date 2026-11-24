@@ -160,7 +160,7 @@ A warm off-white ground and near-black ink, with tartan red kept for place and d
 
 ## Layout
 
-Content sits in a centred column up to 1400px wide, with a 16px gutter on phones and 40px from the `sm` breakpoint (640px). The page block has 32px of vertical padding on phones and 40px from `sm`. The heading row sits 24px above the table, with the heading on the left and the count baseline-aligned at the right. Paging sits 20px below the table: range and total at the left, Previous and Next at the right.
+Content sits in a centred column up to 1400px wide, with a 16px gutter on phones and 40px from the `sm` breakpoint (640px). The page block has 32px of vertical padding on phones and 40px from `sm`. The heading row sits 24px above the import form, with the heading on the left and the count baseline-aligned at the right, and the form sits 24px (the section spacing) above the table. Paging sits 20px below the table: range and total at the left, Previous and Next at the right.
 
 Tables are dense. Cells have 10px padding, headers are 40px tall, and text never wraps except the activity name on phones. Columns drop out by width rather than the table turning into cards. Below `sm` the date folds under the name and heart rate folds under pace. Below `md` (768px) sport, moving time and climb are hidden. The lane column takes about a third of the table width.
 
@@ -218,6 +218,11 @@ A notice that confirms an action, such as "Key saved.", is a line of Body text i
 ### Loading, empty and error states
 - **Loading:** eight placeholder rows of Infield Wash blocks, square, under an ink top rule, with no shimmer.
 - **Empty and error:** a block bounded by Hairline rules above and below, with plain-text guidance and inline links in Track Ink. Error offers an outline "Try again" button.
+
+### Import form
+The first block on the activity list, bounded by Hairline rules above and below like an empty state. "Import activities" is the lead line (Body at weight 600) with the accepted formats under it in Secondary type. "Choose files" is the outline button, a label for a visually hidden file input that draws the input's focus ring, with the chosen file name or count beside it in Secondary type. The Import button sits at the right, disabled until files are chosen and while they upload.
+- **Results:** one row per file, in the order sent, under a 1px Start Line Ink rule with Hairline dividers, like a table without a header. The file name is at the left, linked to its activity when there is one. The outcome is at the right in words: "Imported" and "Already imported" in Stand Grey, a failure's reason in Track Ink, so a failure stands out by weight of ink, never by red.
+- **Failure:** when the request itself fails, an error block under the form says why, in the server's words or "the server could not be reached", with an outline "Try again" button that sends the same files again.
 
 ## Do's and Don'ts
 

@@ -34,7 +34,7 @@ def client_with(tmp_path, *files: tuple[str, bytes], settings: bool = True) -> T
     if settings:
         client.post("/settings", data=SETTINGS)
     for name, data in files:
-        client.post("/activities", files=[("files", (name, data, "application/octet-stream"))])
+        client.post("/api/activities", files=[("files", (name, data, "application/octet-stream"))])
     return client
 
 

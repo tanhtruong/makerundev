@@ -159,10 +159,6 @@ class ImportReport(BaseModel):
     results: list[FileImport]
 
 
-def import_uploads(store: Store, uploads: Sequence[UploadFile]) -> list[FileImport]:
-    return [_import_upload(store, upload) for upload in uploads]
-
-
 def _import_upload(store: Store, upload: UploadFile) -> FileImport:
     name = upload.filename or "upload"
     data = upload.file.read(MAX_UPLOAD_BYTES + 1)
@@ -199,7 +195,7 @@ def router(store: Store) -> APIRouter:
 
     @api.post("/activities", tags=["activities"])
     def import_activities(files: Annotated[list[UploadFile], File()]) -> ImportReport:
-        return ImportReport(results=import_uploads(store, files))
+        return ImportReport(results=[_import_upload(store, upload) for upload in files])
 
     @api.get("/activities/{activity_id}", tags=["activities"], responses=not_found)
     def get_activity(activity_id: int) -> ActivityDetail:

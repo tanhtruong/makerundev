@@ -81,9 +81,7 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 
 | Method and path | What it returns |
 | --- | --- |
-| `GET /` | The activity list (the React app; every path the server does not own returns it) |
-| `GET /import` | Import form |
-| `POST /activities` | Import one or more files (multipart field `files`) |
+| `GET /` | The activity list with the import form (the React app; every path the server does not own returns it) |
 | `GET /activities/{id}` | Activity page with charts, best efforts, time in zones and TRIMP |
 | `GET /load?days=90\|180\|365\|all` | Fitness, fatigue and form from daily TRIMP (default 180 days) |
 | `GET /settings` | Athlete settings form |
