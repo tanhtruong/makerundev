@@ -8,7 +8,7 @@ const FROM_SM = "hidden sm:table-cell";
 const NUMBER = "text-right font-semi-condensed font-medium";
 const START_LINE = "relative before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-rule";
 
-export function ActivityTable({ activities }: { activities: ActivitySummary[] }) {
+export function ActivityTable({ activities, timeZone }: { activities: ActivitySummary[]; timeZone: string }) {
   const longest = Math.max(...activities.map((activity) => activity.distance_m));
 
   return (
@@ -29,8 +29,8 @@ export function ActivityTable({ activities }: { activities: ActivitySummary[] })
         {activities.map((activity) => (
           <TableRow key={activity.id}>
             <TableCell className={FROM_SM}>
-              <span className="font-semibold">{localDay(activity.start_time)}</span>
-              <span className="ml-2 text-muted-foreground">{localTime(activity.start_time)}</span>
+              <span className="font-semibold">{localDay(activity.start_time, timeZone)}</span>
+              <span className="ml-2 text-muted-foreground">{localTime(activity.start_time, timeZone)}</span>
             </TableCell>
             <TableCell className="max-w-44 whitespace-normal sm:max-w-72 sm:truncate sm:whitespace-nowrap">
               <a
@@ -40,7 +40,7 @@ export function ActivityTable({ activities }: { activities: ActivitySummary[] })
                 {activity.name ?? activity.filename}
               </a>
               <div className="text-sm text-muted-foreground sm:hidden">
-                {localDay(activity.start_time)} {localTime(activity.start_time)}
+                {localDay(activity.start_time, timeZone)} {localTime(activity.start_time, timeZone)}
               </div>
             </TableCell>
             <TableCell className={FROM_MD}>{sportLabel(activity.sport)}</TableCell>

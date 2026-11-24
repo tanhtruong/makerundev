@@ -38,13 +38,24 @@ export function wholeNumber(value: number | null, unit = ""): string {
   return unit ? `${fixed(value, 0)} ${unit}` : fixed(value, 0);
 }
 
-const DAY = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
-const TIME = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+const DAY: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" };
+const TIME: Intl.DateTimeFormatOptions = { hour: "2-digit", minute: "2-digit", hourCycle: "h23" };
+const days = new Map<string, Intl.DateTimeFormat>();
+const times = new Map<string, Intl.DateTimeFormat>();
 
-export function localDay(iso: string): string {
-  return DAY.format(new Date(iso));
+function inZone(formatters: Map<string, Intl.DateTimeFormat>, options: Intl.DateTimeFormatOptions, timeZone: string) {
+  let formatter = formatters.get(timeZone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", { ...options, timeZone });
+    formatters.set(timeZone, formatter);
+  }
+  return formatter;
 }
 
-export function localTime(iso: string): string {
-  return TIME.format(new Date(iso));
+export function localDay(iso: string, timeZone: string): string {
+  return inZone(days, DAY, timeZone).format(new Date(iso));
+}
+
+export function localTime(iso: string, timeZone: string): string {
+  return inZone(times, TIME, timeZone).format(new Date(iso));
 }
