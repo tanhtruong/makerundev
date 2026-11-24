@@ -1,19 +1,12 @@
-import { expect, test } from "@playwright/test";
-
-function gpx(name: string, start: string, kilometres: number): string {
-  const points = Array.from({ length: kilometres * 10 + 1 }, (_, i) => {
-    const time = new Date(Date.parse(start) + i * 30_000).toISOString().replace(".000", "");
-    return `<trkpt lat="${(55.67 + i * 0.000898).toFixed(6)}" lon="12.560000"><time>${time}</time></trkpt>`;
-  });
-  return `<?xml version="1.0"?><gpx version="1.1" creator="e2e" xmlns="http://www.topografix.com/GPX/1/1"><trk><name>${name}</name><type>running</type><trkseg>${points.join("")}</trkseg></trk></gpx>`;
-}
+import { gpx } from "./gpx";
+import { expect, test } from "./server";
 
 test("imported runs are listed newest first and open their activity page", async ({ page, request }) => {
   for (const [file, name, start, km] of [
     ["harbour.gpx", "Harbour loop", "2026-03-01T07:00:00Z", 2],
     ["tempo.gpx", "Tempo along the canal", "2026-03-03T23:30:00Z", 4],
   ] as const) {
-    const response = await request.post("/activities", {
+    const response = await request.post("/api/activities", {
       multipart: { files: { name: file, mimeType: "application/gpx+xml", buffer: Buffer.from(gpx(name, start, km)) } },
     });
     expect(response.ok()).toBe(true);
