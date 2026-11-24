@@ -1614,6 +1614,11 @@
             "format": "date-time",
             "title": "Start Time"
           },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
           "distance_m": {
             "type": "number",
             "title": "Distance M"
@@ -1628,6 +1633,7 @@
           "activity_id",
           "activity_name",
           "start_time",
+          "date",
           "distance_m",
           "elapsed_s"
         ],

@@ -57,6 +57,7 @@ class PerformanceEffort(BaseModel):
     activity_id: int
     activity_name: str
     start_time: dt.datetime
+    date: dt.date
     distance_m: float
     elapsed_s: float
 
@@ -144,6 +145,7 @@ def _effort(effort: current.Effort) -> PerformanceEffort:
         activity_id=effort.activity_id,
         activity_name=effort.activity_name,
         start_time=effort.start_time,
+        date=effort.date,
         distance_m=effort.distance_m,
         elapsed_s=effort.elapsed_s,
     )

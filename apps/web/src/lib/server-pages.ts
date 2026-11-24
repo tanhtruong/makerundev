@@ -1,5 +1,4 @@
 export const SERVER_NAV = [
-  { href: "/load", label: "Training load" },
   { href: "/strava", label: "Strava" },
   { href: "/settings", label: "Settings" },
 ];

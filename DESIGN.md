@@ -13,6 +13,9 @@ colors:
   tartan: "#c8462b"
   tartan-foreground: "#ffffff"
   lane: "#c8462b"
+  series-fitness: "#2a78d6"
+  series-fatigue: "#1baf7a"
+  series-form: "#6250d6"
 typography:
   display:
     fontFamily: "Barlow Condensed, Barlow Semi Condensed, ui-sans-serif, system-ui, sans-serif"
@@ -35,6 +38,16 @@ typography:
     fontSize: "15px"
     fontWeight: 500
     fontFeature: "tnum"
+  section:
+    fontFamily: "Barlow Condensed, Barlow Semi Condensed, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.5rem"
+    fontWeight: 700
+    lineHeight: 1.25
+  headline-figure:
+    fontFamily: "Barlow Condensed, Barlow Semi Condensed, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.875rem"
+    fontWeight: 700
+    lineHeight: 1
   label:
     fontFamily: "Barlow Semi Condensed, Barlow, ui-sans-serif, system-ui, sans-serif"
     fontSize: "0.75rem"
@@ -131,6 +144,9 @@ A warm off-white ground and near-black ink, with tartan red kept for place and d
 - **Field Edge** (input): disabled outline borders and the scrollbar thumb. Dark mode: #3a3f44.
 - **Lane White** (tartan-foreground): text, underlines and the lane line on the tartan bar.
 
+### Series
+Chart lines take hues from a validated categorical palette, stepped separately for each mode: **Fitness** blue (#2a78d6, dark #3987e5), **Fatigue** aqua (#1baf7a, dark #199e70) and **Form** violet (#6250d6, dark #9085e9). Fitness and fatigue share a chart and pass the colour-blind and normal-vision separation checks in both modes. Aqua sits under 3:1 on the light ground, so a chart with two or more series also carries a legend and a direct label at each line end, and the same numbers are in the table below the charts. A chart with one series, such as Form, needs neither: its caption names it.
+
 ### Named Rules
 **The One Job Rule.** Tartan red marks where you are and how far you went: the top bar, the lane bar and the text selection. Never use it for buttons, links, badges, status or decoration.
 
@@ -149,7 +165,9 @@ A warm off-white ground and near-black ink, with tartan red kept for place and d
 - **Wordmark** (Barlow Condensed 700, 1.25rem, tracking 0.025em): makerundev, lower case, in the top bar only.
 - **Body** (Barlow 400, 15px, line-height 1.45, tabular figures): table text, prose and navigation (navigation at weight 500). Prose is capped at 65ch.
 - **Figure** (Barlow Semi Condensed 500, 15px, tabular): every measured number in a table, right-aligned.
-- **Label** (Barlow Semi Condensed 600, 0.75rem, tracking 0.08em, uppercase): table column headers only, in Stand Grey.
+- **Section** (Barlow Condensed 700, 1.5rem): a heading inside a page, such as Performance, last 6 weeks.
+- **Headline figure** (Barlow Condensed 700, 1.875rem, line-height 1): the single number of a figures row, such as fitness or VDOT.
+- **Label** (Barlow Semi Condensed 600, 0.75rem, tracking 0.08em, uppercase): table column headers and the names in a figures row, in Stand Grey.
 - **Control** (Barlow 500, 0.875rem): button text.
 - **Secondary** (Barlow 400, 0.875rem, Stand Grey): the date and the heart rate folded under the name and the pace on phones. A lead line, such as an empty state's "No activities yet.", is Body at weight 600, not a larger size.
 
@@ -214,6 +232,19 @@ Up to four figures in a row (two on phones), each a Label above its value in Bar
 
 ### Status notice
 A notice that confirms an action, such as "Key saved.", is a line of Body text in Track Ink between Hairline rules above and below. It carries `role="status"`, has no colour or icon, and stays until the next action replaces it.
+
+### Figures row
+A row of headline numbers between Hairline rules above and below: a Label over a Headline figure, with an optional Secondary line under it, such as the effort a VDOT comes from. Four across from `sm`, two on phones. A figure that cannot be computed shows its reason in Stand Grey Body text instead of a number.
+
+### Range switch
+A row of plain text links in Stand Grey, such as 90 days, 180 days, 365 days, All. The chosen one turns Track Ink with a 2px ink underline, like the active nav link, and the choice lives in the URL.
+
+### Line chart
+- **Marks:** 2px series lines with no dots; a hovered day gets a dot on each line.
+- **Axes:** no axis lines or tick marks. The value axis shows only its ends (and zero when it crosses zero) in Stand Grey, with Hairline grid lines at those values. The scale comes from the API, never from the chart library's auto-scaling. The first and last dates sit under the plot.
+- **Labels:** with two or more series, a legend above and a direct label at each line's end; the upper series' label sits above the lower one's. A single series is named by the caption alone.
+- **Hover:** a 1px ink crosshair and a tooltip with a 1px Start Line Ink border on the ground, listing the day and every value, the series named in Stand Grey with a short line in its colour and the figure in Track Ink.
+- **Zero:** a chart that crosses zero draws it as a 1px Start Line Ink rule.
 
 ### Loading, empty and error states
 - **Loading:** eight placeholder rows of Infield Wash blocks, square, under an ink top rule, with no shimmer.
