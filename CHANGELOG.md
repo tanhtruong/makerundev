@@ -11,6 +11,7 @@ A change to a metric definition is always listed, with how results shift for exi
 - The activity list is the first page of the new web app. Each run is a lane: a bar from a common start line shows its distance to scale against the longest run on the page, beside its date, name, sport, moving time, pace, average heart rate and climb. The list pages 50 activities at a time. Light and dark follow your system setting, it fits a phone screen, and every font and script is served by your own instance. The other pages keep their current look until they are ported.
 - `makerundev-server` from PyPI and the Docker image ship with the web app built in, so running it still needs no Node.
 - `GET /api/activities/{id}` returns everything the activity page shows as typed JSON: the summary, power, decoupling, running dynamics, splits, laps, best efforts, time in zones, chart series thinned to about 1,000 points that keep short spikes with their axis ranges, and the route as up to 600 latitude and longitude points. `PUT /api/activities/{id}/exclusion` excludes an activity from VDOT and critical speed or includes it again.
+- `POST /api/activities` imports one or more FIT, GPX or TCX files, gzipped or zipped, and returns a result for each file in the order sent: `imported` or `already_imported` with the activity's id, or `failed` with the reason. It answers 200 even when every file failed, so the reasons always come back.
 
 ### Changed
 

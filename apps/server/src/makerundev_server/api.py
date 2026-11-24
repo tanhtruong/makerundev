@@ -1,10 +1,10 @@
 import datetime as dt
 from collections.abc import Sequence
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.routing import APIRoute
-from makerundev import Sport, format
+from makerundev import ActivityFileError, Sport, format
 from makerundev.metrics import (
     aerobic_decoupling,
     best_efforts,
@@ -27,6 +27,7 @@ from makerundev_server.strava import ACTIVITY_URL
 
 DEFAULT_PAGE_LIMIT = 50
 MAX_PAGE_LIMIT = 200
+MAX_UPLOAD_BYTES = 64 * 1024 * 1024
 
 
 def operation_id(route: APIRoute) -> str:
@@ -147,6 +148,41 @@ class Exclusion(BaseModel):
     excluded: bool
 
 
+class FileImport(BaseModel):
+    filename: str
+    status: Literal["imported", "already_imported", "failed"]
+    activity_id: int | None
+    error: str | None
+
+
+class ImportReport(BaseModel):
+    results: list[FileImport]
+
+
+def import_uploads(store: Store, uploads: Sequence[UploadFile]) -> list[FileImport]:
+    return [_import_upload(store, upload) for upload in uploads]
+
+
+def _import_upload(store: Store, upload: UploadFile) -> FileImport:
+    name = upload.filename or "upload"
+    data = upload.file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        return FileImport(
+            filename=name,
+            status="failed",
+            activity_id=None,
+            error=f"larger than {MAX_UPLOAD_BYTES // 2**20} MB",
+        )
+    try:
+        result = store.import_file(name, data)
+    except ActivityFileError as error:
+        return FileImport(filename=name, status="failed", activity_id=None, error=str(error))
+    status: Literal["imported", "already_imported"] = (
+        "imported" if result.created else "already_imported"
+    )
+    return FileImport(filename=name, status=status, activity_id=result.activity_id, error=None)
+
+
 def router(store: Store) -> APIRouter:
     api = APIRouter(prefix="/api", generate_unique_id_function=operation_id)
     not_found: dict[int | str, dict[str, Any]] = {
@@ -160,6 +196,10 @@ def router(store: Store) -> APIRouter:
     ) -> ActivityPage:
         rows, total = store.page(limit, offset)
         return ActivityPage(items=[_summary(row) for row in rows], total=total)
+
+    @api.post("/activities", tags=["activities"])
+    def import_activities(files: Annotated[list[UploadFile], File()]) -> ImportReport:
+        return ImportReport(results=import_uploads(store, files))
 
     @api.get("/activities/{activity_id}", tags=["activities"], responses=not_found)
     def get_activity(activity_id: int) -> ActivityDetail:

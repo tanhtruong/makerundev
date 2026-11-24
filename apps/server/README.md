@@ -98,6 +98,7 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `POST /garmin/sync` | Start a sync in the background |
 | `POST /garmin/remove` | Delete the key and sync progress; imported activities stay |
 | `GET /api/activities?limit=50&offset=0` | Activities newest first with their summaries and TRIMP, as `{items, total}` JSON (`limit` up to 200) |
+| `POST /api/activities` | Import one or more files (multipart field `files`) and report each as `imported`, `already_imported` or `failed`, with the activity id or the reason |
 | `GET /api/activities/{id}/records` | The activity's record stream, as JSON |
 | `GET /openapi.json` | The JSON API's OpenAPI schema |
 
