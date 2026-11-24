@@ -32,7 +32,7 @@ from makerundev_server import (
     web,
 )
 from makerundev_server.cross_site import CrossSiteGuard
-from makerundev_server.db import Outcome, SyncState, connect
+from makerundev_server.db import connect
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS
 from makerundev_server.settings import (
@@ -45,30 +45,9 @@ from makerundev_server.settings import (
     timezones,
 )
 from makerundev_server.store import Store
-from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError, credentials
+from makerundev_server.strava import ACTIVITY_URL, SCOPE, StravaClient, StravaError
 
 HERE = Path(__file__).parent
-STRAVA_NOTICES = {
-    "connected": "Connected to Strava. Start a sync to bring your activities in.",
-    "denied": "Strava access was not granted, so nothing was connected.",
-    "state": "That Strava response did not match a connection started here. Try again.",
-    "scope": "makerundev needs permission to read your activities, private ones included."
-    " Connect again and leave that box ticked.",
-    "failed": "Strava did not complete the connection. Check the client id and secret.",
-    "disconnected": "Disconnected from Strava.",
-}
-SYNC_OUTCOMES: dict[Outcome, str] = {
-    "up_to_date": "Up to date.",
-    "failed": "The sync stopped on an unexpected error. See the server log.",
-    "interrupted": "The last sync was interrupted. Sync again to continue.",
-}
-STRAVA_OUTCOMES: dict[Outcome, str] = {
-    **SYNC_OUTCOMES,
-    "paused_short": "Paused at Strava's 15-minute rate limit. Sync again in a quarter of an hour.",
-    "paused_daily": "Paused at Strava's daily rate limit. Sync again after midnight UTC.",
-    "rejected": "Strava no longer accepts this connection. Disconnect and connect again.",
-    "unreachable": "Strava could not be reached. Sync again later.",
-}
 
 
 def create_app(
@@ -91,17 +70,12 @@ def create_app(
         power=format.power,
         distance_name=format.distance_name,
         local=_local,
-        strava_outcome=_strava_outcome,
     )
     templates.env.globals.update(
         format_pace=format.pace,
         format_bpm=lambda value: f"{value:.0f} bpm",
         format_metres=lambda value: f"{value:.0f} m",
     )
-
-    def timezone() -> str:
-        settings = store.athlete_settings()
-        return settings.timezone if settings else "UTC"
 
     app = FastAPI(title="makerundev", version="pre-1.0")
     pages = APIRouter(include_in_schema=False)
@@ -215,22 +189,6 @@ def create_app(
     def to_strava(notice: str = "") -> RedirectResponse:
         return RedirectResponse(f"/strava?notice={notice}" if notice else "/strava", 303)
 
-    @pages.get("/strava", response_class=HTMLResponse)
-    def strava(request: Request, notice: str = "") -> HTMLResponse:
-        connection = store.strava_connection()
-        return templates.TemplateResponse(
-            request,
-            "strava.html",
-            {
-                "configured": credentials() is not None,
-                "connected": strava_api.is_connected(connection),
-                "connection": connection,
-                "notice": STRAVA_NOTICES.get(notice),
-                "callback_domain": request.url.hostname,
-                "timezone": timezone(),
-            },
-        )
-
     @pages.post("/strava/connect", response_model=None)
     def strava_connect(request: Request) -> Response:
         client = strava_client()
@@ -261,18 +219,6 @@ def create_app(
         store.save_strava_tokens(tokens)
         return to_strava("connected")
 
-    @pages.post("/strava/sync", response_model=None)
-    def strava_sync() -> Response:
-        client = strava_client()
-        if client is not None:
-            strava_api.begin_sync(app, store, client)
-        return to_strava()
-
-    @pages.post("/strava/disconnect", response_model=None)
-    def strava_disconnect() -> Response:
-        strava_api.disconnect(store, strava_client())
-        return to_strava("disconnected")
-
     app.include_router(pages)
     app.include_router(api.router(store))
     app.include_router(settings_api.router(store))
@@ -285,11 +231,6 @@ def create_app(
 
 def _local(moment: dt.datetime, timezone: str, pattern: str = "%Y-%m-%d %H:%M") -> str:
     return moment.astimezone(ZoneInfo(timezone)).strftime(pattern)
-
-
-def _strava_outcome(connection: SyncState) -> str:
-    outcome = connection.sync_outcome
-    return STRAVA_OUTCOMES.get(outcome, "") if outcome else ""
 
 
 def _count(template: str, count: int) -> str:

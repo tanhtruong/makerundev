@@ -118,8 +118,6 @@ def test_activities_without_usable_streams_are_listed_and_not_tried_again(tmp_pa
         "3": "no streams on Strava",
         "4": "the Strava activity has no time stream",
     }
-    page = client.get("/strava").text
-    assert "Skipped activities" in page and "Run 3" in page
     fake.requests.clear()
 
     sync(store, fake)
@@ -146,19 +144,6 @@ def test_an_access_token_about_to_expire_is_refreshed_and_the_new_pair_kept(tmp_
     assert (connection.access_token, connection.refresh_token) == ("access-1", "refresh-1")
 
 
-def test_sync_now_runs_in_the_background_and_the_page_reports_it(tmp_path):
-    fake = FakeStrava([summary(1, 1)])
-    client, _ = connected(tmp_path, fake)
-
-    response = client.post("/strava/sync", follow_redirects=False)
-    client.app.state.strava_sync.join(timeout=10)
-
-    assert response.headers["location"] == "/strava"
-    page = client.get("/strava").text
-    assert "Up to date." in page
-    assert len(client.get("/api/activities").json()["items"]) == 1
-
-
 def test_a_sync_cut_short_by_a_restart_can_be_started_again(tmp_path):
     fake = FakeStrava([])
     _, store = connected(tmp_path, fake)
@@ -167,7 +152,7 @@ def test_a_sync_cut_short_by_a_restart_can_be_started_again(tmp_path):
 
     client = TestClient(create_app(data_dir=tmp_path, strava_transport=httpx2.MockTransport(fake)))
 
-    assert "interrupted" in client.get("/strava").text
+    assert client.get("/api/strava").json()["sync"]["outcome"] == "interrupted"
     assert store.start_strava_sync()
 
 
