@@ -6,14 +6,12 @@ from dataclasses import dataclass
 import polars as pl
 from makerundev import format
 
-from makerundev_server.training import Day
+from makerundev_server.training import Day, load_ranges
 
 WIDTH = 720
 HEIGHT = 160
 INSET = 12
 MAX_POINTS = 600
-MIN_LOAD_TOP = 10.0
-MIN_FORM_SPAN = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -261,9 +259,8 @@ def load_chart(days: Sequence[Day]) -> LoadChart:
         indices.append(last)
     sampled = [days[index] for index in indices]
     xs = [index / last * WIDTH for index in indices] if last else [WIDTH / 2]
-    load_top = max(MIN_LOAD_TOP, *(max(day.fitness, day.fatigue) for day in days))
-    form_low = min(-MIN_FORM_SPAN, *(day.form for day in days))
-    form_high = max(MIN_FORM_SPAN, *(day.form for day in days))
+    ranges = load_ranges(days)
+    load_top, form_low, form_high = ranges.load_top, ranges.form_low, ranges.form_high
 
     def y(value: float, low: float, high: float) -> float:
         fraction = (value - low) / ((high - low) or 1.0)
