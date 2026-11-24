@@ -340,6 +340,55 @@
           }
         }
       }
+    },
+    "/api/training-load": {
+      "get": {
+        "tags": [
+          "training-load"
+        ],
+        "summary": "Get Training Load",
+        "operationId": "getTrainingLoad",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "90",
+                "180",
+                "365",
+                "all"
+              ],
+              "type": "string",
+              "default": "180",
+              "title": "Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrainingLoad"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -962,6 +1011,29 @@
         ],
         "title": "Bounds"
       },
+      "CriticalSpeedFit": {
+        "properties": {
+          "speed_mps": {
+            "type": "number",
+            "title": "Speed Mps"
+          },
+          "pace_s_per_km": {
+            "type": "number",
+            "title": "Pace S Per Km"
+          },
+          "d_prime_m": {
+            "type": "number",
+            "title": "D Prime M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "speed_mps",
+          "pace_s_per_km",
+          "d_prime_m"
+        ],
+        "title": "CriticalSpeedFit"
+      },
       "Exclusion": {
         "properties": {
           "excluded": {
@@ -1099,6 +1171,237 @@
           "pace_s_per_km"
         ],
         "title": "Lap"
+      },
+      "Load": {
+        "properties": {
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/LoadDay"
+            },
+            "type": "array",
+            "title": "Days"
+          },
+          "today": {
+            "$ref": "#/components/schemas/LoadDay"
+          },
+          "weeks": {
+            "items": {
+              "$ref": "#/components/schemas/LoadWeek"
+            },
+            "type": "array",
+            "title": "Weeks"
+          },
+          "bounds": {
+            "$ref": "#/components/schemas/LoadBounds"
+          },
+          "activities": {
+            "type": "integer",
+            "title": "Activities"
+          },
+          "without_heart_rate": {
+            "type": "integer",
+            "title": "Without Heart Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "days",
+          "today",
+          "weeks",
+          "bounds",
+          "activities",
+          "without_heart_rate"
+        ],
+        "title": "Load"
+      },
+      "LoadBounds": {
+        "properties": {
+          "fitness_fatigue": {
+            "$ref": "#/components/schemas/Bounds"
+          },
+          "form": {
+            "$ref": "#/components/schemas/Bounds"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fitness_fatigue",
+          "form"
+        ],
+        "title": "LoadBounds"
+      },
+      "LoadDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date"
+          },
+          "trimp": {
+            "type": "number",
+            "title": "Trimp"
+          },
+          "fitness": {
+            "type": "number",
+            "title": "Fitness"
+          },
+          "fatigue": {
+            "type": "number",
+            "title": "Fatigue"
+          },
+          "form": {
+            "type": "number",
+            "title": "Form"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "trimp",
+          "fitness",
+          "fatigue",
+          "form"
+        ],
+        "title": "LoadDay"
+      },
+      "LoadWeek": {
+        "properties": {
+          "week_ending": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Ending"
+          },
+          "trimp": {
+            "type": "number",
+            "title": "Trimp"
+          },
+          "fitness": {
+            "type": "number",
+            "title": "Fitness"
+          },
+          "fatigue": {
+            "type": "number",
+            "title": "Fatigue"
+          },
+          "form": {
+            "type": "number",
+            "title": "Form"
+          }
+        },
+        "type": "object",
+        "required": [
+          "week_ending",
+          "trimp",
+          "fitness",
+          "fatigue",
+          "form"
+        ],
+        "title": "LoadWeek"
+      },
+      "Performance": {
+        "properties": {
+          "vdot": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vdot"
+          },
+          "vdot_effort": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PerformanceEffort"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "critical_speed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CriticalSpeedFit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "critical_speed_reason": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "too_few_efforts",
+                  "no_fit"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Speed Reason"
+          },
+          "fitted": {
+            "items": {
+              "$ref": "#/components/schemas/PerformanceEffort"
+            },
+            "type": "array",
+            "title": "Fitted"
+          },
+          "excluded": {
+            "type": "integer",
+            "title": "Excluded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vdot",
+          "vdot_effort",
+          "critical_speed",
+          "critical_speed_reason",
+          "fitted",
+          "excluded"
+        ],
+        "title": "Performance"
+      },
+      "PerformanceEffort": {
+        "properties": {
+          "activity_id": {
+            "type": "integer",
+            "title": "Activity Id"
+          },
+          "activity_name": {
+            "type": "string",
+            "title": "Activity Name"
+          },
+          "start_time": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start Time"
+          },
+          "distance_m": {
+            "type": "number",
+            "title": "Distance M"
+          },
+          "elapsed_s": {
+            "type": "number",
+            "title": "Elapsed S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "activity_id",
+          "activity_name",
+          "start_time",
+          "distance_m",
+          "elapsed_s"
+        ],
+        "title": "PerformanceEffort"
       },
       "Problem": {
         "properties": {
@@ -1437,6 +1740,41 @@
           "other"
         ],
         "title": "Sport"
+      },
+      "TrainingLoad": {
+        "properties": {
+          "settings_set": {
+            "type": "boolean",
+            "title": "Settings Set"
+          },
+          "load": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Load"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "performance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Performance"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "settings_set",
+          "load",
+          "performance"
+        ],
+        "title": "TrainingLoad"
       },
       "TrimpCoefficients": {
         "type": "string",

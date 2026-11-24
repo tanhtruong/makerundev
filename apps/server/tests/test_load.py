@@ -57,6 +57,96 @@ def ids(client: TestClient) -> dict[str, int]:
 @pytest.fixture
 def march_10(monkeypatch):
     monkeypatch.setattr("makerundev_server.app.today_in", lambda _timezone: dt.date(2026, 3, 10))
+    monkeypatch.setattr(
+        "makerundev_server.training_api.today_in", lambda _timezone: dt.date(2026, 3, 10)
+    )
+
+
+def hard_ride(make_fit) -> bytes:
+    rows = [{"t": float(i), "distance": 8.0 * i, "hr": 180} for i in range(1801)]
+    return make_fit(rows, sport=Sport.CYCLING, start=dt.datetime(2026, 3, 1, 7, tzinfo=dt.UTC))
+
+
+def test_training_load_api_returns_days_weeks_bounds_and_current_performance(
+    tmp_path, make_fit, march_10
+):
+    client = client_with(
+        tmp_path,
+        ("ride.fit", hard_ride(make_fit)),
+        ("reps.fit", steady(make_fit, 1000, 200, 3)),
+        ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
+    )
+    trimp = next(
+        row["trimp"]
+        for row in client.get("/api/activities").json()["items"]
+        if row["filename"] == "ride.fit"
+    )
+    activity = ids(client)
+
+    response = client.get("/api/training-load")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["settings_set"] is True
+    load = body["load"]
+
+    def day(date: str, load: float, after: int) -> dict[str, object]:
+        fitness = trimp / 42 * (41 / 42) ** after
+        fatigue = trimp / 7 * (6 / 7) ** after
+        form = (
+            0.0
+            if after == 0
+            else trimp / 42 * (41 / 42) ** (after - 1) - trimp / 7 * (6 / 7) ** (after - 1)
+        )
+        return {
+            "date": date,
+            "trimp": load,
+            "fitness": pytest.approx(fitness),
+            "fatigue": pytest.approx(fatigue),
+            "form": pytest.approx(form),
+        }
+
+    assert len(load["days"]) == 10
+    assert load["days"][0] == day("2026-03-01", trimp, 0)
+    assert load["today"] == day("2026-03-10", 0.0, 9)
+    assert load["days"][-1] == load["today"]
+
+    def week(ending: str, load: float, after: int) -> dict[str, object]:
+        row = day(ending, load, after)
+        return {"week_ending": row.pop("date"), **row}
+
+    assert load["weeks"] == [week("2026-03-10", 0.0, 9), week("2026-03-03", trimp, 2)]
+    assert load["bounds"] == {
+        "fitness_fatigue": {"low": 0.0, "high": pytest.approx(trimp / 7)},
+        "form": {"low": pytest.approx(trimp / 42 - trimp / 7), "high": 5.0},
+    }
+    assert (load["activities"], load["without_heart_rate"]) == (3, 2)
+
+    performance = body["performance"]
+    assert performance["vdot"] == pytest.approx(52.2, abs=0.05)
+    reps = {
+        "activity_id": activity["reps.fit"],
+        "activity_name": "reps.fit",
+        "start_time": "2026-03-03T07:00:00Z",
+        "distance_m": 1000.0,
+        "elapsed_s": 200.0,
+    }
+    assert performance["vdot_effort"] == reps
+    tempo = {
+        "activity_id": activity["tempo.fit"],
+        "activity_name": "tempo.fit",
+        "start_time": "2026-03-05T07:00:00Z",
+    }
+    assert performance["fitted"] == [
+        reps,
+        {**tempo, "distance_m": 1609.344, "elapsed_s": pytest.approx(402.336, abs=0.5)},
+        {**tempo, "distance_m": 3000.0, "elapsed_s": 750.0},
+    ]
+    critical_speed = performance["critical_speed"]
+    assert critical_speed["pace_s_per_km"] == pytest.approx(272.0, abs=0.5)
+    assert critical_speed["speed_mps"] == pytest.approx(1000 / critical_speed["pace_s_per_km"])
+    assert critical_speed["d_prime_m"] == pytest.approx(213.0, abs=0.5)
+    assert (performance["critical_speed_reason"], performance["excluded"]) == (None, 0)
 
 
 def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(
@@ -121,6 +211,56 @@ def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
 
     assert client.get(f"/api/activities/{reps}").json()["excluded_from_performance"] is False
     assert "VDOT 52.2 1 km in 3:20, reps.fit, 3 Mar" in performance(client)
+
+
+def test_training_load_api_refuses_an_unknown_range(tmp_path):
+    client = client_with(tmp_path)
+
+    assert client.get("/api/training-load?days=7").status_code == 422
+
+
+def test_training_load_api_thins_a_long_history_and_keeps_weeks_from_every_day(
+    tmp_path, make_fit, march_10
+):
+    old = make_fit(
+        [{"t": float(i), "distance": 3.0 * i} for i in range(301)],
+        start=dt.datetime(2023, 1, 1, 7, tzinfo=dt.UTC),
+    )
+    client = client_with(tmp_path, ("old.fit", old), ("reps.fit", steady(make_fit, 1000, 200, 3)))
+
+    load = client.get("/api/training-load?days=all").json()["load"]
+    year = client.get("/api/training-load?days=365").json()["load"]
+    default = client.get("/api/training-load").json()["load"]
+
+    dates = [dt.date.fromisoformat(day["date"]) for day in load["days"]]
+    assert len(dates) == 1000
+    assert (dates[0], dates[-1]) == (dt.date(2023, 1, 1), dt.date(2026, 3, 10))
+    assert dates == sorted(set(dates))
+    assert load["today"]["date"] == "2026-03-10"
+    assert len(load["weeks"]) == 167
+    assert load["weeks"][-1]["week_ending"] == "2023-01-03"
+    assert (len(year["days"]), len(default["days"])) == (365, 180)
+
+
+def test_training_load_api_answers_before_settings_and_before_any_activity(
+    tmp_path, make_fit, march_10
+):
+    unset = client_with(
+        tmp_path / "unset", ("reps.fit", steady(make_fit, 1000, 200, 3)), settings=False
+    )
+    empty = client_with(tmp_path / "empty")
+
+    before_settings = unset.get("/api/training-load").json()
+    no_activities = empty.get("/api/training-load").json()
+
+    assert (before_settings["settings_set"], before_settings["load"]) == (False, None)
+    performance = before_settings["performance"]
+    assert performance["vdot"] == pytest.approx(52.2, abs=0.05)
+    assert (performance["critical_speed"], performance["critical_speed_reason"]) == (
+        None,
+        "too_few_efforts",
+    )
+    assert no_activities == {"settings_set": True, "load": None, "performance": None}
 
 
 def test_a_sport_that_does_not_count_cannot_be_excluded(tmp_path, make_fit):

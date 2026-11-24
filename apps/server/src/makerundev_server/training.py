@@ -1,6 +1,7 @@
 import datetime as dt
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from makerundev.metrics import training_load
@@ -8,7 +9,11 @@ from makerundev.metrics import training_load
 from makerundev_server.db import ActivityRow
 
 RANGES: dict[str, int | None] = {"90": 90, "180": 180, "365": 365, "all": None}
-DEFAULT_RANGE = "180"
+Range = Literal["90", "180", "365", "all"]
+
+DEFAULT_RANGE: Range = "180"
+MIN_LOAD_TOP = 10.0
+MIN_FORM_SPAN = 5.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +42,21 @@ class LoadView:
             (newest_first[start], sum(day.load for day in newest_first[start : start + 7]))
             for start in range(0, len(newest_first), 7)
         ]
+
+
+@dataclass(frozen=True, slots=True)
+class LoadRanges:
+    load_top: float
+    form_low: float
+    form_high: float
+
+
+def load_ranges(days: Sequence[Day]) -> LoadRanges:
+    return LoadRanges(
+        load_top=max(MIN_LOAD_TOP, *(max(day.fitness, day.fatigue) for day in days)),
+        form_low=min(-MIN_FORM_SPAN, *(day.form for day in days)),
+        form_high=max(MIN_FORM_SPAN, *(day.form for day in days)),
+    )
 
 
 def today_in(timezone: str) -> dt.date:
