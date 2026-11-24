@@ -1,6 +1,6 @@
 # The web app
 
-The React app in `apps/web` replaces the server's Jinja pages one page at a time ([ADR 8](adr/0008-react-front-end.md)). The activity list at `/` was the first page, and the Garmin page at `/garmin` is ported too. Every page that `src/lib/server-pages.ts` lists is still Jinja until its port merges. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
+The React app in `apps/web` replaces the server's Jinja pages one page at a time ([ADR 8](adr/0008-react-front-end.md)). The activity list at `/`, with the import form, was the first page, and the Garmin page at `/garmin` is ported too. Every page that `src/lib/server-pages.ts` lists is still Jinja until its port merges. Users never need Node: the built app ships inside the `makerundev-server` wheel and the Docker image.
 
 ## Set up
 

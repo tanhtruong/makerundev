@@ -7,6 +7,7 @@ import { LoadError } from "@/components/load-error";
 import { Button } from "@/components/ui/button";
 import { ActivityTable } from "@/features/activities/components/activity-table";
 import { useTimeZone } from "@/hooks/use-time-zone";
+import { ImportForm } from "@/features/activities/components/import-form";
 import { useListActivities } from "@/lib/api/endpoints/activities/activities.gen";
 import type { ActivityPage } from "@/lib/api/model/activity-page.gen";
 
@@ -27,6 +28,7 @@ export function ActivityList({ page }: { page: number }) {
       <PageHeading aside={total > 0 && <span className="text-muted-foreground">{activityCount(total)}</span>}>
         Activities
       </PageHeading>
+      <ImportForm />
       <ListBody query={query} timeZone={timeZone} page={page} />
     </Page>
   );
@@ -132,11 +134,7 @@ function EmptyState() {
     <div className="border-y border-border py-10">
       <p className="font-semibold">No activities yet.</p>
       <p className="mt-2 max-w-[65ch] text-muted-foreground">
-        Export a FIT, GPX or TCX file from your watch and{" "}
-        <a href="/import" className="text-foreground underline">
-          import it
-        </a>
-        , or sync from{" "}
+        Export a FIT, GPX or TCX file from your watch and import it above, or sync from{" "}
         <a href="/strava" className="text-foreground underline">
           Strava
         </a>{" "}

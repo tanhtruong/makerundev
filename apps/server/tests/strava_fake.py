@@ -155,4 +155,6 @@ def sync(store, fake) -> str:
 
 
 def upload(client, name, data):
-    return client.post("/activities", files=[("files", (name, data, "application/octet-stream"))])
+    return client.post(
+        "/api/activities", files=[("files", (name, data, "application/octet-stream"))]
+    )

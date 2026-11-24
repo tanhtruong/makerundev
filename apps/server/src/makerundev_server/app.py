@@ -1,11 +1,11 @@
 import datetime as dt
 import secrets
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import httpx2
-from fastapi import APIRouter, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -109,34 +109,6 @@ def create_app(
     pages = APIRouter(include_in_schema=False)
     app.add_middleware(CrossSiteGuard)
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
-
-    def import_page(
-        request: Request, notices: list[str], imported: int = 0, status_code: int = 200
-    ) -> HTMLResponse:
-        return templates.TemplateResponse(
-            request,
-            "import.html",
-            {"notices": notices, "imported": imported},
-            status_code=status_code,
-        )
-
-    @pages.get("/import", response_class=HTMLResponse)
-    def import_form(request: Request) -> HTMLResponse:
-        return import_page(request, [])
-
-    @pages.post("/activities", response_class=HTMLResponse)
-    def upload(request: Request, files: Annotated[list[UploadFile], File()]) -> HTMLResponse:
-        results = api.import_uploads(store, files)
-        notices = [
-            f"{result.filename}: {result.error}"
-            if result.status == "failed"
-            else f"{result.filename}: already imported"
-            for result in results
-            if result.status != "imported"
-        ]
-        created = sum(result.status == "imported" for result in results)
-        readable = any(result.status != "failed" for result in results)
-        return import_page(request, notices, created, status_code=200 if readable else 400)
 
     @pages.get("/activities/{activity_id}", response_class=HTMLResponse)
     def detail(request: Request, activity_id: int) -> HTMLResponse:

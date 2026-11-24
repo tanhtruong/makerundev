@@ -30,7 +30,7 @@ def stored_trimp(data_dir) -> list[float | None]:
 
 def upload(client: TestClient, name: str, data: bytes) -> None:
     response = client.post(
-        "/activities", files=[("files", (name, data, "application/octet-stream"))]
+        "/api/activities", files=[("files", (name, data, "application/octet-stream"))]
     )
     assert response.status_code == 200
 

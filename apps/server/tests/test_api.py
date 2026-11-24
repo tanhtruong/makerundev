@@ -25,7 +25,7 @@ def client(tmp_path, make_fit):
     ]
     for filename, start, rows in uploads:
         fit = make_fit(rows, start=start)
-        response = client.post("/activities", files=[("files", (filename, fit))])
+        response = client.post("/api/activities", files=[("files", (filename, fit))])
         assert response.status_code == 200
     return client
 
@@ -87,7 +87,7 @@ SETTINGS = {
 def test_activity_detail_returns_what_the_activity_page_shows(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     client.post("/settings", data=SETTINGS)
-    client.post("/activities", files=[("files", ("steady.fit", make_fit(DETAIL_ROWS)))])
+    client.post("/api/activities", files=[("files", ("steady.fit", make_fit(DETAIL_ROWS)))])
     activity_id = client.get("/api/activities").json()["items"][0]["id"]
 
     detail = client.get(f"/api/activities/{activity_id}").json()

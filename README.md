@@ -142,7 +142,7 @@ From a clone, the activity list says how to build the web app until you run `mak
 
 Then open http://127.0.0.1:8000 and:
 
-1. **Import** your files. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
+1. **Import** your files at the top of the activity list. Select as many as you like, gzipped ones from a Strava export included; files already imported are skipped. Or sync from [Strava](#sync-from-strava) or [Garmin Connect](#sync-from-garmin-connect).
 2. **Set your heart rate** under Settings: max and resting heart rate, TRIMP coefficients, zones and timezone. makerundev works out TRIMP for every activity and keeps it up to date when you change them. Add your body mass too, and every run shows its estimated power next to any power your watch recorded.
 3. **Open Training load** to see fitness, fatigue and form built from your daily TRIMP.
 

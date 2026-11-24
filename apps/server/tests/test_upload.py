@@ -14,15 +14,14 @@ from makerundev_server.settings import AthleteSettings
 from makerundev_server.store import Store
 
 
-def test_uploaded_activity_is_listed_once_and_viewable(tmp_path, steady_run_fit):
+def test_uploaded_activity_is_listed_and_viewable(tmp_path, steady_run_fit):
     client = TestClient(create_app(data_dir=tmp_path))
 
-    for _ in range(2):
-        response = client.post(
-            "/activities",
-            files=[("files", ("morning.fit", steady_run_fit, "application/octet-stream"))],
-        )
-        assert response.status_code == 200
+    response = client.post(
+        "/api/activities",
+        files=[("files", ("morning.fit", steady_run_fit, "application/octet-stream"))],
+    )
+    assert response.status_code == 200
 
     activities = client.get("/api/activities").json()["items"]
     assert len(activities) == 1
@@ -98,7 +97,7 @@ def table_cells(page: str, name: str) -> list[str]:
 def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(LAP_ROWS, laps=LAPS)
-    client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
+    client.post("/api/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
     activity_id = client.get("/api/activities").json()["items"][0]["id"]
 
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
@@ -113,7 +112,7 @@ def test_uploaded_activity_shows_its_laps_with_their_pace(tmp_path, make_fit):
 def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(LAP_ROWS, laps=LAPS)
-    client.post("/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
+    client.post("/api/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
     activity_id = client.get("/api/activities").json()["items"][0]["id"]
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
         db.execute("UPDATE activities SET laps = NULL")
@@ -129,7 +128,7 @@ def test_outdoor_activity_shows_its_route_and_treadmill_run_shows_none(
     client = TestClient(create_app(data_dir=tmp_path))
     treadmill = make_fit(LAP_ROWS)
     for name, fit in (("outdoor.fit", steady_run_fit), ("treadmill.fit", treadmill)):
-        client.post("/activities", files=[("files", (name, fit, "application/octet-stream"))])
+        client.post("/api/activities", files=[("files", (name, fit, "application/octet-stream"))])
     ids = {row["filename"]: row["id"] for row in client.get("/api/activities").json()["items"]}
 
     outdoor = client.get(f"/activities/{ids['outdoor.fit']}").text
@@ -174,7 +173,7 @@ def dynamics_tiles(page: str) -> dict[str, str]:
 
 
 def upload(client: TestClient, filename: str, data: bytes) -> int:
-    client.post("/activities", files=[("files", (filename, data, "application/octet-stream"))])
+    client.post("/api/activities", files=[("files", (filename, data, "application/octet-stream"))])
     activity_id: int = next(
         row["id"]
         for row in client.get("/api/activities").json()["items"]
@@ -306,13 +305,14 @@ def test_uploaded_zip_is_stored_as_the_file_inside_and_dedupes_against_it(
 
     archive = make_zip(("25132893842_ACTIVITY.fit", steady_run_fit))
     response = client.post(
-        "/activities", files=[("files", ("25132893842.zip", archive, "application/zip"))]
+        "/api/activities", files=[("files", ("25132893842.zip", archive, "application/zip"))]
     )
     assert response.status_code == 200
     again = client.post(
-        "/activities", files=[("files", ("run.fit", steady_run_fit, "application/octet-stream"))]
+        "/api/activities",
+        files=[("files", ("run.fit", steady_run_fit, "application/octet-stream"))],
     )
-    assert "run.fit: already imported" in again.text
+    assert again.json()["results"][0]["status"] == "already_imported"
 
     store = Store(tmp_path, connect(tmp_path))
     [row] = store.list()
@@ -330,9 +330,15 @@ def test_bulk_export_zip_is_refused_with_a_reason(tmp_path, steady_run_fit, make
 
     archive = make_zip(("a.fit", steady_run_fit), ("b.fit", steady_run_fit))
     response = client.post(
-        "/activities", files=[("files", ("export.zip", archive, "application/zip"))]
+        "/api/activities", files=[("files", ("export.zip", archive, "application/zip"))]
     )
 
-    assert response.status_code == 400
-    assert "export.zip: ZIP holds more than one activity file" in response.text
+    assert response.json()["results"] == [
+        {
+            "filename": "export.zip",
+            "status": "failed",
+            "activity_id": None,
+            "error": "ZIP holds more than one activity file; extract it and import the files",
+        }
+    ]
     assert client.get("/api/activities").json()["items"] == []
