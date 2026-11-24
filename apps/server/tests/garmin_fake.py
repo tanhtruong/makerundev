@@ -124,7 +124,7 @@ def app_with(tmp_path, fake) -> tuple[TestClient, Store]:
 
 
 def save_key(client, key=KEY):
-    return client.post("/garmin/key", data={"key": key}, follow_redirects=False)
+    return client.put("/api/garmin/key", json={"key": key})
 
 
 def sync(store, fake) -> str:

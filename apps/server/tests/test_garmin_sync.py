@@ -1,7 +1,7 @@
 import datetime as dt
 import hashlib
 
-from garmin_fake import KEY, FakeGarmin, app_with, listing, run_start, save_key, sync
+from garmin_fake import FakeGarmin, app_with, listing, run_start, save_key, sync
 from makerundev.io.strava import read_strava
 from makerundev_server import garmin
 from makerundev_server.garmin import Token
@@ -20,8 +20,8 @@ def test_a_saved_key_syncs_every_activity_as_a_file_newest_first(tmp_path, make_
     fake.run(3, 3, entry_name="3.x.fit")
     client, store = app_with(tmp_path, fake)
 
-    assert save_key(client).headers["location"] == "/garmin?notice=saved"
-    client.post("/garmin/sync")
+    save_key(client)
+    client.post("/api/garmin/sync")
     client.app.state.garmin_sync.join(timeout=10)
 
     assert fake.downloads == ["3", "2", "1"]
@@ -34,12 +34,10 @@ def test_a_saved_key_syncs_every_activity_as_a_file_newest_first(tmp_path, make_
         ("1_ACTIVITY.fit", "Run 1", None, "2026-03-01T07:00:00Z"),
     ]
     assert {row.sha256 for row in store.list()} == {sha256(fake.fit(day)) for day in (1, 2, 3)}
-    page = client.get("/garmin").text
-    assert "Up to date." in page
-    assert KEY not in page
+    assert client.get("/api/garmin").json()["sync"]["outcome"] == "up_to_date"
 
     fake.run(4, 4)
-    client.post("/garmin/sync")
+    client.post("/api/garmin/sync")
     client.app.state.garmin_sync.join(timeout=10)
 
     assert fake.downloads == ["3", "2", "1", "4"]
@@ -109,8 +107,14 @@ def test_a_throttled_sync_stops_and_the_next_one_resumes_where_it_stopped(
     save_key(client)
     fake.throttle_after = 3
 
+    before = dt.datetime.now(dt.UTC)
     assert sync(store, fake) == "paused"
-    assert "Sync again in 2 minutes." in client.get("/garmin").text
+    resume_at = dt.datetime.fromisoformat(client.get("/api/garmin").json()["sync"]["resume_at"])
+    assert (
+        before + dt.timedelta(seconds=120)
+        <= resume_at
+        <= dt.datetime.now(dt.UTC) + dt.timedelta(seconds=120)
+    )
 
     assert fake.downloads == ["4", "3"]
     assert store.garmin.connection().backfill_done is False

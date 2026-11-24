@@ -3,6 +3,8 @@ import pytest
 from fastapi.testclient import TestClient
 from garmin_fake import KEY, FakeGarmin, app_with, sync
 from makerundev_server import create_app
+from makerundev_server.garmin import GarminClient
+from makerundev_server.garmin_sync import GarminSync
 
 
 def put_key(client, key=KEY):
@@ -151,16 +153,23 @@ def test_starting_a_sync_runs_it_in_the_background(tmp_path, make_fit, make_zip)
     )
 
 
-def test_removing_the_key_keeps_imported_activities(tmp_path, make_fit, make_zip):
+def test_removing_the_key_mid_sync_stops_it_and_keeps_imported_activities(
+    tmp_path, make_fit, make_zip
+):
     fake = FakeGarmin(make_fit, make_zip)
     fake.run(1, 1)
     client, store = app_with(tmp_path, fake)
     put_key(client)
     sync(store, fake)
+    fake.run(2, 2)
+    removed = []
+    fake.after_download = {"2": lambda: removed.append(client.delete("/api/garmin/key"))}
 
-    response = client.delete("/api/garmin/key")
+    assert store.garmin.start_sync()
+    GarminSync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
 
-    assert response.json() == {"key_saved": False, "sync": None}
+    assert fake.downloads == ["1", "2"]
+    assert [response.json() for response in removed] == [{"key_saved": False, "sync": None}]
     assert store.garmin.connection() is None
     activities = client.get("/api/activities").json()["items"]
     assert [a["filename"] for a in activities] == ["1_ACTIVITY.fit"]

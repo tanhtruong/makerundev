@@ -57,6 +57,16 @@
   --radius-md: var(--radius);
 }
 
+@utility type-label {
+  font-family: var(--font-semi-condensed);
+  font-size: 0.75rem;
+  line-height: calc(1 / 0.75);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
 @layer base {
   * {
     @apply border-border;
