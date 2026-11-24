@@ -23,6 +23,7 @@ Every route under `/api` follows these rules, so that the React app's client can
 - A 4xx error is FastAPI's `{"detail": "activity not found"}`, lower case with no full stop.
 - A validation error is FastAPI's 422 list of `loc`, `msg` and `type`. Where a form shows the message next to a field, write our own `msg` rather than Pydantic's.
 - A request the resource's current state refuses, such as starting a Strava sync before Strava is connected, is a 409.
+- An outside service that could not be reached, or answered with an error, while the request waited on it is a 502 with a `detail`, such as `PUT /api/garmin/key` when Garmin cannot check the key.
 - A route that acts on several items in one request, such as `POST /api/activities` importing files, answers 200 whenever the request itself is well formed, even when every item failed, and reports each item's outcome in the body in the order sent. A 4xx would make the generated client treat the response as an error and drop the per-item results.
 
 ## Lists
