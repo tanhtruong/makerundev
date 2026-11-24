@@ -1,4 +1,5 @@
 import itertools
+from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, NoReturn
 
@@ -12,6 +13,7 @@ from makerundev.metrics import (
     BANISTER_MALE,
     BODY_MASS_RANGE_KG,
     DEFAULT_ZONE_THRESHOLDS,
+    ZoneModel,
     aerobic_decoupling,
     best_efforts,
     estimated_power,
@@ -19,6 +21,7 @@ from makerundev.metrics import (
     summarize,
     time_in_zones,
     trimp,
+    zone_boundaries_bpm,
 )
 from makerundev.model import Activity
 
@@ -27,7 +30,20 @@ app = typer.Typer(no_args_is_help=True, help="Analyse FIT, GPX and TCX activity 
 Files = Annotated[list[Path], typer.Argument(exists=True, dir_okay=False, readable=True)]
 File = Annotated[Path, typer.Argument(exists=True, dir_okay=False, readable=True)]
 MaxHr = Annotated[int, typer.Option("--max-hr", min=1, help="Max heart rate in bpm.")]
-RestingHr = Annotated[int, typer.Option("--resting-hr", min=1, help="Resting heart rate in bpm.")]
+RESTING_HR = typer.Option("--resting-hr", min=1, help="Resting heart rate in bpm.")
+RestingHr = Annotated[int, RESTING_HR]
+OptionalRestingHr = Annotated[int | None, RESTING_HR]
+
+
+class ZoneModelChoice(StrEnum):
+    MAX = "max"
+    RESERVE = "reserve"
+
+
+ZONE_MODELS = {
+    ZoneModelChoice.MAX: ZoneModel.MAX_HR_PERCENT,
+    ZoneModelChoice.RESERVE: ZoneModel.HR_RESERVE_PERCENT,
+}
 
 
 Units = Annotated[
@@ -143,10 +159,29 @@ def zones(
     max_hr: MaxHr,
     thresholds: Annotated[
         str,
-        typer.Option(help="Zone thresholds as ascending percentages of max heart rate."),
+        typer.Option(
+            help="Zone thresholds as ascending percentages of max heart rate "
+            "or heart-rate reserve, as --model says."
+        ),
     ] = ",".join(f"{threshold:g}" for threshold in DEFAULT_ZONE_THRESHOLDS),
+    model: Annotated[
+        ZoneModelChoice,
+        typer.Option(
+            help="Thresholds as a percentage of max heart rate, "
+            "or of heart-rate reserve with --resting-hr."
+        ),
+    ] = ZoneModelChoice.MAX,
+    resting_hr: OptionalRestingHr = None,
 ) -> None:
-    boundaries = [max_hr * threshold / 100 for threshold in _thresholds(thresholds)]
+    if model is ZoneModelChoice.RESERVE:
+        if resting_hr is None:
+            raise typer.BadParameter(
+                "must be given with --model reserve", param_hint="--resting-hr"
+            )
+        _require_resting_below_max(resting_hr, max_hr)
+    boundaries = zone_boundaries_bpm(
+        _thresholds(thresholds), ZONE_MODELS[model], max_hr, resting_hr or 0
+    )
     seconds = time_in_zones(_load_heart_rate(file), boundaries)
     total = sum(seconds)
     rows = [
@@ -172,8 +207,7 @@ def trimp_command(
     resting_hr: RestingHr,
     female: Annotated[bool, typer.Option(help="Use the female Banister coefficients.")] = False,
 ) -> None:
-    if resting_hr >= max_hr:
-        raise typer.BadParameter("must be below --max-hr", param_hint="--resting-hr")
+    _require_resting_below_max(resting_hr, max_hr)
     coefficients = BANISTER_FEMALE if female else BANISTER_MALE
     typer.echo(f"{trimp(_load_heart_rate(file), resting_hr, max_hr, coefficients):.0f}")
 
@@ -228,6 +262,11 @@ def _load_heart_rate(path: Path) -> Activity:
         typer.echo(f"{path}: no heart rate data", err=True)
         raise typer.Exit(1)
     return activity
+
+
+def _require_resting_below_max(resting_hr: int, max_hr: int) -> None:
+    if resting_hr >= max_hr:
+        raise typer.BadParameter("must be below --max-hr", param_hint="--resting-hr")
 
 
 def _thresholds(value: str) -> list[float]:

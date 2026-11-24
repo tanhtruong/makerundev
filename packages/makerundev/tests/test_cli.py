@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import polars as pl
@@ -59,6 +60,50 @@ def test_zones_prints_the_time_and_share_of_heart_rate_time_in_each_zone(tmp_pat
         "Zone 4  160-179 bpm     0:00   0%",
         "Zone 5  180 bpm and up  2:00  40%",
     ]
+
+
+def test_zones_with_the_reserve_model_start_at_resting_plus_a_share_of_the_reserve(
+    tmp_path, make_fit
+):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(t), "distance": t * 3.0, "hr": 150} for t in range(61)]))
+
+    result = CliRunner().invoke(
+        app,
+        ["zones", str(path), "--max-hr", "200", "--resting-hr", "50", "--model", "reserve"],
+    )
+
+    assert result.exit_code == 0
+    assert result.output.splitlines() == [
+        "Zone 1  under 140 bpm   0:00    0%",
+        "Zone 2  140-154 bpm     1:00  100%",
+        "Zone 3  155-169 bpm     0:00    0%",
+        "Zone 4  170-184 bpm     0:00    0%",
+        "Zone 5  185 bpm and up  0:00    0%",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("arguments", "reason"),
+    [
+        ([], "must be given with --model reserve"),
+        (["--resting-hr", "200"], "must be below --max-hr"),
+    ],
+)
+def test_zones_with_the_reserve_model_refuse_a_missing_or_too_high_resting_heart_rate(
+    tmp_path, make_fit, arguments, reason
+):
+    path = tmp_path / "run.fit"
+    path.write_bytes(make_fit([{"t": float(t), "hr": 150} for t in range(60)]))
+
+    result = CliRunner().invoke(
+        app, ["zones", str(path), "--max-hr", "190", "--model", "reserve", *arguments]
+    )
+
+    error = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
+    assert result.exit_code == 2
+    assert "--resting-hr" in error
+    assert reason in error
 
 
 def test_trimp_prints_the_banister_score_as_a_whole_number(tmp_path, make_fit):

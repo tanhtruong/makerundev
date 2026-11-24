@@ -14,7 +14,7 @@ from typing import Any
 import polars as pl
 from makerundev import Activity, ActivityFileError, Lap, Sport, load
 from makerundev.io import unzip
-from makerundev.metrics import Summary, summarize, trimp
+from makerundev.metrics import Summary, ZoneModel, summarize, trimp
 from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -33,7 +33,7 @@ from makerundev_server.garmin_store import GarminStore
 from makerundev_server.listing import ActivityFilter, ActivitySort, conditions, ordering
 from makerundev_server.matching import file_match, synced_match
 from makerundev_server.performance_store import PerformanceStore, stored_efforts
-from makerundev_server.settings import AthleteSettings, TrimpCoefficients, ZoneModel
+from makerundev_server.settings import AthleteSettings, TrimpCoefficients
 from makerundev_server.strava import Tokens, Unauthorized
 from makerundev_server.sync_state import (
     CONNECTION_ID,
