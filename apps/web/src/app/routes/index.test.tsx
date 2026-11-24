@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import { AppProvider } from "@/app/provider";
 import { createAppRouter } from "@/app/router";
 import type { ActivitySummary } from "@/lib/api/model/activity-summary.gen";
+import type { SettingsView } from "@/lib/api/model/settings-view.gen";
 import { server } from "@/testing/server";
 
 function activity(id: number, overrides: Partial<ActivitySummary>): ActivitySummary {
@@ -32,6 +33,33 @@ function activity(id: number, overrides: Partial<ActivitySummary>): ActivitySumm
   };
 }
 
+function settingsIn(timezone: string | null) {
+  const view: SettingsView = {
+    settings:
+      timezone === null
+        ? null
+        : {
+            max_heart_rate_bpm: 190,
+            resting_heart_rate_bpm: 50,
+            trimp_coefficients: "male",
+            zone_model: "max_hr_percent",
+            zone_thresholds_percent: [60, 70, 80, 90],
+            body_mass_kg: null,
+            timezone,
+          },
+    defaults: {
+      trimp_coefficients: "male",
+      zone_model: "max_hr_percent",
+      zone_thresholds_percent: [60, 70, 80, 90],
+      timezone: "Europe/Copenhagen",
+    },
+    zone_starts_bpm: null,
+    highest_heart_rate_bpm: null,
+    timezones: [],
+  };
+  return http.get("/api/settings", () => HttpResponse.json(view));
+}
+
 function renderAt(path: string) {
   const router = createAppRouter(createMemoryHistory({ initialEntries: [path] }));
   render(
@@ -42,8 +70,9 @@ function renderAt(path: string) {
 }
 
 describe("the activity list", () => {
-  it("shows each activity with its lane drawn to scale against the longest", async () => {
+  it("shows each activity in the athlete's timezone with its lane drawn to scale against the longest", async () => {
     server.use(
+      settingsIn("America/New_York"),
       http.get("/api/activities", () =>
         HttpResponse.json({
           items: [
@@ -68,8 +97,8 @@ describe("the activity list", () => {
     const [, harbour, unnamed] = await screen.findAllByRole("row");
     if (!harbour || !unnamed) throw new Error("expected two activity rows");
     const [date, name, ...cells] = within(harbour).getAllByRole("cell");
-    expect(date).toHaveTextContent("2 Mar 2026");
-    expect(date).toHaveTextContent("00:30");
+    expect(date).toHaveTextContent("1 Mar 2026");
+    expect(date).toHaveTextContent("18:30");
     expect(name && within(name).getByRole("link")).toHaveTextContent("Harbour loop");
     expect(cells.map((cell) => cell.textContent)).toEqual([
       "Run",
@@ -85,9 +114,24 @@ describe("the activity list", () => {
     expect(screen.getByText("2 activities")).toBeInTheDocument();
   });
 
+  it("shows times in UTC before the athlete's timezone is saved", async () => {
+    server.use(
+      settingsIn(null),
+      http.get("/api/activities", () =>
+        HttpResponse.json({ items: [activity(1, { start_time: "2026-03-01T23:30:00Z" })], total: 1 }),
+      ),
+    );
+
+    renderAt("/");
+
+    const [, row] = await screen.findAllByRole("row");
+    expect(row && within(row).getAllByRole("cell")[0]).toHaveTextContent("1 Mar 202623:30");
+  });
+
   it("pages through activities fifty at a time", async () => {
     const offsets: (string | null)[] = [];
     server.use(
+      settingsIn(null),
       http.get("/api/activities", ({ request }) => {
         const url = new URL(request.url);
         offsets.push(url.searchParams.get("offset"));

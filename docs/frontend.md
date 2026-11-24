@@ -45,7 +45,7 @@ Imports flow from shared code to features to the app. A feature never imports an
 
 orval generates the types and TanStack Query hooks from `apps/server/openapi.json` into `src/lib/api/**/*.gen.ts`. After `make openapi` changes the schema, run `pnpm generate` in `apps/web` and commit both. `make check-web` fails while they differ. Requests go through `src/lib/api-client.ts`, which throws on any non-2xx answer, so a query's error state is the request's failure.
 
-The client only draws. Every derived number comes from the API. The client formats distance, duration, pace and local time in `src/lib/format.ts`, which matches `makerundev.format` digit for digit, ties included. Times show in the browser's time zone until the settings API exposes the athlete's own.
+The client only draws. Every derived number comes from the API. The client formats distance, duration, pace and local time in `src/lib/format.ts`, which matches `makerundev.format` digit for digit, ties included. Times show in the athlete's timezone from Settings, or UTC before Settings are saved, as the server counts days: a page reads it with `useTimeZone()` from `src/hooks/use-time-zone.ts` and passes it to `localDay` and `localTime`, never the browser's zone.
 
 ## Components and theme
 

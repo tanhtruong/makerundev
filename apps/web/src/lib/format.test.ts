@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { distance, duration, localDay, localTime, pace, wholeNumber } from "@/lib/format";
+import { distance, duration, pace, wholeNumber } from "@/lib/format";
 
 describe("formatting matches makerundev.format", () => {
   it.each([
@@ -38,11 +38,5 @@ describe("formatting matches makerundev.format", () => {
     [null, "-"],
   ])("wholeNumber(%s) is %s", (value, expected) => {
     expect(wholeNumber(value)).toBe(expected);
-  });
-});
-
-describe("times show in the browser's zone", () => {
-  it("shows a UTC start in Copenhagen time", () => {
-    expect([localDay("2026-03-01T23:30:00Z"), localTime("2026-03-01T23:30:00Z")]).toEqual(["2 Mar 2026", "00:30"]);
   });
 });

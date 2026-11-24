@@ -17,8 +17,8 @@ test("imported runs are listed newest first and open their activity page", async
   await page.goto("/");
 
   const rows = page.getByRole("row");
-  await expect(rows.nth(1)).toContainText("4 Mar 202600:30Tempo along the canal");
-  await expect(rows.nth(2)).toContainText("1 Mar 202608:00Harbour loop");
+  await expect(rows.nth(1)).toContainText("3 Mar 202623:30Tempo along the canal");
+  await expect(rows.nth(2)).toContainText("1 Mar 202607:00Harbour loop");
   await expect(page.getByText("1-2 of 2")).toBeVisible();
   expect([...origins]).toEqual([new URL(page.url()).origin]);
 

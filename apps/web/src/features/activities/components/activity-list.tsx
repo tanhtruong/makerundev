@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { Page, PageHeading } from "@/components/layouts/page";
 import { Button } from "@/components/ui/button";
 import { ActivityTable } from "@/features/activities/components/activity-table";
+import { useTimeZone } from "@/hooks/use-time-zone";
 import { useListActivities } from "@/lib/api/endpoints/activities/activities.gen";
 import type { ActivityPage } from "@/lib/api/model/activity-page.gen";
 
@@ -17,6 +18,7 @@ function activityCount(total: number): string {
 export function ActivityList({ page }: { page: number }) {
   const offset = (page - 1) * PAGE_SIZE;
   const query = useListActivities({ limit: PAGE_SIZE, offset }, { query: { placeholderData: keepPreviousData } });
+  const timeZone = useTimeZone();
   const total = query.data?.total ?? 0;
 
   return (
@@ -24,20 +26,35 @@ export function ActivityList({ page }: { page: number }) {
       <PageHeading aside={total > 0 && <span className="text-muted-foreground">{activityCount(total)}</span>}>
         Activities
       </PageHeading>
-      <ListBody query={query} page={page} />
+      <ListBody query={query} timeZone={timeZone} page={page} />
     </Page>
   );
 }
 
-function ListBody({ query, page }: { query: UseQueryResult<ActivityPage, unknown>; page: number }): ReactNode {
-  if (query.isPending) {
+function ListBody({
+  query,
+  timeZone,
+  page,
+}: {
+  query: UseQueryResult<ActivityPage, unknown>;
+  timeZone: UseQueryResult<string, unknown>;
+  page: number;
+}): ReactNode {
+  if (query.isPending || timeZone.isPending) {
     return <LoadingRows />;
   }
-  if (query.isError) {
+  if (query.isError || timeZone.isError) {
     return (
       <div role="alert" className="flex items-center gap-4 border-y border-border py-6">
         <span>The activity list could not be loaded.</span>
-        <Button onClick={() => void query.refetch()}>Try again</Button>
+        <Button
+          onClick={() => {
+            void query.refetch();
+            void timeZone.refetch();
+          }}
+        >
+          Try again
+        </Button>
       </div>
     );
   }
@@ -58,7 +75,7 @@ function ListBody({ query, page }: { query: UseQueryResult<ActivityPage, unknown
   }
   return (
     <div aria-busy={query.isPlaceholderData} className="transition-opacity duration-150 aria-busy:opacity-60">
-      <ActivityTable activities={items} />
+      <ActivityTable activities={items} timeZone={timeZone.data} />
       <Paging page={page} shown={items.length} total={total} loading={query.isPlaceholderData} />
     </div>
   );
