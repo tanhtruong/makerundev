@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 
 import { ActivityDetail } from "@/features/activities/components/activity-detail";
+import { RouteMap } from "@/features/map/components/route-map";
 
 export const Route = createFileRoute("/activities/$activityId")({
   params: {
@@ -17,5 +18,7 @@ export const Route = createFileRoute("/activities/$activityId")({
 
 function ActivityPage() {
   const { activityId } = Route.useParams();
-  return <ActivityDetail activityId={activityId} />;
+  return (
+    <ActivityDetail activityId={activityId} route={(points, shape) => <RouteMap points={points} fallback={shape} />} />
+  );
 }

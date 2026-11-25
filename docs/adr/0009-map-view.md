@@ -58,3 +58,13 @@ Facts checked on 2026-11-21:
 - An owner who picks a hosted source accepts that the provider sees their IP, the instance's address and roughly where they ran; the notice says so. Only a local file keeps tiles private, at the cost of downloading and updating it.
 - The style, sprites and font grow the wheel and the image; the follow-up issue measures by how much.
 - A provider that changes its terms or URL breaks its preset, not the app: the route shape still shows, and a custom URL is the way out.
+
+## Amendments
+
+### 2026-11-25
+
+Settled while building the hosted sources (#70):
+
+- **Custom is two explicit kinds.** The owner picks "Custom raster tiles" (a template with `{z}`, `{x}` and `{y}`) or "Custom map style" (a MapLibre style URL, which must not contain them), rather than the app guessing from the URL. The API's `kind` is `custom_raster` or `custom_style`.
+- **A failed style URL falls back to the route shape**, with the note that tiles could not be loaded. Tiles that fail on a loaded style still draw the route over a blank background, as decided above.
+- **The check on save warns but does not block.** The browser loads the zero-zoom tile or fetches the style; if that fails, the settings page names the reason (mixed content included) and offers "Save anyway", since a server the browser cannot reach now may still be right.

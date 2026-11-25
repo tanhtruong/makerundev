@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { Page, PageHeading } from "@/components/layouts/page";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,12 @@ import { useTimeZone } from "@/hooks/use-time-zone";
 import { ApiError } from "@/lib/api-client";
 import { useGetActivity } from "@/lib/api/endpoints/activities/activities.gen";
 import type { ActivityDetail as Detail } from "@/lib/api/model/activity-detail.gen";
+import type { RoutePoint } from "@/lib/api/model/route-point.gen";
 import { localDay, localTime } from "@/lib/format";
 
-export function ActivityDetail({ activityId }: { activityId: number }) {
+type RouteSlot = (points: RoutePoint[], shape: ReactNode) => ReactNode;
+
+export function ActivityDetail({ activityId, route }: { activityId: number; route: RouteSlot }) {
   const query = useGetActivity(activityId, {
     query: { retry: (failures, error) => !isMissing(error) && failures < 1 },
   });
@@ -55,14 +58,14 @@ export function ActivityDetail({ activityId }: { activityId: number }) {
       </Page>
     );
   }
-  return <Loaded activity={query.data} timeZone={timeZone.data} />;
+  return <Loaded activity={query.data} timeZone={timeZone.data} route={route} />;
 }
 
 function isMissing(error: unknown): boolean {
   return error instanceof ApiError && error.status === 404;
 }
 
-function Loaded({ activity, timeZone }: { activity: Detail; timeZone: string }) {
+function Loaded({ activity, timeZone, route }: { activity: Detail; timeZone: string; route: RouteSlot }) {
   const showZoneNotice = activity.zones.length === 0 && !activity.settings_set && activity.avg_heart_rate_bpm !== null;
   const title = `${activity.name ?? activity.filename} - makerundev`;
 
@@ -87,7 +90,12 @@ function Loaded({ activity, timeZone }: { activity: Detail; timeZone: string }) 
       <SummaryStats activity={activity} />
       {(activity.route_shape !== null || activity.series.length > 0) && (
         <div className="mt-10 grid gap-x-10 gap-y-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
-          {activity.route_shape !== null && <RouteShape shape={activity.route_shape} />}
+          {activity.route_shape !== null &&
+            (activity.route === null ? (
+              <RouteShape shape={activity.route_shape} />
+            ) : (
+              route(activity.route, <RouteShape shape={activity.route_shape} />)
+            ))}
           {activity.series.length > 0 && (
             <ActivityCharts
               series={activity.series}
