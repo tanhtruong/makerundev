@@ -1,4 +1,5 @@
 import datetime as dt
+from collections.abc import Callable
 from urllib.parse import parse_qs
 
 import httpx2
@@ -7,7 +8,7 @@ from makerundev_server import create_app
 from makerundev_server.db import connect
 from makerundev_server.store import Store
 from makerundev_server.strava import Credentials, StravaClient, Tokens
-from makerundev_server.sync import StravaSync
+from makerundev_server.strava_sync import strava_sync
 
 FIT_START = dt.datetime(2026, 3, 1, 7, 0, tzinfo=dt.UTC)
 FAR = dt.datetime(2100, 1, 1, tzinfo=dt.UTC)
@@ -52,6 +53,7 @@ class FakeStrava:
         self.laps: dict[str, list[dict]] = {}
         self.without_detail: set[str] = set()
         self.throttled_detail: set[str] = set()
+        self.on_request: dict[str, Callable[[], object]] = {}
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
@@ -75,6 +77,8 @@ class FakeStrava:
             self.revoked.append(parse_qs(request.content.decode())["token"][0])
             return httpx2.Response(200)
         self.requests.append(path.removeprefix("/api/v3"))
+        if self.requests[-1] in self.on_request:
+            self.on_request[self.requests[-1]]()
         if self.usage[0] >= self.limit[0] or self.usage[1] >= self.limit[1]:
             return httpx2.Response(
                 429, json={"message": "Rate Limit Exceeded"}, headers=self.rate()
@@ -146,12 +150,16 @@ def connected(tmp_path, fake, expires_at=FAR):
 
 
 def sync(store, fake) -> str:
-    assert store.start_strava_sync()
-    client = StravaClient(Credentials("4242", "application-secret"), httpx2.MockTransport(fake))
-    StravaSync(store, client).run()
+    assert store.strava_state.start()
+    run(store, fake)
     connection = store.strava_connection()
     assert connection is not None and not connection.syncing
     return connection.sync_outcome
+
+
+def run(store, fake) -> None:
+    client = StravaClient(Credentials("4242", "application-secret"), httpx2.MockTransport(fake))
+    strava_sync(store, client).run()
 
 
 def upload(client, name, data):

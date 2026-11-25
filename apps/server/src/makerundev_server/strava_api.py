@@ -8,9 +8,11 @@ from pydantic import BaseModel
 from makerundev_server.api import Problem, operation_id
 from makerundev_server.db import StravaConnectionRow
 from makerundev_server.store import Store
-from makerundev_server.strava import ACTIVITY_URL, StravaClient, StravaError, credentials
-from makerundev_server.sync import StravaSync
+from makerundev_server.strava import ACTIVITY_URL, StravaClient, credentials
+from makerundev_server.strava_sync import strava_sync
 from makerundev_server.sync_api import SyncStatus, run_in_background, sync_status
+from makerundev_server.sync_errors import SyncError
+from makerundev_server.sync_state import Disconnected
 
 
 class StravaStatus(BaseModel):
@@ -34,13 +36,13 @@ def is_connected(connection: StravaConnectionRow | None) -> TypeGuard[StravaConn
 
 
 def begin_sync(app: FastAPI, store: Store, client: StravaClient) -> None:
-    run_in_background(app, "strava_sync", store.start_strava_sync, StravaSync(store, client).run)
+    run_in_background(app, "strava_sync", store.strava_state.start, strava_sync(store, client).run)
 
 
 def disconnect(store: Store, client: StravaClient | None) -> int:
     if client is not None:
-        with contextlib.suppress(StravaError, httpx2.HTTPError, KeyError):
-            client.revoke(StravaSync(store, client).access_token())
+        with contextlib.suppress(SyncError, Disconnected, httpx2.HTTPError, KeyError):
+            client.revoke(strava_sync(store, client).access_token())
     return store.disconnect_strava()
 
 

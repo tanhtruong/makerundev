@@ -10,6 +10,8 @@ from typing import Any
 
 import httpx2
 
+from makerundev_server.sync_errors import RateLimited, Refused, SyncError, Unauthorized
+
 API_URL = "https://personal.connectapi.garmin.com"
 TOKEN_PATH = "/personalapitoken-service/personal-api/personal-api-key/token"
 SEARCH_PATH = "/activitylist-service/activities/search/activities"
@@ -18,25 +20,6 @@ ACTIVITY_URL = "https://connect.garmin.com/modern/activity/{}"
 PAGE_SIZE = 99
 PAUSE_S = 1.0
 TOKEN_LIFETIME = dt.timedelta(hours=24)
-
-
-class GarminError(Exception):
-    pass
-
-
-class RateLimited(GarminError):
-    def __init__(self, retry_after: str | None) -> None:
-        super().__init__("Garmin asked to slow down")
-        self.retry_after = retry_after
-
-
-class Unauthorized(GarminError):
-    pass
-
-
-class Refused(GarminError):
-    def __init__(self, status: int) -> None:
-        super().__init__(f"Garmin answered {status}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +47,7 @@ class GarminClient:
         response.raise_for_status()
         value = response.text.strip()
         if not value:
-            raise GarminError("Garmin returned an empty token")
+            raise SyncError("Garmin returned an empty token")
         return Token(value, _expiry(value))
 
     def activities(
@@ -83,16 +66,16 @@ class GarminClient:
         response.raise_for_status()
         listed = response.json()
         if not isinstance(listed, list):
-            raise GarminError("Garmin's activity list was not a list")
+            raise SyncError("Garmin's activity list was not a list")
         return [entry for entry in listed if isinstance(entry, dict)]
 
     def download(self, token: str, activity_id: str) -> bytes:
         response = self._send("GET", DOWNLOAD_PATH.format(activity_id), f"Bearer {token}")
         if 400 <= response.status_code < 500:
-            raise Refused(response.status_code)
+            raise Refused(f"Garmin answered {response.status_code}")
         response.raise_for_status()
         if not response.content:
-            raise Refused(response.status_code)
+            raise Refused(f"Garmin answered {response.status_code}")
         return response.content
 
     def _send(
@@ -116,7 +99,8 @@ class GarminClient:
         finally:
             self.last_request = time.monotonic()
         if response.status_code == 429:
-            raise RateLimited(response.headers.get("Retry-After"))
+            resume_at = retry_at(response.headers.get("Retry-After"), dt.datetime.now(dt.UTC))
+            raise RateLimited("paused", resume_at)
         if response.status_code == 401 and path != TOKEN_PATH:
             raise Unauthorized("Garmin rejected the access token")
         return response

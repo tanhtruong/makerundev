@@ -1,9 +1,8 @@
-import datetime as dt
 import gzip
 import hashlib
 import json
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,27 +19,17 @@ from makerundev_server.db import (
     ActivityRow,
     AthleteSettingsRow,
     GarminConnectionRow,
-    Outcome,
     StravaConnectionRow,
-    SyncState,
     activity_name,
 )
 from makerundev_server.facts import Refreshed, StoredFacts
 from makerundev_server.garmin_store import GarminStore
 from makerundev_server.listing import ActivityFilter, ActivitySort, conditions, ordering
-from makerundev_server.matching import file_match, synced_match
+from makerundev_server.matching import synced_match
 from makerundev_server.performance_store import PerformanceStore
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients
-from makerundev_server.strava import Tokens, Unauthorized
-from makerundev_server.sync_state import (
-    CONNECTION_ID,
-    Phase,
-    advance,
-    begin_sync,
-    end_sync,
-    record_skip,
-    skipped_entry,
-)
+from makerundev_server.strava import Tokens
+from makerundev_server.sync_state import CONNECTION_ID, SyncStateStore
 
 SETTINGS_ID = 1
 
@@ -57,18 +46,36 @@ class Store:
         self.writing = threading.Lock()
         self.facts = StoredFacts(data_dir)
         self.garmin = GarminStore(engine, self.writing)
+        self.strava_state = SyncStateStore(
+            engine,
+            self.writing,
+            StravaConnectionRow,
+            "Strava activity",
+            lambda row: row.access_token is not None,
+        )
+        self.garmin_state = SyncStateStore(
+            engine, self.writing, GarminConnectionRow, "Garmin activity"
+        )
         self.performance = PerformanceStore(engine, self.writing)
 
     def catch_up(self) -> int:
         with self.writing:
             return self.facts.catch_up(self.engine, self.athlete_settings())
 
-    def import_file(self, filename: str, data: bytes, name: str | None = None) -> ImportResult:
+    def import_file(
+        self,
+        filename: str,
+        data: bytes,
+        name: str | None = None,
+        check: Callable[[Session], object] | None = None,
+    ) -> ImportResult:
         entry = unzip(data)
         if entry is not None:
             filename, data = entry
         digest = hashlib.sha256(data).hexdigest()
         with self.writing, Session(self.engine) as session:
+            if check is not None:
+                check(session)
             existing = session.scalar(select(ActivityRow.id).where(ActivityRow.sha256 == digest))
             if existing is not None:
                 return ImportResult(existing, created=False)
@@ -160,69 +167,21 @@ class Store:
             row.expires_at = tokens.expires_at
             session.commit()
 
-    def start_strava_sync(self) -> bool:
-        with self.writing, Session(self.engine) as session:
-            row = session.get(StravaConnectionRow, CONNECTION_ID)
-            if row is None or row.access_token is None or row.syncing:
-                return False
-            begin_sync(row)
-            session.commit()
-            return True
-
-    def finish_strava_sync(self, outcome: Outcome) -> None:
-        with self.writing, Session(self.engine) as session:
-            row = session.get(StravaConnectionRow, CONNECTION_ID)
-            if row is not None:
-                end_sync(row, outcome)
-                session.commit()
-
     def reset_syncs(self) -> None:
-        with self.writing, Session(self.engine) as session:
-            rows: list[SyncState | None] = [
-                session.get(StravaConnectionRow, CONNECTION_ID),
-                session.get(GarminConnectionRow, CONNECTION_ID),
-            ]
-            for row in rows:
-                if row is not None and row.syncing:
-                    row.syncing = False
-                    row.sync_outcome = "interrupted"
-                    row.resume_at = None
-            session.commit()
-
-    def finish_strava_backfill(self) -> None:
-        with self.writing, Session(self.engine) as session:
-            _connected(session).backfill_done = True
-            session.commit()
-
-    def claim_strava(self, summary: Mapping[str, Any], start: dt.datetime, phase: Phase) -> bool:
-        strava_id = str(summary["id"])
-        with self.writing, Session(self.engine) as session:
-            known = session.scalar(
-                select(ActivityRow.id).where(
-                    ActivityRow.external_source == STRAVA, ActivityRow.external_id == strava_id
-                )
-            )
-            connection = _connected(session)
-            if known is None:
-                distance = float(summary.get("distance") or 0.0)
-                file_row = file_match(session, strava_id, start, distance)
-                if file_row is None:
-                    return False
-                file_row.external_source = STRAVA
-                file_row.external_id = strava_id
-                file_row.name = activity_name(summary.get("name")) or file_row.name
-                connection.matched += 1
-            advance(connection, phase, start)
-            session.commit()
-            return True
+        self.strava_state.interrupt()
+        self.garmin_state.interrupt()
 
     def import_strava(
-        self, summary: Mapping[str, Any], streams: Mapping[str, Any], activity: Activity
+        self,
+        summary: Mapping[str, Any],
+        streams: Mapping[str, Any],
+        activity: Activity,
+        check: Callable[[Session], object],
     ) -> ImportResult:
         strava_id = str(summary["id"])
         original = gzip.compress(json.dumps({"activity": summary, "streams": streams}).encode())
         with self.writing, Session(self.engine) as session:
-            _connected(session)
+            check(session)
             existing = session.scalar(
                 select(ActivityRow.id).where(
                     ActivityRow.external_source == STRAVA, ActivityRow.external_id == strava_id
@@ -240,13 +199,6 @@ class Store:
             self.facts.write(session, row, activity, original, _settings(session))
             session.commit()
             return ImportResult(row.id, created=True)
-
-    def record_strava_import(self, start: dt.datetime, phase: Phase) -> None:
-        with self.writing, Session(self.engine) as session:
-            connection = _connected(session)
-            connection.imported += 1
-            advance(connection, phase, start)
-            session.commit()
 
     def strava_without_laps(self) -> tuple[tuple[int, str], ...]:
         with Session(self.engine) as session:
@@ -268,16 +220,6 @@ class Store:
             if row is None or row.laps is not None:
                 return
             self.facts.keep_strava_laps(row, listed, laps)
-            session.commit()
-
-    def skip_strava(
-        self, summary: Mapping[str, Any], start: dt.datetime, reason: str, phase: Phase
-    ) -> None:
-        entry = skipped_entry(
-            str(summary["id"]), summary.get("name"), "Strava activity", start, reason
-        )
-        with self.writing, Session(self.engine) as session:
-            record_skip(_connected(session), entry, phase, start)
             session.commit()
 
     def disconnect_strava(self) -> int:
@@ -307,13 +249,6 @@ def _connection(session: Session) -> StravaConnectionRow:
             id=CONNECTION_ID, backfill_done=False, syncing=False, imported=0, matched=0, skipped=[]
         )
         session.add(row)
-    return row
-
-
-def _connected(session: Session) -> StravaConnectionRow:
-    row = session.get(StravaConnectionRow, CONNECTION_ID)
-    if row is None or row.access_token is None:
-        raise Unauthorized("not connected to Strava")
     return row
 
 

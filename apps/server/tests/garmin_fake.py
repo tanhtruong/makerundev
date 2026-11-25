@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.db import connect
 from makerundev_server.garmin import GarminClient
-from makerundev_server.garmin_sync import GarminSync
+from makerundev_server.garmin_sync import garmin_sync
 from makerundev_server.store import Store
 
 KEY = "personal-api-key-0123456789"
@@ -128,8 +128,8 @@ def save_key(client, key=KEY):
 
 
 def sync(store, fake) -> str:
-    assert store.garmin.start_sync()
-    GarminSync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
+    assert store.garmin_state.start()
+    garmin_sync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
     connection = store.garmin.connection()
     assert connection is not None and not connection.syncing
     return connection.sync_outcome
