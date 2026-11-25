@@ -1,20 +1,20 @@
 import datetime as dt
 import logging
-from collections.abc import Iterator, Mapping
-from dataclasses import dataclass
+from collections.abc import Iterator
 from pathlib import PurePosixPath
 from typing import Any
 
-import httpx2
 from makerundev import ActivityFileError
 from makerundev.io import unzip
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
 
 from makerundev_server import garmin
-from makerundev_server.db import Outcome, activity_name
-from makerundev_server.matching import strava_id_in
+from makerundev_server.db import GarminConnectionRow, activity_name
+from makerundev_server.matching import nearby, same_activity, strava_id_in
 from makerundev_server.store import Store
-from makerundev_server.sync_state import REFRESH_MARGIN, Phase, utc
+from makerundev_server.sync_run import Listed, Skipped, SyncRun, Token
+from makerundev_server.sync_state import Claim, Disconnected, utc
 
 UNREADABLE = "the file could not be imported; see the server log"
 MANUAL = "a manual entry, with no file"
@@ -24,144 +24,104 @@ DATE_MARGIN = dt.timedelta(days=1)
 log = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class GarminListing:
-    entry: Mapping[str, Any]
-    activity_id: str
-    start: dt.datetime
-    distance_m: float
-    manual: bool
-    name: str | None
+class GarminProvider:
+    name = "Garmin"
 
-
-class GarminSync:
     def __init__(self, store: Store, client: garmin.GarminClient) -> None:
         self.store = store
         self.client = client
+        self.state = store.garmin_state
 
-    def run(self) -> None:
-        outcome: Outcome = "failed"
-        resume_at = None
-        try:
-            self._newer()
-            self._backfill()
-            outcome = "up_to_date"
-        except garmin.RateLimited as limit:
-            outcome = "paused"
-            resume_at = garmin.retry_at(limit.retry_after, dt.datetime.now(dt.UTC))
-        except garmin.Unauthorized:
-            outcome = "rejected"
-        except (httpx2.HTTPError, garmin.GarminError) as error:
-            log.warning("Garmin sync stopped: %s", type(error).__name__)
-            outcome = "unreachable"
-        except Exception:
-            log.exception("Garmin sync failed")
-        finally:
-            self.store.garmin.finish_sync(outcome, resume_at)
+    def held(self, row: GarminConnectionRow) -> tuple[str | None, dt.datetime | None]:
+        return row.token, row.token_expires_at
 
-    def access_token(self) -> str:
-        row = self.store.garmin.connection()
-        if row is None:
-            raise garmin.Unauthorized("no Garmin key")
-        expires_at = row.token_expires_at or dt.datetime.now(dt.UTC)
-        if row.token and expires_at - dt.datetime.now(dt.UTC) > REFRESH_MARGIN:
-            return row.token
+    def renew(self, row: GarminConnectionRow) -> str:
         token = self.client.token(row.api_key)
         self.store.garmin.save_token(token)
         return token.value
 
-    def _newer(self) -> None:
-        row = self.store.garmin.connection()
-        if row is None or row.newest_synced is None:
-            return
-        found = [item for batch in self._walk(row.newest_synced, None) for item in batch]
-        for item in sorted(found, key=lambda item: item.start):
-            self._one(item, "newer")
-
-    def _backfill(self) -> None:
-        row = self.store.garmin.connection()
-        if row is None or row.backfill_done:
-            return
-        for batch in self._walk(None, row.backfill_before):
-            for item in batch:
-                self._one(item, "backfill")
-        self.store.garmin.finish_backfill()
-
-    def _walk(
-        self, newer_than: dt.datetime | None, low: dt.datetime | None
-    ) -> Iterator[list[GarminListing]]:
+    def listed(
+        self, newer_than: dt.datetime | None, older_than: dt.datetime | None, token: Token
+    ) -> Iterator[list[Listed]]:
         since = (newer_than - DATE_MARGIN).date() if newer_than is not None else None
         handled: set[str] = set()
         offset = 0
         while True:
-            until = (low + DATE_MARGIN).date() if low is not None else None
-            page = self.client.activities(self.access_token(), offset, since=since, until=until)
+            until = (older_than + DATE_MARGIN).date() if older_than is not None else None
+            page = self.client.activities(token(), offset, since=since, until=until)
             batch = sorted(
                 (
                     item
-                    for item in _listings(page)
-                    if item.activity_id not in handled
+                    for item in _listed(page)
+                    if item.source_id not in handled
                     and (newer_than is None or item.start > newer_than)
-                    and (low is None or item.start <= low)
+                    and (older_than is None or item.start <= older_than)
                 ),
                 key=lambda item: item.start,
                 reverse=True,
             )
             if batch:
                 yield batch
-                handled.update(item.activity_id for item in batch)
-                low = batch[-1].start
+                handled.update(item.source_id for item in batch)
+                older_than = batch[-1].start
                 offset = 0
             else:
                 offset += garmin.PAGE_SIZE
             if len(page) < garmin.PAGE_SIZE:
                 return
 
-    def _one(self, item: GarminListing, phase: Phase) -> None:
-        if self.store.garmin.claim(item.start, item.distance_m, item.name, phase):
-            return
+    def claim(self, session: Session, item: Listed) -> Claim | None:
+        match = next(
+            (
+                row
+                for row in nearby(session, item.start)
+                if row.sha256 is not None
+                and same_activity(item.start, item.distance_m, row.start_time, row.distance_m)
+            ),
+            None,
+        )
+        if match is None:
+            return None
+        match.name = match.name or item.name
+        return "matched"
+
+    def bring_in(self, item: Listed, token: Token) -> bool:
         if item.manual:
-            self.store.garmin.skip(item.entry, item.start, MANUAL, phase)
-            return
+            raise Skipped(MANUAL)
+        name, body = _garmin_file(item.source_id, self.client.download(token(), item.source_id))
         try:
-            data = self.client.download(self.access_token(), item.activity_id)
-            name, body = _garmin_file(item.activity_id, data)
-        except (garmin.Refused, ActivityFileError) as error:
-            self.store.garmin.skip(item.entry, item.start, str(error), phase)
-            return
-        if self.store.garmin.connection() is None:
-            raise garmin.Unauthorized("no Garmin key")
-        try:
-            result = self.store.import_file(name, body, item.name)
-        except ActivityFileError as error:
-            self.store.garmin.skip(item.entry, item.start, str(error), phase)
-            return
-        except (OSError, SQLAlchemyError):
+            return self.store.import_file(name, body, item.name, self.state.ensure).created
+        except (ActivityFileError, Disconnected, OSError, SQLAlchemyError):
             raise
-        except Exception:
-            log.exception("Garmin activity %s could not be imported", item.activity_id)
-            self.store.garmin.skip(item.entry, item.start, UNREADABLE, phase)
-            return
-        self.store.garmin.record_import(result.created, item.start, phase)
+        except Exception as error:
+            log.exception("Garmin activity %s could not be imported", item.source_id)
+            raise Skipped(UNREADABLE) from error
+
+    def finish(self, token: Token) -> None:
+        return None
 
 
-def _listings(page: list[dict[str, Any]]) -> list[GarminListing]:
-    listings = []
+def garmin_sync(store: Store, client: garmin.GarminClient) -> SyncRun[GarminConnectionRow]:
+    return SyncRun(GarminProvider(store, client))
+
+
+def _listed(page: list[dict[str, Any]]) -> list[Listed]:
+    listed = []
     for entry in page:
         try:
-            listings.append(
-                GarminListing(
-                    entry=entry,
-                    activity_id=str(entry["activityId"]),
+            listed.append(
+                Listed(
+                    source_id=str(entry["activityId"]),
                     start=utc(str(entry["startTimeGMT"])),
+                    name=activity_name(entry.get("activityName")),
                     distance_m=float(entry.get("distance") or 0.0),
                     manual=bool(entry.get("manualActivity") or entry.get("isManualActivity")),
-                    name=activity_name(entry.get("activityName")),
+                    entry=entry,
                 )
             )
         except (KeyError, TypeError, ValueError):
             log.warning("Garmin activity %s has no readable start time", entry.get("activityId"))
-    return listings
+    return listed
 
 
 def _garmin_file(activity_id: str, data: bytes) -> tuple[str, bytes]:

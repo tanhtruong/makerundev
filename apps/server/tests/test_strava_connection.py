@@ -3,12 +3,10 @@ from urllib.parse import parse_qs, urlsplit
 import httpx2
 import pytest
 from fastapi.testclient import TestClient
-from makerundev.io.strava import read_strava
 from makerundev_server import create_app
 from makerundev_server.db import connect
 from makerundev_server.store import Store
-from makerundev_server.strava import Unauthorized
-from strava_fake import FakeStrava, connected, streams, summary, sync, upload
+from strava_fake import FakeStrava, connected, run, summary, sync, upload
 
 
 def test_disconnect_removes_what_came_only_from_strava_even_if_revoking_fails(
@@ -109,21 +107,16 @@ def test_without_an_api_application_strava_is_unconfigured_and_connect_goes_nowh
 
 
 def test_a_sync_still_running_after_disconnect_stores_nothing(tmp_path):
-    fake = FakeStrava([])
+    fake = FakeStrava([summary(5, 5), summary(4, 4)])
     client, store = connected(tmp_path, fake)
-    held = summary(5, 5)
-    activity = read_strava(held, streams())
-    client.delete("/api/strava")
+    removed = []
+    fake.on_request["/activities/5"] = lambda: removed.append(client.delete("/api/strava"))
+    assert store.strava_state.start()
 
-    with pytest.raises(Unauthorized):
-        store.import_strava(held, streams(), activity)
-    with pytest.raises(Unauthorized):
-        store.record_strava_import(activity.start_time, "backfill")
-    with pytest.raises(Unauthorized):
-        store.claim_strava(held, activity.start_time, "backfill")
-    with pytest.raises(Unauthorized):
-        store.skip_strava(held, activity.start_time, "no streams on Strava", "backfill")
+    run(store, fake)
 
+    assert [response.status_code for response in removed] == [200]
+    assert (fake.stream_requests(), fake.detail_requests()) == (["5"], ["5"])
     assert client.get("/api/activities").json()["items"] == []
     assert store.strava_connection() is None
     assert not (tmp_path / "streams" / "strava-5.parquet").exists()

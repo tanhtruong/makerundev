@@ -83,7 +83,7 @@ def test_a_sync_stopped_between_import_and_progress_neither_duplicates_nor_skips
 ):
     fake = FakeStrava([summary(1, 1), summary(2, 2), summary(3, 3)])
     client, store = connected(tmp_path, fake)
-    record = store.record_strava_import
+    record = store.strava_state.record_import
     calls = []
 
     def stop_once(*args):
@@ -92,7 +92,7 @@ def test_a_sync_stopped_between_import_and_progress_neither_duplicates_nor_skips
             raise RuntimeError("stopped")
         record(*args)
 
-    monkeypatch.setattr(store, "record_strava_import", stop_once)
+    monkeypatch.setattr(store.strava_state, "record_import", stop_once)
 
     assert sync(store, fake) == "failed"
     assert sync(store, fake) == "up_to_date"
@@ -201,13 +201,13 @@ def test_an_access_token_about_to_expire_is_refreshed_and_the_new_pair_kept(tmp_
 def test_a_sync_cut_short_by_a_restart_can_be_started_again(tmp_path):
     fake = FakeStrava([])
     _, store = connected(tmp_path, fake)
-    assert store.start_strava_sync()
-    assert not store.start_strava_sync()
+    assert store.strava_state.start()
+    assert not store.strava_state.start()
 
     client = TestClient(create_app(data_dir=tmp_path, strava_transport=httpx2.MockTransport(fake)))
 
     assert client.get("/api/strava").json()["sync"]["outcome"] == "interrupted"
-    assert store.start_strava_sync()
+    assert store.strava_state.start()
 
 
 def test_an_activity_strava_refuses_to_serve_is_skipped_and_the_sync_goes_on(tmp_path):

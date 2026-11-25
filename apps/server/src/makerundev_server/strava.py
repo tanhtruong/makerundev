@@ -7,6 +7,7 @@ import httpx2
 from makerundev.io.strava import STREAM_KEYS
 
 from makerundev_server import config
+from makerundev_server.sync_errors import RateLimited, Refused, Unauthorized
 
 AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
 TOKEN_URL = "https://www.strava.com/oauth/token"
@@ -17,26 +18,6 @@ SCOPE = "activity:read_all"
 PAGE_SIZE = 100
 SHORT_RESERVE = 5
 DAILY_RESERVE = 20
-
-
-class StravaError(Exception):
-    pass
-
-
-class RateLimited(StravaError):
-    def __init__(self, daily: bool) -> None:
-        super().__init__("daily limit" if daily else "15-minute limit")
-        self.daily = daily
-
-
-class Unauthorized(StravaError):
-    pass
-
-
-class Refused(StravaError):
-    def __init__(self, status: int) -> None:
-        super().__init__(f"Strava answered {status}")
-        self.status = status
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +99,7 @@ class StravaClient:
         if response.status_code == 404:
             return None
         if 400 <= response.status_code < 500:
-            raise Refused(response.status_code)
+            raise Refused(f"Strava answered {response.status_code}")
         response.raise_for_status()
         body: dict[str, Any] = response.json()
         return body
@@ -144,9 +125,9 @@ class StravaClient:
             return
         short, daily = (left - (requests - 1) for left in self.remaining)
         if daily < DAILY_RESERVE:
-            raise RateLimited(daily=True)
+            raise RateLimited("paused_daily")
         if short < SHORT_RESERVE:
-            raise RateLimited(daily=False)
+            raise RateLimited("paused_short")
 
     def _get(self, access_token: str, path: str, params: dict[str, Any]) -> httpx2.Response:
         self.ensure(1)
@@ -155,7 +136,8 @@ class StravaClient:
         )
         self.remaining = _remaining(response.headers) or self.remaining
         if response.status_code == 429:
-            raise RateLimited(daily=self.remaining is not None and self.remaining[1] <= 0)
+            daily = self.remaining is not None and self.remaining[1] <= 0
+            raise RateLimited("paused_daily" if daily else "paused_short")
         if response.status_code == 401:
             raise Unauthorized("Strava rejected the access token")
         return response

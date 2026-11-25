@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from garmin_fake import KEY, FakeGarmin, app_with, sync
 from makerundev_server import create_app
 from makerundev_server.garmin import GarminClient
-from makerundev_server.garmin_sync import GarminSync
+from makerundev_server.garmin_sync import garmin_sync
 
 
 def put_key(client, key=KEY):
@@ -165,8 +165,8 @@ def test_removing_the_key_mid_sync_stops_it_and_keeps_imported_activities(
     removed = []
     fake.after_download = {"2": lambda: removed.append(client.delete("/api/garmin/key"))}
 
-    assert store.garmin.start_sync()
-    GarminSync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
+    assert store.garmin_state.start()
+    garmin_sync(store, GarminClient(httpx2.MockTransport(fake), pause=0.0)).run()
 
     assert fake.downloads == ["1", "2"]
     assert [response.json() for response in removed] == [{"key_saved": False, "sync": None}]

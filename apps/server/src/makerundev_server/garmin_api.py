@@ -7,9 +7,10 @@ from pydantic import BaseModel
 
 from makerundev_server import garmin
 from makerundev_server.api import Problem, operation_id
-from makerundev_server.garmin_sync import GarminSync
+from makerundev_server.garmin_sync import garmin_sync
 from makerundev_server.store import Store
 from makerundev_server.sync_api import SyncStatus, run_in_background, sync_status
+from makerundev_server.sync_errors import SyncError, Unauthorized
 
 KeyCheck = Literal["saved", "empty", "rejected", "unreachable"]
 
@@ -34,16 +35,16 @@ def save_key(store: Store, client: garmin.GarminClient, key: str) -> KeyCheck:
         return "empty"
     try:
         token = client.token(key)
-    except garmin.Unauthorized:
+    except Unauthorized:
         return "rejected"
-    except (garmin.GarminError, httpx2.HTTPError):
+    except (SyncError, httpx2.HTTPError):
         return "unreachable"
     store.garmin.save_key(key, token)
     return "saved"
 
 
 def begin_sync(app: FastAPI, store: Store, client: garmin.GarminClient) -> None:
-    run_in_background(app, "garmin_sync", store.garmin.start_sync, GarminSync(store, client).run)
+    run_in_background(app, "garmin_sync", store.garmin_state.start, garmin_sync(store, client).run)
 
 
 def router(store: Store, transport: httpx2.BaseTransport | None, pause: float) -> APIRouter:

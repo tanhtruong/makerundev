@@ -19,7 +19,8 @@ from makerundev_server import (
 from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import connect
 from makerundev_server.store import Store
-from makerundev_server.strava import SCOPE, StravaClient, StravaError
+from makerundev_server.strava import SCOPE, StravaClient
+from makerundev_server.sync_errors import SyncError
 from makerundev_server.training_load import Clock, TrainingLoad, system_clock
 
 HERE = Path(__file__).parent
@@ -75,7 +76,7 @@ def create_app(
             return to_strava("scope")
         try:
             tokens = client.exchange(code)
-        except (StravaError, httpx2.HTTPError, KeyError):
+        except (SyncError, httpx2.HTTPError, KeyError):
             return to_strava("failed")
         store.save_strava_tokens(tokens)
         return to_strava("connected")

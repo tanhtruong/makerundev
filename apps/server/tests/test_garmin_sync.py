@@ -1,12 +1,14 @@
 import datetime as dt
 import hashlib
 
-from garmin_fake import FakeGarmin, app_with, listing, run_start, save_key, sync
-from makerundev.io.strava import read_strava
+import httpx2
+import pytest
+from garmin_fake import FakeGarmin, app_with, listing, save_key, sync
 from makerundev_server import garmin
 from makerundev_server.garmin import Token
 from makerundev_server.strava import Tokens
-from strava_fake import FAR, streams, summary, upload
+from strava_fake import FAR, FakeStrava, summary, upload
+from strava_fake import sync as strava_sync
 
 
 def sha256(data: bytes) -> str:
@@ -56,9 +58,7 @@ def test_runs_already_here_are_not_downloaded_and_strava_only_ones_are_replaced(
     upload(client, "watch.fit", fake.fit(1, heart_rate=150))
     upload(client, "unnamed.fit", fake.fit(3, heart_rate=150))
     store.save_strava_tokens(Tokens("access", "refresh", FAR))
-    assert store.claim_strava(summary(8, 1), run_start(1), "backfill")
-    strava_run = summary(7, 2)
-    store.import_strava(strava_run, streams(), read_strava(strava_run, streams()))
+    assert strava_sync(store, FakeStrava([summary(8, 1), summary(7, 2)])) == "up_to_date"
     save_key(client)
 
     assert sync(store, fake) == "up_to_date"
@@ -208,6 +208,26 @@ def test_activities_that_cannot_be_imported_are_listed_and_not_downloaded_again(
     assert [a["filename"] for a in client.get("/api/activities").json()["items"]] == [
         "1_ACTIVITY.fit"
     ]
+
+
+@pytest.mark.parametrize(("status", "outcome"), [(401, "rejected"), (503, "unreachable")])
+def test_a_sync_garmin_turns_away_or_cannot_serve_stops_with_why(
+    tmp_path, make_fit, make_zip, status, outcome
+):
+    fake = FakeGarmin(make_fit, make_zip)
+    fake.run(1, 1)
+    client, store = app_with(tmp_path, fake)
+    save_key(client)
+
+    def answering(request: httpx2.Request) -> httpx2.Response:
+        if request.url.path.endswith("/search/activities"):
+            return httpx2.Response(status)
+        return fake(request)
+
+    assert sync(store, answering) == outcome
+
+    assert fake.downloads == []
+    assert client.get("/api/garmin").json()["sync"]["outcome"] == outcome
 
 
 def test_retry_after_is_read_as_seconds_or_as_a_date():
