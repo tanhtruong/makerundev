@@ -30,7 +30,7 @@ Comment on an issue before you start, so two people don't build the same thing. 
 
 ## Reporting a parsing bug
 
-The most useful report includes the file that fails. Activity files contain GPS tracks, so for a GPX or TCX file run `makerundev anonymize FILE OUTPUT` and attach the output: every position moves far away and the rest of the file stays byte for byte. For a FIT file, describe the device, firmware and export path so we can reproduce it with a generated file.
+The most useful report includes the file that fails. Activity files contain GPS tracks, so run `makerundev anonymize FILE OUTPUT` on the FIT, GPX or TCX file and attach the output: every position moves far away and the rest of the file stays byte for byte. The command lists what it could not check, such as unknown messages and developer fields in a FIT file; if you would rather not share those, describe the device, firmware and export path instead so we can reproduce it with a generated file.
 
 ## Changing a metric
 
