@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-25
+
 ### Added
 
 - The activity list is the first page of the new web app. Each run is a lane: a bar from a common start line shows its distance to scale against the longest run on the page, beside its date, name, sport, moving time, pace, average heart rate and climb. The list pages 50 activities at a time. Light and dark follow your system setting, it fits a phone screen, and every font and script is served by your own instance.
@@ -154,7 +156,8 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/tanhtruong/makerundev/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/tanhtruong/makerundev/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/tanhtruong/makerundev/compare/v0.4.0...v0.5.0
