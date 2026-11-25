@@ -6,6 +6,8 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-26
+
 ### Added
 
 - The activity page can draw the route over an interactive map you can pan and zoom. It is off until you pick a tile source in the new Map section of Settings: OpenStreetMap, OpenFreeMap (with a dark style in dark mode), your own raster tiles or a MapLibre style, with the attribution your provider asks for, or a local tile file: a Protomaps basemap `.pmtiles` extract you put in the data directory, which this instance serves itself, drawn with a bundled style, icons and font so that no request leaves it ([docs/map.md](docs/map.md) shows how to make one). Under the choice, the page says what the provider learns before you save, and a custom source or tile file is tried in your browser first, with **Save anyway** when that fails. Your browser loads tiles straight from the provider, and the app proxies nothing. With no source, without WebGL2, when a style cannot be loaded, or when the chosen tile file has left the data directory, the route shape shows as before. `GET`, `PUT` and `DELETE /api/map-source` read, pick and remove the source, `GET` lists the `.pmtiles` files in the data directory, and `PUT` takes the chosen one as `file`; `GET /tiles/{name}` serves it; [docs/map.md](docs/map.md) lists the addresses the server accepts. The source is stored in a new table (migration `0013`), added on startup as usual; back up the data directory first.
@@ -161,7 +163,8 @@ A change to a metric definition is always listed, with how results shift for exi
 - `pacelab-server`: a self-hosted web app to import files, list activities and see pace, heart-rate and elevation charts, with a read-only JSON API.
 - Docker image `ghcr.io/tanhtruong/pacelab-server`, keeping its data in a volume.
 
-[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/tanhtruong/makerundev/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/tanhtruong/makerundev/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/tanhtruong/makerundev/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/tanhtruong/makerundev/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/tanhtruong/makerundev/compare/v0.5.0...v0.6.0
