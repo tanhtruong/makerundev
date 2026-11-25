@@ -85,9 +85,9 @@ VDOT is the VO2max that would produce the effort at average running economy. A r
 
 **Stored best efforts** - The app keeps each activity's best efforts at the default distances, so the training load page does not read every stream. Activities stored before they were kept get them when the page next needs them. Any change to the default distances or to how best efforts are computed ships a migration that clears them, so they are worked out again.
 
-**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. Thresholds default to 60, 70, 80 and 90 % (the starts of zones 2 to 5). In the app they are percentages of max heart rate or of heart-rate reserve, as the zone model says; in the CLI, of max heart rate.
+**Heart-rate zone** - A heart-rate band bounded by user-chosen thresholds. A heart rate equal to a threshold belongs to the higher zone. Thresholds default to 60, 70, 80 and 90 % (the starts of zones 2 to 5). They are percentages of max heart rate or of heart-rate reserve, as the zone model says.
 
-**Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates.
+**Zone model** - How zone thresholds are expressed and turned into heart rates. The app has five zones and two models: `max_hr_percent`, where a zone starts at max × %, and `hr_reserve_percent` (Karvonen), where it starts at resting + (max − resting) × %. Changing the model keeps the thresholds as typed and moves their heart rates. In the CLI, `makerundev zones --model max|reserve` picks it; `reserve` needs `--resting-hr`.
 
 **Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, timezone and body mass, kept by the app. The timezone decides which local day an activity counts toward in training load. Body mass, in kilograms, is optional and feeds estimated power; like heart rate it is one current value, so changing it changes estimated power for every past run.
 

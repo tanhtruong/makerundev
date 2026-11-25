@@ -11,13 +11,9 @@ from makerundev.metrics import (
     BANISTER_MALE,
     BODY_MASS_RANGE_KG,
     DEFAULT_ZONE_THRESHOLDS,
+    ZoneModel,
+    zone_boundaries_bpm,
 )
-
-
-class ZoneModel(StrEnum):
-    MAX_HR_PERCENT = "max_hr_percent"
-    HR_RESERVE_PERCENT = "hr_reserve_percent"
-
 
 DEFAULT_ZONE_MODEL = ZoneModel.MAX_HR_PERCENT
 
@@ -67,10 +63,9 @@ class AthleteSettings:
         return COEFFICIENTS[self.trimp_coefficients]
 
     def zone_boundaries_bpm(self) -> list[float]:
-        floor, span = 0, self.max_hr
-        if self.zone_model is ZoneModel.HR_RESERVE_PERCENT:
-            floor, span = self.resting_hr, self.max_hr - self.resting_hr
-        return [floor + span * threshold / 100 for threshold in self.zone_thresholds]
+        return zone_boundaries_bpm(
+            self.zone_thresholds, self.zone_model, self.max_hr, self.resting_hr
+        )
 
     def trimp_inputs(self) -> tuple[int, int, TrimpCoefficients]:
         return self.max_hr, self.resting_hr, self.trimp_coefficients

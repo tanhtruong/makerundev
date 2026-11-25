@@ -2,6 +2,7 @@ import datetime as dt
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 import numpy as np
@@ -32,6 +33,11 @@ DEFAULT_ZONE_THRESHOLDS = (60.0, 70.0, 80.0, 90.0)
 DEFAULT_EFFORT_DISTANCES_M = (400.0, 1000.0, 1609.344, 3000.0, 5000.0, 10000.0, 21097.5, 42195.0)
 CRITICAL_SPEED_WINDOW_S = (120.0, 1200.0)
 VDOT_WINDOW_S = (180.0, 18000.0)
+
+
+class ZoneModel(StrEnum):
+    MAX_HR_PERCENT = "max_hr_percent"
+    HR_RESERVE_PERCENT = "hr_reserve_percent"
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,6 +329,15 @@ def splits(activity: Activity, every_m: float = 1000.0) -> list[Split]:
             )
         )
     return result
+
+
+def zone_boundaries_bpm(
+    thresholds_percent: Sequence[float], model: ZoneModel, max_hr: int, resting_hr: int
+) -> list[float]:
+    floor, span = 0, max_hr
+    if model is ZoneModel.HR_RESERVE_PERCENT:
+        floor, span = resting_hr, max_hr - resting_hr
+    return [floor + span * threshold / 100 for threshold in thresholds_percent]
 
 
 def time_in_zones(activity: Activity, boundaries_bpm: Sequence[float]) -> list[float]:

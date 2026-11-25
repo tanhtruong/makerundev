@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter
 from fastapi.exceptions import RequestValidationError
 from makerundev import format
-from makerundev.metrics import DEFAULT_ZONE_THRESHOLDS
+from makerundev.metrics import DEFAULT_ZONE_THRESHOLDS, ZoneModel
 from pydantic import BaseModel, Field
 
 from makerundev_server import settings as athlete
@@ -12,7 +12,6 @@ from makerundev_server.settings import (
     DEFAULT_ZONE_MODEL,
     ZONE_COUNT,
     TrimpCoefficients,
-    ZoneModel,
 )
 from makerundev_server.store import Store
 
