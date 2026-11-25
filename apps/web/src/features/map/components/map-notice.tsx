@@ -12,13 +12,23 @@ function hostOf(url: string): string | null {
 
 export function MapNotice({
   id,
+  local,
   preset,
   custom,
 }: {
   id: string;
+  local: boolean;
   preset: MapSource | null;
   custom: { kind: "custom_raster" | "custom_style"; url: string } | null;
 }) {
+  if (local) {
+    return (
+      <p id={id} className="max-w-[65ch] text-sm text-muted-foreground">
+        Map tiles are read from a file in this instance&apos;s data directory and served by this instance. Nothing is
+        sent to a third party. Place names in non-Latin scripts are drawn with your device&apos;s own font.
+      </p>
+    );
+  }
   const provider = preset?.provider ?? (custom ? hostOf(custom.url.trim()) : null) ?? "the tile server";
   if (preset === null && custom === null) {
     return (

@@ -5,8 +5,10 @@
  * OpenAPI spec version: pre-1.0
  */
 import type { MapSource } from "./map-source.gen";
+import type { MapTileFile } from "./map-tile-file.gen";
 
 export interface MapSourceView {
   source: MapSource | null;
   presets: MapSource[];
+  files: MapTileFile[];
 }

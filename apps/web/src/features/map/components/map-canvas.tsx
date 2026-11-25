@@ -12,6 +12,7 @@ import {
 import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 
+import { MapNote } from "@/features/map/components/map-note";
 import { prefersDark, routeColors, usePrefersDark } from "@/features/map/utils/color-scheme";
 import { escapeHtml } from "@/features/map/utils/escape-html";
 import { isRouteSource, rasterStyle, styleUrl, withRoute } from "@/features/map/utils/map-style";
@@ -25,10 +26,16 @@ type MapState = "loading" | "ready" | "tiles-failed" | "style-failed" | "unsuppo
 const MAX_ZOOM = 16;
 const PADDING = 32;
 
-function show(map: MapLibre, source: MapSource, dark: boolean, points: RoutePoint[]) {
+type Shown = { live: () => boolean; failed: () => void };
+
+function show(map: MapLibre, source: MapSource, dark: boolean, points: RoutePoint[], shown: Shown) {
   const colors = routeColors();
   const url = styleUrl(source, dark);
-  if (source.rendering === "raster") {
+  if (source.rendering === "pmtiles") {
+    import("@/features/map/utils/local-style").then(({ localStyle }) => {
+      if (shown.live()) map.setStyle(withRoute(localStyle(url, dark), points, colors));
+    }, shown.failed);
+  } else if (source.rendering === "raster") {
     map.setStyle(withRoute(rasterStyle(url, colors), points, colors));
   } else {
     map.setStyle(url, { transformStyle: (_, next) => withRoute(next, points, colors) });
@@ -86,6 +93,7 @@ export function MapCanvas({
     );
 
     let styleLoaded = false;
+    let loaded = false;
     let tileErrors = 0;
     let tilesLoaded = 0;
     created.on("style.load", () => {
@@ -94,7 +102,7 @@ export function MapCanvas({
     created.on("error", (event) => {
       if ("tile" in event && event.tile) {
         tileErrors += 1;
-      } else if (!styleLoaded) {
+      } else if (!styleLoaded || (!loaded && "sourceId" in event && !isRouteSource(String(event.sourceId)))) {
         setState("style-failed");
       }
     });
@@ -102,6 +110,7 @@ export function MapCanvas({
       if (event.tile !== undefined && !isRouteSource(event.sourceId)) tilesLoaded += 1;
     });
     created.once("load", () => {
+      loaded = true;
       setState((current) => (current === "loading" ? "ready" : current));
     });
     created.on("idle", () => {
@@ -110,7 +119,12 @@ export function MapCanvas({
 
     const initialDark = prefersDark();
     shownDark.current = initialDark;
-    show(created, source, initialDark, points);
+    show(created, source, initialDark, points, {
+      live: () => map.current === created,
+      failed: () => {
+        setState("style-failed");
+      },
+    });
 
     return () => {
       map.current = null;
@@ -122,11 +136,16 @@ export function MapCanvas({
     const current = map.current;
     if (!current || shownDark.current === dark) return;
     shownDark.current = dark;
-    show(current, source, dark, points);
+    show(current, source, dark, points, {
+      live: () => map.current === current,
+      failed: () => {
+        setState("style-failed");
+      },
+    });
   }, [dark, source, points]);
 
   const mapShown = state === "ready" || state === "tiles-failed";
-  const note = <TilesNote provider={source.provider} />;
+  const note = <MapNote>Map tiles could not be loaded from {source.provider}.</MapNote>;
 
   return (
     <div className="relative grid">
@@ -149,13 +168,5 @@ export function MapCanvas({
       )}
       {state === "style-failed" && note}
     </div>
-  );
-}
-
-function TilesNote({ provider }: { provider: string }) {
-  return (
-    <p className="absolute bottom-2 left-2 z-10 max-w-[calc(100%-1rem)] bg-background/90 px-2 py-1 text-sm">
-      Map tiles could not be loaded from {provider}.
-    </p>
   );
 }

@@ -88,6 +88,7 @@ def create_app(
     app.include_router(training_api.router(TrainingLoad(store, clock)))
     app.include_router(strava_api.router(store, strava_transport))
     app.include_router(garmin_api.router(store, garmin_transport, garmin_pause))
-    app.include_router(map_source_api.router(store))
+    app.include_router(map_source_api.router(store, root))
+    app.include_router(map_source_api.tiles(root))
     web.serve(app, web_dir or HERE / "web")
     return app

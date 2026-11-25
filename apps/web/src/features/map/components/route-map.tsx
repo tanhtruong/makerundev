@@ -1,5 +1,6 @@
 import { lazy, type ReactNode, Suspense } from "react";
 
+import { MapNote } from "@/features/map/components/map-note";
 import { useGetMapSource } from "@/lib/api/endpoints/map/map.gen";
 import type { RoutePoint } from "@/lib/api/model/route-point.gen";
 
@@ -16,6 +17,14 @@ export function RouteMap({ points, fallback }: { points: RoutePoint[]; fallback:
     return (
       <div data-testid="route-map" data-map={query.isPending ? "pending" : "none"} className="grid">
         {shape}
+      </div>
+    );
+  }
+  if (source.file_missing) {
+    return (
+      <div data-testid="route-map" data-map="file-missing" className="relative grid">
+        {shape}
+        <MapNote>The tile file {source.file} is not in the data directory.</MapNote>
       </div>
     );
   }

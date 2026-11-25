@@ -10,4 +10,5 @@ export type MapSourceRendering = (typeof MapSourceRendering)[keyof typeof MapSou
 export const MapSourceRendering = {
   raster: "raster",
   style: "style",
+  pmtiles: "pmtiles",
 } as const;

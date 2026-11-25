@@ -1750,7 +1750,8 @@
               "openstreetmap",
               "openfreemap",
               "custom_raster",
-              "custom_style"
+              "custom_style",
+              "pmtiles"
             ],
             "title": "Kind"
           },
@@ -1758,7 +1759,8 @@
             "type": "string",
             "enum": [
               "raster",
-              "style"
+              "style",
+              "pmtiles"
             ],
             "title": "Rendering"
           },
@@ -1806,6 +1808,21 @@
               }
             ],
             "title": "Privacy Url"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "file_missing": {
+            "type": "boolean",
+            "title": "File Missing"
           }
         },
         "type": "object",
@@ -1817,7 +1834,9 @@
           "attribution",
           "provider",
           "terms_url",
-          "privacy_url"
+          "privacy_url",
+          "file",
+          "file_missing"
         ],
         "title": "MapSource"
       },
@@ -1829,7 +1848,8 @@
               "openstreetmap",
               "openfreemap",
               "custom_raster",
-              "custom_style"
+              "custom_style",
+              "pmtiles"
             ],
             "title": "Kind"
           },
@@ -1854,6 +1874,17 @@
               }
             ],
             "title": "Attribution"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
           }
         },
         "type": "object",
@@ -1882,14 +1913,40 @@
             },
             "type": "array",
             "title": "Presets"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/MapTileFile"
+            },
+            "type": "array",
+            "title": "Files"
           }
         },
         "type": "object",
         "required": [
           "source",
-          "presets"
+          "presets",
+          "files"
         ],
         "title": "MapSourceView"
+      },
+      "MapTileFile": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "size_bytes"
+        ],
+        "title": "MapTileFile"
       },
       "Performance": {
         "properties": {

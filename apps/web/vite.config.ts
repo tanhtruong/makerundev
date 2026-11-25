@@ -11,17 +11,25 @@ import { SERVER_PATHS } from "./src/lib/server-pages";
 
 const SERVER = "http://127.0.0.1:8000";
 const FONTS = ["barlow", "barlow-semi-condensed", "barlow-condensed"];
+const MAP_LICENSES = {
+  "noto-sans.txt": "public/assets/map/fonts/OFL.txt",
+  "protomaps-sprites.txt": "public/assets/map/sprites/LICENSE.md",
+};
 
-function fontLicenses(): Plugin {
+function assetLicenses(): Plugin {
   return {
-    name: "font-licenses",
+    name: "asset-licenses",
     apply: "build",
     generateBundle() {
-      for (const font of FONTS) {
+      const sources: [string, string][] = [
+        ...FONTS.map((font): [string, string] => [`${font}.txt`, `node_modules/@fontsource/${font}/LICENSE`]),
+        ...Object.entries(MAP_LICENSES),
+      ];
+      for (const [name, source] of sources) {
         this.emitFile({
           type: "asset",
-          fileName: `licenses/${font}.txt`,
-          source: readFileSync(path.resolve(import.meta.dirname, "node_modules/@fontsource", font, "LICENSE")),
+          fileName: `licenses/${name}`,
+          source: readFileSync(path.resolve(import.meta.dirname, source)),
         });
       }
     },
@@ -39,7 +47,7 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
-    fontLicenses(),
+    assetLicenses(),
   ],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   build: {
