@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from makerundev.model import normalize_records
 from makerundev_server import create_app
 from makerundev_server.db import MIGRATIONS, Base, connect
+from makerundev_server.facts import FACTS_VERSION
 from sqlalchemy import create_engine
 
 SCHEMA_0_1_0 = """
@@ -65,8 +66,15 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
     stream = normalize_records([{"timestamp": dt.datetime(2026, 2, 1, 6, 30, tzinfo=dt.UTC)}])
     stream.write_parquet(tmp_path / "streams" / "ab.parquet")
 
+    connect(tmp_path)
+    with sqlite3.connect(tmp_path / "pacelab.db") as db:
+        assert db.execute("SELECT facts_version, laps FROM activities").fetchall() == [(0, None)]
+
     client = TestClient(create_app(data_dir=tmp_path))
 
+    with sqlite3.connect(tmp_path / "pacelab.db") as db:
+        caught_up = db.execute("SELECT facts_version, laps FROM activities").fetchall()
+    assert caught_up == [(FACTS_VERSION, "[]")]
     activities = client.get("/api/activities").json()["items"]
     assert [(a["filename"], a["start_time"]) for a in activities] == [
         ("old.fit", "2026-02-01T06:30:00Z")
@@ -79,8 +87,6 @@ def test_database_from_before_migrations_upgrades_and_keeps_its_activities(tmp_p
     assert identity == [("ab", "ab", None, None)]
     assert len(client.get(f"/api/activities/{activities[0]['id']}/records").json()) == 1
     assert client.get(f"/api/activities/{activities[0]['id']}").status_code == 200
-    with sqlite3.connect(tmp_path / "pacelab.db") as db:
-        assert db.execute("SELECT laps FROM activities").fetchall() == [("[]",)]
     duplicate = (
         "INSERT INTO activities (sha256, storage_key, filename, source_format, sport,"
         " start_time, distance_m, elapsed_s, moving_s, elevation_gain_m, imported_at)"

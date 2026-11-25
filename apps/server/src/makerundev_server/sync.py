@@ -107,7 +107,8 @@ class StravaSync:
         except ActivityFileError as error:
             self.store.skip_strava(summary, start, str(error), phase)
             return
-        self.store.add_strava(kept, streams, activity, phase)
+        self.store.import_strava(kept, streams, activity)
+        self.store.record_strava_import(start, phase)
 
     def _laps(self) -> None:
         for row_id, strava_id in self.store.strava_without_laps():

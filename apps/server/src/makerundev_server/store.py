@@ -2,19 +2,15 @@ import datetime as dt
 import gzip
 import hashlib
 import json
-import logging
-import os
 import threading
-import uuid
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import polars as pl
-from makerundev import Activity, ActivityFileError, Lap, Sport, load
+from makerundev import Activity, Lap, load
 from makerundev.io import unzip
-from makerundev.metrics import Summary, ZoneModel, summarize, trimp
+from makerundev.metrics import ZoneModel, summarize
 from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -29,10 +25,11 @@ from makerundev_server.db import (
     SyncState,
     activity_name,
 )
+from makerundev_server.facts import Refreshed, StoredFacts
 from makerundev_server.garmin_store import GarminStore
 from makerundev_server.listing import ActivityFilter, ActivitySort, conditions, ordering
 from makerundev_server.matching import file_match, synced_match
-from makerundev_server.performance_store import PerformanceStore, stored_efforts
+from makerundev_server.performance_store import PerformanceStore
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients
 from makerundev_server.strava import Tokens, Unauthorized
 from makerundev_server.sync_state import (
@@ -46,9 +43,6 @@ from makerundev_server.sync_state import (
 )
 
 SETTINGS_ID = 1
-RUNNING_DYNAMICS = ("ground_contact_time", "vertical_oscillation", "step_length")
-
-log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,22 +51,17 @@ class ImportResult:
     created: bool
 
 
-@dataclass(frozen=True, slots=True)
-class SaveResult:
-    recomputed: int
-    unreadable: int
-
-
 class Store:
     def __init__(self, data_dir: Path, engine: Engine) -> None:
         self.engine = engine
         self.writing = threading.Lock()
-        self.originals = data_dir / "originals"
-        self.streams = data_dir / "streams"
-        self.originals.mkdir(parents=True, exist_ok=True)
-        self.streams.mkdir(parents=True, exist_ok=True)
+        self.facts = StoredFacts(data_dir)
         self.garmin = GarminStore(engine, self.writing)
-        self.performance = PerformanceStore(engine, self.writing, self.activity)
+        self.performance = PerformanceStore(engine, self.writing)
+
+    def catch_up(self) -> int:
+        with self.writing:
+            return self.facts.catch_up(self.engine, self.athlete_settings())
 
     def import_file(self, filename: str, data: bytes, name: str | None = None) -> ImportResult:
         entry = unzip(data)
@@ -84,23 +73,19 @@ class Store:
             if existing is not None:
                 return ImportResult(existing, created=False)
             activity = load(data)
-            summary = summarize(activity)
             basename = Path(filename).name[:255] or "upload"
-            synced = synced_match(session, basename, activity.start_time, summary.distance_m)
+            distance_m = summarize(activity).distance_m
+            synced = synced_match(session, basename, activity.start_time, distance_m)
             replaced = synced.storage_key if synced is not None else None
             row = synced if synced is not None else ActivityRow()
             row.sha256 = digest
             row.storage_key = digest
             row.filename = basename
             row.name = row.name or activity_name(name) or activity_name(activity.name)
-            _describe(row, activity, summary, _settings(session))
-            session.add(row)
-            session.flush()
-            (self.originals / digest).write_bytes(data)
-            activity.records.write_parquet(self.streams / f"{digest}.parquet")
+            self.facts.write(session, row, activity, data, _settings(session))
             session.commit()
             if replaced is not None:
-                self._remove_files(replaced)
+                self.facts.remove(replaced)
             return ImportResult(row.id, created=True)
 
     def list(self) -> list[ActivityRow]:
@@ -128,66 +113,6 @@ class Store:
         with Session(self.engine) as session:
             return session.get(ActivityRow, activity_id)
 
-    def records(self, row: ActivityRow) -> pl.DataFrame:
-        path = self.streams / f"{row.storage_key}.parquet"
-        records = pl.read_parquet(path)
-        if row.source_format != "fit" or set(RUNNING_DYNAMICS) <= set(records.columns):
-            return records
-        records = records.with_columns(self._original_dynamics(row, records))
-        try:
-            _replace_parquet(records, path)
-        except OSError as error:
-            log.warning("cannot store the running dynamics of activity %s: %s", row.id, error)
-        return records
-
-    def _original_dynamics(self, row: ActivityRow, stored: pl.DataFrame) -> tuple[pl.Series, ...]:
-        try:
-            parsed = load(self.originals / row.storage_key).records
-        except (OSError, ActivityFileError) as error:
-            log.warning("cannot read the running dynamics of activity %s: %s", row.id, error)
-        else:
-            if parsed.height == stored.height and parsed["timestamp"].equals(stored["timestamp"]):
-                return tuple(parsed[name].cast(pl.Float64) for name in RUNNING_DYNAMICS)
-            log.warning(
-                "the original of activity %s no longer matches its stream; "
-                "running dynamics left empty",
-                row.id,
-            )
-        return tuple(
-            pl.Series(name, [None] * stored.height, pl.Float64) for name in RUNNING_DYNAMICS
-        )
-
-    def activity(self, row: ActivityRow) -> Activity:
-        return Activity(
-            sport=Sport(row.sport),
-            start_time=row.start_time,
-            records=self.records(row),
-            laps=_decode_laps(row.laps or []),
-        )
-
-    def laps(self, row: ActivityRow) -> tuple[Lap, ...]:
-        if row.laps is not None:
-            return _decode_laps(row.laps)
-        if row.sha256 is None:
-            return ()
-        with self.writing, Session(self.engine) as session:
-            stored = session.get(ActivityRow, row.id)
-            if stored is None:
-                return ()
-            if stored.laps is None:
-                stored.laps = _encode_laps(self._original_laps(stored))
-                session.commit()
-            return _decode_laps(stored.laps)
-
-    def _original_laps(self, row: ActivityRow) -> tuple[Lap, ...]:
-        if row.sha256 is None:
-            return ()
-        try:
-            return load(self.originals / row.storage_key).laps
-        except (OSError, ActivityFileError) as error:
-            log.warning("cannot read the laps of activity %s: %s", row.id, error)
-            return ()
-
     def highest_heart_rate(self) -> float | None:
         with Session(self.engine) as session:
             return session.scalar(select(func.max(ActivityRow.max_heart_rate)))
@@ -196,21 +121,12 @@ class Store:
         with Session(self.engine) as session:
             return _settings(session)
 
-    def save_athlete_settings(self, settings: AthleteSettings) -> SaveResult:
+    def save_athlete_settings(self, settings: AthleteSettings) -> Refreshed:
         with self.writing, Session(self.engine) as session:
             previous = _settings(session)
-            recomputed = unreadable = 0
+            refreshed = Refreshed(recomputed=0, unreadable=0)
             if previous is None or previous.trimp_inputs() != settings.trimp_inputs():
-                for row in session.scalars(select(ActivityRow)):
-                    try:
-                        activity = self.activity(row)
-                    except (OSError, pl.exceptions.PolarsError) as error:
-                        log.warning("cannot read the stream of activity %s: %s", row.id, error)
-                        row.trimp = None
-                        unreadable += 1
-                        continue
-                    row.trimp = _trimp(activity, settings)
-                    recomputed += 1
+                refreshed = self.facts.refresh_trimp(session, settings)
             session.merge(
                 AthleteSettingsRow(
                     id=SETTINGS_ID,
@@ -224,7 +140,7 @@ class Store:
                 )
             )
             session.commit()
-            return SaveResult(recomputed=recomputed, unreadable=unreadable)
+            return refreshed
 
     def strava_connection(self) -> StravaConnectionRow | None:
         with Session(self.engine) as session:
@@ -300,33 +216,36 @@ class Store:
             session.commit()
             return True
 
-    def add_strava(
-        self,
-        summary: Mapping[str, Any],
-        streams: Mapping[str, Any],
-        activity: Activity,
-        phase: Phase,
-    ) -> None:
+    def import_strava(
+        self, summary: Mapping[str, Any], streams: Mapping[str, Any], activity: Activity
+    ) -> ImportResult:
         strava_id = str(summary["id"])
-        key = f"strava-{strava_id}"
         original = gzip.compress(json.dumps({"activity": summary, "streams": streams}).encode())
-        described = summarize(activity)
         with self.writing, Session(self.engine) as session:
+            _connected(session)
+            existing = session.scalar(
+                select(ActivityRow.id).where(
+                    ActivityRow.external_source == STRAVA, ActivityRow.external_id == strava_id
+                )
+            )
+            if existing is not None:
+                return ImportResult(existing, created=False)
             row = ActivityRow(
-                storage_key=key,
+                storage_key=f"strava-{strava_id}",
                 external_source=STRAVA,
                 external_id=strava_id,
                 filename=str(summary.get("name") or "Strava activity")[:255],
                 name=activity_name(activity.name),
             )
-            _describe(row, activity, described, _settings(session))
+            self.facts.write(session, row, activity, original, _settings(session))
+            session.commit()
+            return ImportResult(row.id, created=True)
+
+    def record_strava_import(self, start: dt.datetime, phase: Phase) -> None:
+        with self.writing, Session(self.engine) as session:
             connection = _connected(session)
-            session.add(row)
             connection.imported += 1
-            advance(connection, phase, activity.start_time)
-            session.flush()
-            (self.originals / key).write_bytes(original)
-            activity.records.write_parquet(self.streams / f"{key}.parquet")
+            advance(connection, phase, start)
             session.commit()
 
     def strava_without_laps(self) -> tuple[tuple[int, str], ...]:
@@ -348,19 +267,8 @@ class Store:
             row = session.get(ActivityRow, row_id)
             if row is None or row.laps is not None:
                 return
-            if listed is not None:
-                self._keep_strava_laps(row, listed)
-            row.laps = _encode_laps(laps)
+            self.facts.keep_strava_laps(row, listed, laps)
             session.commit()
-
-    def _keep_strava_laps(self, row: ActivityRow, listed: Any) -> None:
-        path = self.originals / row.storage_key
-        try:
-            original = json.loads(gzip.decompress(path.read_bytes()))
-            original["activity"]["laps"] = listed
-            _replace_bytes(gzip.compress(json.dumps(original).encode()), path)
-        except (OSError, ValueError) as error:
-            log.warning("cannot store the laps of activity %s in its original: %s", row.id, error)
 
     def skip_strava(
         self, summary: Mapping[str, Any], start: dt.datetime, reason: str, phase: Phase
@@ -388,71 +296,8 @@ class Store:
                 session.delete(connection)
             session.commit()
             for key in removed:
-                self._remove_files(key)
+                self.facts.remove(key)
             return len(removed)
-
-    def _remove_files(self, storage_key: str) -> None:
-        (self.originals / storage_key).unlink(missing_ok=True)
-        (self.streams / f"{storage_key}.parquet").unlink(missing_ok=True)
-
-
-def _describe(
-    row: ActivityRow, activity: Activity, summary: Summary, settings: AthleteSettings | None
-) -> None:
-    row.source_format = activity.source_format
-    row.sport = activity.sport.value
-    row.device = activity.device
-    row.start_time = activity.start_time
-    row.distance_m = summary.distance_m
-    row.elapsed_s = summary.elapsed_s
-    row.moving_s = summary.moving_s
-    row.pace_s_per_km = summary.pace_s_per_km
-    row.avg_heart_rate = summary.avg_heart_rate
-    row.max_heart_rate = summary.max_heart_rate
-    row.elevation_gain_m = summary.elevation_gain_m
-    row.trimp = _trimp(activity, settings) if settings else None
-    row.laps = _encode_laps(activity.laps)
-    row.best_efforts = stored_efforts(activity)
-
-
-def _replace_parquet(records: pl.DataFrame, path: Path) -> None:
-    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        records.write_parquet(temporary)
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
-def _replace_bytes(data: bytes, path: Path) -> None:
-    temporary = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
-    try:
-        temporary.write_bytes(data)
-        os.replace(temporary, path)
-    finally:
-        temporary.unlink(missing_ok=True)
-
-
-def _encode_laps(laps: tuple[Lap, ...]) -> list[dict[str, Any]]:
-    return [
-        {
-            "start_time": lap.start_time.isoformat(),
-            "elapsed_s": lap.elapsed_s,
-            "distance_m": lap.distance_m,
-        }
-        for lap in laps
-    ]
-
-
-def _decode_laps(stored: list[dict[str, Any]]) -> tuple[Lap, ...]:
-    return tuple(
-        Lap(
-            start_time=dt.datetime.fromisoformat(lap["start_time"]),
-            elapsed_s=lap["elapsed_s"],
-            distance_m=lap["distance_m"],
-        )
-        for lap in stored
-    )
 
 
 def _connection(session: Session) -> StravaConnectionRow:
@@ -485,7 +330,3 @@ def _settings(session: Session) -> AthleteSettings | None:
         zone_thresholds=tuple(row.zone_thresholds),
         body_mass_kg=row.body_mass_kg,
     )
-
-
-def _trimp(activity: Activity, settings: AthleteSettings) -> float | None:
-    return trimp(activity, settings.resting_hr, settings.max_hr, settings.coefficients)

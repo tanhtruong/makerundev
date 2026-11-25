@@ -1,5 +1,4 @@
 import datetime as dt
-import sqlite3
 from typing import Any
 
 import pytest
@@ -285,18 +284,6 @@ def test_a_sport_that_does_not_count_cannot_be_excluded(tmp_path, make_fit):
         {"detail": "activity does not count towards performance"},
     )
     assert client.get(f"/api/activities/{ride}").json()["excluded_from_performance"] is False
-
-
-def test_an_activity_stored_without_efforts_gets_them_when_training_load_is_read(
-    tmp_path, make_fit, march_10
-):
-    client = client_with(tmp_path, ("reps.fit", steady(make_fit, 1000, 200, 3)))
-    with sqlite3.connect(tmp_path / "makerundev.db") as database:
-        database.execute("UPDATE activities SET best_efforts = NULL")
-
-    found = performance(client)
-    assert found["vdot"] == pytest.approx(52.2, abs=0.05)
-    assert found["vdot_effort"] == effort(ids(client)["reps.fit"], "reps.fit", 3, 1000.0, 200.0)
 
 
 def test_daily_load_is_bucketed_by_local_date_and_runs_through_today():

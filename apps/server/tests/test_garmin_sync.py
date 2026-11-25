@@ -58,7 +58,7 @@ def test_runs_already_here_are_not_downloaded_and_strava_only_ones_are_replaced(
     store.save_strava_tokens(Tokens("access", "refresh", FAR))
     assert store.claim_strava(summary(8, 1), run_start(1), "backfill")
     strava_run = summary(7, 2)
-    store.add_strava(strava_run, streams(), read_strava(strava_run, streams()), "backfill")
+    store.import_strava(strava_run, streams(), read_strava(strava_run, streams()))
     save_key(client)
 
     assert sync(store, fake) == "up_to_date"

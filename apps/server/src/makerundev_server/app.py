@@ -35,6 +35,7 @@ def create_app(
     root.mkdir(parents=True, exist_ok=True)
     store = Store(root, connect(root))
     store.reset_syncs()
+    store.catch_up()
 
     app = FastAPI(title="makerundev", version="pre-1.0")
     pages = APIRouter(include_in_schema=False)
