@@ -6,6 +6,7 @@ from typing import Annotated, NoReturn
 import typer
 
 from makerundev import format
+from makerundev.analysis import analyse
 from makerundev.errors import ActivityFileError
 from makerundev.io import anonymize, load
 from makerundev.metrics import (
@@ -14,12 +15,8 @@ from makerundev.metrics import (
     BODY_MASS_RANGE_KG,
     DEFAULT_ZONE_THRESHOLDS,
     ZoneModel,
-    aerobic_decoupling,
     best_efforts,
-    estimated_power,
     splits,
-    summarize,
-    time_in_zones,
     trimp,
     zone_boundaries_bpm,
 )
@@ -92,7 +89,8 @@ def summary(
             typer.echo(f"{path}: {error}", err=True)
             failed = True
             continue
-        result = summarize(activity)
+        analysis = analyse(activity, body_mass_kg=body_mass)
+        result = analysis.summary
         heart_rate = f"{result.avg_heart_rate:.0f} bpm" if result.avg_heart_rate else "-"
         line = (
             f"{path.name}  {activity.start_time:%Y-%m-%d %H:%M}  {activity.sport.value}  "
@@ -103,10 +101,10 @@ def summary(
         if long:
             line += (
                 f"  GAP {format.pace(result.grade_adjusted_pace_s_per_km, units)}"
-                f"  decoupling {format.decoupling(aerobic_decoupling(activity))}"
+                f"  decoupling {format.decoupling(analysis.aerobic_decoupling_percent)}"
             )
             if body_mass is not None:
-                line += f"  est. power {format.power(estimated_power(activity, body_mass))}"
+                line += f"  est. power {format.power(analysis.estimated_power_w)}"
         typer.echo(line)
     if failed:
         raise typer.Exit(1)
@@ -182,16 +180,17 @@ def zones(
     boundaries = zone_boundaries_bpm(
         _thresholds(thresholds), ZONE_MODELS[model], max_hr, resting_hr or 0
     )
-    seconds = time_in_zones(_load_heart_rate(file), boundaries)
-    total = sum(seconds)
+    zone_times = analyse(_load(file), zone_boundaries_bpm=boundaries).zones
+    if zone_times is None:
+        _no_heart_rate(file)
     rows = [
         (
-            f"Zone {zone + 1}",
-            format.zone_range(zone, boundaries),
-            format.duration(time),
-            f"{time / total * 100 if total else 0:.0f}%",
+            f"Zone {zone.number}",
+            format.zone_range(zone.number - 1, boundaries),
+            format.duration(zone.seconds),
+            f"{zone.share * 100:.0f}%",
         )
-        for zone, time in enumerate(seconds)
+        for zone in zone_times
     ]
     widths = [max(len(row[column]) for row in rows) for column in range(4)]
     for name, bpm, time, share in rows:
@@ -209,7 +208,10 @@ def trimp_command(
 ) -> None:
     _require_resting_below_max(resting_hr, max_hr)
     coefficients = BANISTER_FEMALE if female else BANISTER_MALE
-    typer.echo(f"{trimp(_load_heart_rate(file), resting_hr, max_hr, coefficients):.0f}")
+    score = trimp(_load(file), resting_hr, max_hr, coefficients)
+    if score is None:
+        _no_heart_rate(file)
+    typer.echo(f"{score:.0f}")
 
 
 @app.command(help="Write the normalised record stream to .csv or .parquet.")
@@ -256,12 +258,9 @@ def _fail(path: Path, error: ActivityFileError) -> NoReturn:
     raise typer.Exit(1) from error
 
 
-def _load_heart_rate(path: Path) -> Activity:
-    activity = _load(path)
-    if activity.records["heart_rate"].is_null().all():
-        typer.echo(f"{path}: no heart rate data", err=True)
-        raise typer.Exit(1)
-    return activity
+def _no_heart_rate(path: Path) -> NoReturn:
+    typer.echo(f"{path}: no heart rate data", err=True)
+    raise typer.Exit(1)
 
 
 def _require_resting_below_max(resting_hr: int, max_hr: int) -> None:

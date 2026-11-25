@@ -8,10 +8,11 @@ pip install makerundev
 
 ```python
 from makerundev import load
-from makerundev.metrics import best_efforts, splits, summarize
+from makerundev.analysis import analyse
+from makerundev.metrics import best_efforts, splits
 
 activity = load("morning.fit")
-print(summarize(activity))
+print(analyse(activity, body_mass_kg=68, max_hr=188, resting_hr=48))
 print(best_efforts(activity))
 print(splits(activity))
 ```

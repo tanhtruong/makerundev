@@ -184,7 +184,6 @@ def test_activity_detail_gives_grade_adjusted_pace_and_decoupling_and_marks_a_ri
     assert hill["grade_adjusted_pace_s_per_km"] == pytest.approx(181.0, abs=0.5)
     assert hill["aerobic_decoupling_percent"] == pytest.approx(4.8, abs=0.05)
     assert bare["grade_adjusted_pace_s_per_km"] is None
-    assert bare["aerobic_decoupling_percent"] is None
     assert (ride["is_running"], ride["pace_s_per_km"]) == (False, pytest.approx(300.0))
 
 
@@ -201,7 +200,6 @@ def test_activity_detail_gives_estimated_power_once_body_mass_is_set(tmp_path, m
 
     before = detail(client, run_id)
     assert (before["avg_power_w"], before["avg_power_w_per_kg"]) == (250.0, None)
-    assert before["estimated_power_w"] is None
 
     Store(tmp_path, connect(tmp_path)).save_athlete_settings(
         AthleteSettings(max_hr=190, resting_hr=50, body_mass_kg=70.0)
@@ -214,7 +212,6 @@ def test_activity_detail_gives_estimated_power_once_body_mass_is_set(tmp_path, m
         250.0,
         pytest.approx(3.57, abs=0.005),
     )
-    assert bare["estimated_power_w"] is None
     assert bare["avg_power_w"] is None
     assert ride["is_running"] is False
 

@@ -203,15 +203,13 @@ pip install makerundev
 
 ```python
 from makerundev import load
+from makerundev.analysis import analyse
 from makerundev.metrics import (
-    aerobic_decoupling,
     best_efforts,
     grade_adjusted_pace,
     splits,
     summarize,
-    time_in_zones,
     training_load,
-    trimp,
 )
 
 # FIT, GPX or TCX, plain, .gz, or a .zip holding one of them
@@ -227,12 +225,16 @@ grade_adjusted_pace(activity)
 best_efforts(activity)
 # [Split(distance_m=1000.0, elapsed_s=312.0, moving_s=312.0, pace_s_per_km=312.0), ...]
 splits(activity)
-# seconds per zone: [15.0, 45.0, 1000.0, 4395.0, 0.0]
-time_in_zones(activity, [113, 132, 150, 169])
-# 180.6
-trimp(activity, resting_hr=48, max_hr=188)
-# 3.8 (%)
-aerobic_decoupling(activity)
+# Analysis(summary=Summary(...), aerobic_decoupling_percent=3.8, estimated_power_w=241.5,
+#   zones=(ZoneTime(number=1, seconds=15.0, share=0.003), ...), trimp=180.6)
+# each number is None when its input or data is missing
+analyse(
+    activity,
+    body_mass_kg=68,
+    max_hr=188,
+    resting_hr=48,
+    zone_boundaries_bpm=[113, 132, 150, 169],
+)
 
 # {date: TRIMP} in, polars DataFrame out:
 # date, load, fitness, fatigue and form for every day
