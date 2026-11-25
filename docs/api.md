@@ -6,7 +6,7 @@ Every route under `/api` follows these rules, so that the React app's client can
 
 - Every route has a Pydantic response model, declared as the function's return type.
 - Its operation id is the function's name in camelCase: `list_activities` becomes `listActivities`. The router's `generate_unique_id_function` does this, so name the function for what the client will call.
-- It has one tag, the front-end feature it serves: `activities`, `training-load`, `settings`, `strava` or `garmin`.
+- It has one tag, the front-end feature it serves: `activities`, `training-load`, `settings`, `strava`, `garmin` or `map`.
 - It declares every error response it can return with `responses=`, with the `Problem` model for a `detail` error.
 - Server-rendered pages are kept out of the schema (`include_in_schema=False`) until they are removed.
 

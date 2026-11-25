@@ -28,7 +28,7 @@ test("saving settings shows the API's field errors, then recomputes TRIMP and ke
   await page.getByLabel("Zone 4 starts at").fill("65");
   await page.getByLabel("Body mass").fill("68.5");
   await page.getByLabel("Timezone").fill("Europe/Copenhagen");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
 
   await expect(page.getByRole("alert")).toHaveText("Some values need fixing. Nothing was saved.");
   await expect(page.getByLabel("Zone 4 starts at")).toHaveAccessibleDescription(
@@ -36,7 +36,7 @@ test("saving settings shows the API's field errors, then recomputes TRIMP and ke
   );
 
   await page.getByLabel("Zone 4 starts at").fill("80");
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
 
   await expect(page.getByRole("status")).toHaveText("Settings saved. TRIMP recomputed for 1 activity.");
   await expect(page.getByRole("alert")).toHaveCount(0);

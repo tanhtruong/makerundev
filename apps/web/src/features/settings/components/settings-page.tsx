@@ -1,9 +1,11 @@
+import type { ReactNode } from "react";
+
 import { Page, PageHeading } from "@/components/layouts/page";
 import { LoadError } from "@/components/load-error";
 import { SettingsForm } from "@/features/settings/components/settings-form";
 import { useGetSettings } from "@/lib/api/endpoints/settings/settings.gen";
 
-export function SettingsPage() {
+export function SettingsPage({ children }: { children?: ReactNode }) {
   const query = useGetSettings();
 
   return (
@@ -19,6 +21,7 @@ export function SettingsPage() {
       ) : (
         <SettingsForm view={query.data} />
       )}
+      {children}
     </Page>
   );
 }

@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Added
+
+- The activity page can draw the route over an interactive map you can pan and zoom. It is off until you pick a tile source in the new Map section of Settings: OpenStreetMap, OpenFreeMap (with a dark style in dark mode), your own raster tiles or a MapLibre style, with the attribution your provider asks for. Under the choice, the page says what the provider learns before you save, and a custom source is tried in your browser first, with **Save anyway** when that fails. Your browser loads tiles straight from the provider, and the app proxies nothing. With no source, without WebGL2, or when a style cannot be loaded, the route shape shows as before. `GET`, `PUT` and `DELETE /api/map-source` read, pick and remove the source; [docs/map.md](docs/map.md) lists the addresses the server accepts. The source is stored in a new table (migration `0013`), added on startup as usual; back up the data directory first.
+
 ## [0.8.0] - 2026-11-25
 
 ### Added

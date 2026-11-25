@@ -36,10 +36,10 @@ Inside `apps/web`, `pnpm generate` regenerates the API client and `pnpm format` 
 The layout follows Bulletproof React, and ESLint enforces it:
 
 - `src/app` holds the providers, the router and the routes (TanStack Router, file-based, in `src/app/routes`).
-- `src/features/<feature>` holds one feature's components and helpers. The features are `activities`, `training-load`, `settings`, `strava` and `garmin`, matching the API tags.
+- `src/features/<feature>` holds one feature's components and helpers. The features are `activities`, `training-load`, `settings`, `strava`, `garmin` and `map`, matching the API tags.
 - `src/components`, `src/lib` and `src/testing` are shared code, and so are `src/hooks`, `src/types` and `src/utils` once something needs them. `src/components/layouts/page.tsx` gives every page its width, padding and heading.
 
-Imports flow from shared code to features to the app. A feature never imports another feature, and shared code never imports a feature or the app. File and folder names are kebab-case, imports use `@/` rather than `../`, and there are no `index.ts` barrel files.
+Imports flow from shared code to features to the app. A feature never imports another feature, and shared code never imports a feature or the app. Where a page joins two features, its route file composes them: the settings route puts `map`'s section under the settings form, and the activity route passes `map`'s `RouteMap` to `ActivityDetail` through its `route` prop. File and folder names are kebab-case, imports use `@/` rather than `../`, and there are no `index.ts` barrel files.
 
 ## The API client
 
@@ -49,7 +49,7 @@ The client only draws. Every derived number comes from the API. The client forma
 
 ## Components and theme
 
-shadcn components live in `src/components/ui` as our own code. Add one only when a page uses it, and strip its comments. The theme's tokens are in `src/styles/globals.css`, and `DESIGN.md` at the repository root describes the visual system. Light and dark follow the system setting. Fonts are bundled from `@fontsource`. The app makes no request to any other host.
+shadcn components live in `src/components/ui` as our own code. Add one only when a page uses it, and strip its comments. The theme's tokens are in `src/styles/globals.css`, and `DESIGN.md` at the repository root describes the visual system. Light and dark follow the system setting. Fonts are bundled from `@fontsource`. The app makes no request to any other host, except for map tiles from the source the owner picks in Settings ([docs/map.md](map.md)).
 
 ## Tests
 

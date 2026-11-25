@@ -706,6 +706,85 @@
           }
         }
       }
+    },
+    "/api/map-source": {
+      "get": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Get Map Source",
+        "operationId": "getMapSource",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapSourceView"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Save Map Source",
+        "operationId": "saveMapSource",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MapSourceChoice"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapSourceView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "map"
+        ],
+        "summary": "Remove Map Source",
+        "operationId": "removeMapSource",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapSourceView"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1662,6 +1741,155 @@
           "form"
         ],
         "title": "LoadWeek"
+      },
+      "MapSource": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "openstreetmap",
+              "openfreemap",
+              "custom_raster",
+              "custom_style"
+            ],
+            "title": "Kind"
+          },
+          "rendering": {
+            "type": "string",
+            "enum": [
+              "raster",
+              "style"
+            ],
+            "title": "Rendering"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "dark_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dark Url"
+          },
+          "attribution": {
+            "type": "string",
+            "title": "Attribution"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "terms_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Url"
+          },
+          "privacy_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "rendering",
+          "url",
+          "dark_url",
+          "attribution",
+          "provider",
+          "terms_url",
+          "privacy_url"
+        ],
+        "title": "MapSource"
+      },
+      "MapSourceChoice": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "openstreetmap",
+              "openfreemap",
+              "custom_raster",
+              "custom_style"
+            ],
+            "title": "Kind"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attribution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "url",
+          "attribution"
+        ],
+        "title": "MapSourceChoice"
+      },
+      "MapSourceView": {
+        "properties": {
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MapSource"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "presets": {
+            "items": {
+              "$ref": "#/components/schemas/MapSource"
+            },
+            "type": "array",
+            "title": "Presets"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "presets"
+        ],
+        "title": "MapSourceView"
       },
       "Performance": {
         "properties": {

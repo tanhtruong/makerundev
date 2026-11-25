@@ -177,6 +177,10 @@ Garmin sync uses a Personal API key that you create for your own account, so you
 
 Each activity comes in as the original file your watch recorded, as if you had uploaded it, with laps and running dynamics. A sync takes about a second per activity, so a long history takes a few minutes, and the next sync picks up where the last one stopped. Activities you already have, from a file or a Garmin export, are not downloaded again. When the key expires, the page says so; create a new one and paste it in. The [server README](apps/server/README.md#garmin-sync) has the details.
 
+### Show the route on a map
+
+The activity page draws the route as a shape and asks no other host for anything. To draw it over a map, pick a tile source under **Settings → Map**: OpenStreetMap, OpenFreeMap, or your own raster tiles or MapLibre style. Your browser then loads tiles straight from that provider, which sees your IP address and roughly where you ran; the settings page says so before you save. [docs/map.md](docs/map.md) has the details.
+
 ## What it measures
 
 | Metric | What it tells you |
@@ -282,6 +286,7 @@ Bug reports, file-format edge cases, metric ideas and code are all welcome. The 
 - [Architecture decisions](docs/adr) - why things are the way they are
 - [Server README](apps/server/README.md) - configuration, data, routes and migrations
 - [The web app](docs/frontend.md) - the React app, its commands and structure
+- [The map](docs/map.md) - tile sources, what a provider sees, and the addresses the server accepts
 - [Changelog](CHANGELOG.md) - what changed in each release
 
 ## License

@@ -25,6 +25,7 @@ from makerundev_server.db import (
 from makerundev_server.facts import Refreshed, StoredFacts
 from makerundev_server.garmin_store import GarminStore
 from makerundev_server.listing import ActivityFilter, ActivitySort, conditions, ordering
+from makerundev_server.map_source_store import MapSourceStore
 from makerundev_server.matching import synced_match
 from makerundev_server.performance_store import PerformanceStore
 from makerundev_server.settings import AthleteSettings, TrimpCoefficients
@@ -46,6 +47,7 @@ class Store:
         self.writing = threading.Lock()
         self.facts = StoredFacts(data_dir)
         self.garmin = GarminStore(engine, self.writing)
+        self.map_source = MapSourceStore(engine, self.writing)
         self.strava_state = SyncStateStore(
             engine,
             self.writing,

@@ -27,6 +27,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.types import TypeDecorator
 
 from makerundev_server.config import database_path
+from makerundev_server.map_source import MapKind
 
 
 class UtcDateTime(TypeDecorator[dt.datetime]):
@@ -155,6 +156,16 @@ class GarminConnectionRow(SyncState, Base):
     api_key: Mapped[str] = mapped_column(Text)
     token: Mapped[str | None] = mapped_column(Text)
     token_expires_at: Mapped[dt.datetime | None] = mapped_column(UtcDateTime)
+
+
+class MapSourceRow(Base):
+    __tablename__ = "map_source"
+    __table_args__ = (CheckConstraint("id = 1", name="ck_map_source_single_row"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    kind: Mapped[MapKind] = mapped_column(String(32))
+    url: Mapped[str | None] = mapped_column(Text)
+    attribution: Mapped[str | None] = mapped_column(Text)
 
 
 MIGRATIONS = Path(__file__).parent / "migrations"

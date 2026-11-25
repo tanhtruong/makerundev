@@ -11,6 +11,7 @@ from makerundev_server import (
     config,
     garmin,
     garmin_api,
+    map_source_api,
     settings_api,
     strava_api,
     training_api,
@@ -87,5 +88,6 @@ def create_app(
     app.include_router(training_api.router(TrainingLoad(store, clock)))
     app.include_router(strava_api.router(store, strava_transport))
     app.include_router(garmin_api.router(store, garmin_transport, garmin_pause))
+    app.include_router(map_source_api.router(store))
     web.serve(app, web_dir or HERE / "web")
     return app

@@ -6,7 +6,7 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
-const FEATURES = ["activities", "training-load", "settings", "strava", "garmin"];
+const FEATURES = ["activities", "training-load", "settings", "strava", "garmin", "map"];
 const SHARED = ["./src/components", "./src/hooks", "./src/lib", "./src/testing", "./src/types", "./src/utils"];
 
 export default tseslint.config(
