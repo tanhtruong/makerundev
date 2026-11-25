@@ -28,6 +28,13 @@ Open source running analytics: a Python library and CLI (`packages/makerundev`) 
 - Map: off until the owner picks a tile source in settings; the browser fetches tiles straight from the provider, the app proxies nothing, and the route shape stays the fallback (ADR 9).
 - Garmin: the owner pastes their own Personal API key; the token, search and download calls live in the server on `httpx2`. A downloaded ZIP is unwrapped and imported as an ordinary file row, with no Garmin id stored (ADR 7).
 
+## Changelog
+
+- `CHANGELOG.md` is hand-written, and `[Unreleased]` becomes the release notes word for word. A pull request that changes what a user, a CLI caller, a library caller or a JSON API client sees adds its entry under `[Unreleased]` in the same pull request: a page or how it behaves, a command or option, a public name or return value, a route, parameter or field, a migration, an environment variable.
+- The same pull request corrects every `[Unreleased]` entry it makes false or incomplete.
+- A breaking change starts with `**Breaking:**` and says what to do instead. A migration says to back up the data directory first. A changed metric definition says how results shift for existing data.
+- A change nobody outside the code can see (a refactor, tests, internal docs) needs no entry, and the pull request says so.
+
 ## Issues
 
 - Triage follows `docs/issues.md`: read it before opening, labelling or scheduling an issue, when a pull request closes one, and at `make publish`. Every open issue leaves with a type, area and contribution label, a milestone (or `roadmap` and a pending decision) and its fields on the roadmap board.
