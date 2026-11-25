@@ -20,6 +20,7 @@ from makerundev_server.cross_site import CrossSiteGuard
 from makerundev_server.db import connect
 from makerundev_server.store import Store
 from makerundev_server.strava import SCOPE, StravaClient, StravaError
+from makerundev_server.training_load import Clock, TrainingLoad, system_clock
 
 HERE = Path(__file__).parent
 
@@ -30,6 +31,7 @@ def create_app(
     garmin_transport: httpx2.BaseTransport | None = None,
     garmin_pause: float = garmin.PAUSE_S,
     web_dir: Path | None = None,
+    clock: Clock = system_clock,
 ) -> FastAPI:
     root = data_dir or config.data_dir()
     root.mkdir(parents=True, exist_ok=True)
@@ -81,7 +83,7 @@ def create_app(
     app.include_router(pages)
     app.include_router(api.router(store))
     app.include_router(settings_api.router(store))
-    app.include_router(training_api.router(store))
+    app.include_router(training_api.router(TrainingLoad(store, clock)))
     app.include_router(strava_api.router(store, strava_transport))
     app.include_router(garmin_api.router(store, garmin_transport, garmin_pause))
     web.serve(app, web_dir or HERE / "web")

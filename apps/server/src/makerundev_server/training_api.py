@@ -6,19 +6,9 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from makerundev_server import performance as current
+from makerundev_server import training_load
 from makerundev_server.api import Bounds, operation_id
-from makerundev_server.performance import current_performance
-from makerundev_server.store import Store
-from makerundev_server.training import (
-    DEFAULT_RANGE,
-    RANGES,
-    Day,
-    LoadView,
-    Range,
-    load_ranges,
-    load_view,
-    today_in,
-)
+from makerundev_server.training import DEFAULT_RANGE, RANGES, Day, LoadView, Range, load_ranges
 
 MAX_LOAD_DAYS = 1000
 
@@ -83,21 +73,16 @@ class TrainingLoad(BaseModel):
     performance: Performance | None
 
 
-def router(store: Store) -> APIRouter:
+def router(reader: training_load.TrainingLoad) -> APIRouter:
     api = APIRouter(prefix="/api", generate_unique_id_function=operation_id)
 
     @api.get("/training-load", tags=["training-load"])
     def get_training_load(days: Range = DEFAULT_RANGE) -> TrainingLoad:
-        settings = store.athlete_settings()
-        timezone = settings.timezone if settings else "UTC"
-        today = today_in(timezone)
-        rows = store.list()
-        view = load_view(rows, timezone, today, RANGES[days]) if settings else None
-        found = current_performance(rows, timezone, today)
+        reading = reader.read(RANGES[days])
         return TrainingLoad(
-            settings_set=settings is not None,
-            load=_load(view) if view else None,
-            performance=_performance(found) if found else None,
+            settings_set=reading.settings_set,
+            load=_load(reading.load) if reading.load else None,
+            performance=_performance(reading.performance) if reading.performance else None,
         )
 
     return api

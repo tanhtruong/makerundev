@@ -6,17 +6,15 @@ from fastapi.testclient import TestClient
 from fit_tool.profile.profile_type import Sport, SubSport
 from makerundev.metrics import training_load
 from makerundev_server import create_app
-from makerundev_server.db import ActivityRow
-from makerundev_server.training import load_view
 from settings_payload import SETTINGS
 
-
-def run(start: str, trimp: float | None) -> ActivityRow:
-    return ActivityRow(start_time=dt.datetime.fromisoformat(start), trimp=trimp)
+MARCH_10 = dt.datetime(2026, 3, 10, 12, tzinfo=dt.UTC)
 
 
-def client_with(tmp_path, *files: tuple[str, bytes], settings: bool = True) -> TestClient:
-    client = TestClient(create_app(data_dir=tmp_path))
+def client_with(
+    tmp_path, *files: tuple[str, bytes], settings: bool = True, now: dt.datetime = MARCH_10
+) -> TestClient:
+    client = TestClient(create_app(data_dir=tmp_path, clock=lambda: now))
     if settings:
         client.put("/api/settings", json=SETTINGS)
     for name, data in files:
@@ -51,21 +49,12 @@ def ids(client: TestClient) -> dict[str, int]:
     return {row["filename"]: row["id"] for row in client.get("/api/activities").json()["items"]}
 
 
-@pytest.fixture
-def march_10(monkeypatch):
-    monkeypatch.setattr(
-        "makerundev_server.training_api.today_in", lambda _timezone: dt.date(2026, 3, 10)
-    )
-
-
 def hard_ride(make_fit) -> bytes:
     rows = [{"t": float(i), "distance": 8.0 * i, "hr": 180} for i in range(1801)]
     return make_fit(rows, sport=Sport.CYCLING, start=dt.datetime(2026, 3, 1, 7, tzinfo=dt.UTC))
 
 
-def test_training_load_api_returns_days_weeks_bounds_and_current_performance(
-    tmp_path, make_fit, march_10
-):
+def test_training_load_api_returns_days_weeks_bounds_and_current_performance(tmp_path, make_fit):
     client = client_with(
         tmp_path,
         ("ride.fit", hard_ride(make_fit)),
@@ -147,9 +136,7 @@ def test_training_load_api_returns_days_weeks_bounds_and_current_performance(
     assert (performance["critical_speed_reason"], performance["excluded"]) == (None, 0)
 
 
-def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(
-    tmp_path, make_fit, march_10
-):
+def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(tmp_path, make_fit):
     client = client_with(
         tmp_path,
         ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
@@ -173,7 +160,7 @@ def test_current_vdot_and_critical_speed_come_from_the_best_qualifying_efforts(
     ]
 
 
-def test_an_effort_is_dated_by_the_local_day_it_started(tmp_path, make_fit, march_10):
+def test_an_effort_is_dated_by_the_local_day_it_started(tmp_path, make_fit):
     rows = [{"t": float(i), "distance": 5.0 * i} for i in range(201)]
     late = make_fit(rows, start=dt.datetime(2026, 3, 3, 23, 30, tzinfo=dt.UTC))
     client = client_with(tmp_path, ("late.fit", late))
@@ -184,9 +171,7 @@ def test_an_effort_is_dated_by_the_local_day_it_started(tmp_path, make_fit, marc
     assert found["vdot_effort"]["date"] == "2026-03-04"
 
 
-def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(
-    tmp_path, make_fit, march_10
-):
+def test_excluding_through_the_api_moves_vdot_and_including_moves_it_back(tmp_path, make_fit):
     client = client_with(
         tmp_path,
         ("tempo.fit", steady(make_fit, 5000, 1250, 5)),
@@ -214,9 +199,7 @@ def test_training_load_api_refuses_an_unknown_range(tmp_path):
     assert client.get("/api/training-load?days=7").status_code == 422
 
 
-def test_training_load_api_thins_a_long_history_and_keeps_weeks_from_every_day(
-    tmp_path, make_fit, march_10
-):
+def test_training_load_api_thins_a_long_history_and_keeps_weeks_from_every_day(tmp_path, make_fit):
     old = make_fit(
         [{"t": float(i), "distance": 3.0 * i} for i in range(301)],
         start=dt.datetime(2023, 1, 1, 7, tzinfo=dt.UTC),
@@ -237,9 +220,7 @@ def test_training_load_api_thins_a_long_history_and_keeps_weeks_from_every_day(
     assert (len(year["days"]), len(default["days"])) == (365, 180)
 
 
-def test_training_load_api_keeps_a_minimum_scale_when_no_run_has_heart_rate(
-    tmp_path, make_fit, march_10
-):
+def test_training_load_api_keeps_a_minimum_scale_when_no_run_has_heart_rate(tmp_path, make_fit):
     client = client_with(tmp_path, ("reps.fit", steady(make_fit, 1000, 200, 3)))
 
     load = client.get("/api/training-load").json()["load"]
@@ -250,9 +231,7 @@ def test_training_load_api_keeps_a_minimum_scale_when_no_run_has_heart_rate(
     }
 
 
-def test_training_load_api_answers_before_settings_and_before_any_activity(
-    tmp_path, make_fit, march_10
-):
+def test_training_load_api_answers_before_settings_and_before_any_activity(tmp_path, make_fit):
     unset = client_with(
         tmp_path / "unset", ("reps.fit", steady(make_fit, 1000, 200, 3)), settings=False
     )
@@ -286,40 +265,60 @@ def test_a_sport_that_does_not_count_cannot_be_excluded(tmp_path, make_fit):
     assert client.get(f"/api/activities/{ride}").json()["excluded_from_performance"] is False
 
 
-def test_daily_load_is_bucketed_by_local_date_and_runs_through_today():
-    rows = [
-        run("2026-03-01T07:00:00+00:00", 50.0),
-        run("2026-03-01T12:00:00+00:00", 20.0),
-        run("2026-03-01T23:30:00+00:00", 30.0),
-        run("2026-03-03T07:00:00+00:00", None),
-    ]
+def hr_run(make_fit, start: str, hr: int | None = 150) -> bytes:
+    rows = [{"t": float(i), "distance": 3.0 * i, **({"hr": hr} if hr else {})} for i in range(601)]
+    return make_fit(rows, start=dt.datetime.fromisoformat(start))
 
-    view = load_view(rows, "Europe/Copenhagen", dt.date(2026, 3, 10), days=None)
 
-    assert view is not None
+def trimps(client: TestClient) -> dict[str, float]:
+    return {row["filename"]: row["trimp"] for row in client.get("/api/activities").json()["items"]}
+
+
+def test_daily_load_is_bucketed_by_local_date_and_runs_through_today(tmp_path, make_fit):
+    client = client_with(
+        tmp_path,
+        ("morning.fit", hr_run(make_fit, "2026-03-01T07:00:00+00:00", hr=150)),
+        ("noon.fit", hr_run(make_fit, "2026-03-01T12:00:00+00:00", hr=160)),
+        ("late.fit", hr_run(make_fit, "2026-03-01T23:30:00+00:00", hr=170)),
+        ("no-hr.fit", hr_run(make_fit, "2026-03-03T07:00:00+00:00", hr=None)),
+        now=dt.datetime(2026, 3, 9, 23, 30, tzinfo=dt.UTC),
+    )
+    trimp = trimps(client)
+
+    load = client.get("/api/training-load?days=all").json()["load"]
+
     expected = training_load(
-        {dt.date(2026, 3, 1): 70.0, dt.date(2026, 3, 2): 30.0},
+        {
+            dt.date(2026, 3, 1): trimp["morning.fit"] + trimp["noon.fit"],
+            dt.date(2026, 3, 2): trimp["late.fit"],
+        },
         start=dt.date(2026, 3, 1),
         end=dt.date(2026, 3, 10),
     )
-    assert [day.date for day in view.days] == expected["date"].to_list()
-    assert [day.fitness for day in view.days] == pytest.approx(expected["fitness"].to_list())
-    assert view.today.date == dt.date(2026, 3, 10)
-    assert (view.activities, view.without_heart_rate) == (4, 1)
+    assert [day["date"] for day in load["days"]] == [
+        date.isoformat() for date in expected["date"].to_list()
+    ]
+    assert [day["trimp"] for day in load["days"]] == pytest.approx(expected["load"].to_list())
+    assert [day["fitness"] for day in load["days"]] == pytest.approx(expected["fitness"].to_list())
+    assert load["today"]["date"] == "2026-03-10"
+    assert (load["activities"], load["without_heart_rate"]) == (4, 1)
 
 
-def test_a_range_keeps_the_history_before_it_in_fitness():
-    rows = [run("2026-01-01T07:00:00+00:00", 100.0), run("2026-03-09T07:00:00+00:00", 40.0)]
+def test_a_range_keeps_the_history_before_it_in_fitness(tmp_path, make_fit):
+    client = client_with(
+        tmp_path,
+        ("old.fit", hr_run(make_fit, "2025-11-01T07:00:00+00:00")),
+        ("recent.fit", hr_run(make_fit, "2026-03-09T07:00:00+00:00")),
+    )
 
-    whole = load_view(rows, "UTC", dt.date(2026, 3, 10), days=None)
-    recent = load_view(rows, "UTC", dt.date(2026, 3, 10), days=7)
+    whole = client.get("/api/training-load?days=all").json()["load"]
+    recent = client.get("/api/training-load?days=90").json()["load"]
 
-    assert whole is not None and recent is not None
-    assert recent.days[0].date == dt.date(2026, 3, 4)
-    assert len(recent.days) == 7
-    assert recent.today == whole.today
-    assert recent.days[0].fitness > 0
-    assert recent.activities == 1
+    assert recent["days"][0]["date"] == "2025-12-11"
+    assert len(recent["days"]) == 90
+    assert recent["today"] == whole["today"]
+    assert recent["days"][0]["fitness"] > 0
+    assert recent["activities"] == 1
 
 
 def test_heart_rate_reserve_zones_start_from_resting_heart_rate_at_whole_bpm(

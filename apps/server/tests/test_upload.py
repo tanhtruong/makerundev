@@ -1,4 +1,3 @@
-import datetime as dt
 import hashlib
 import json
 import sqlite3
@@ -251,12 +250,7 @@ def test_activity_stored_before_its_facts_were_kept_shows_them_after_start_up(tm
     assert first["vertical_oscillation"] == 85.0
 
 
-def test_reading_an_activity_writes_nothing_even_when_a_stored_fact_is_missing(
-    tmp_path, make_fit, monkeypatch
-):
-    monkeypatch.setattr(
-        "makerundev_server.training_api.today_in", lambda _timezone: dt.date(2026, 3, 10)
-    )
+def test_reading_an_activity_writes_nothing_even_when_a_stored_fact_is_missing(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(DYNAMICS_ROWS, laps=LAPS)
     activity_id = upload(client, "run.fit", fit)

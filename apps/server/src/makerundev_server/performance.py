@@ -11,9 +11,7 @@ from makerundev.metrics import (
     vdot,
 )
 
-from makerundev_server.db import ActivityRow
-from makerundev_server.performance_store import effort_times
-from makerundev_server.training import local_date
+from makerundev_server.training import LoadActivity, local_date
 
 COUNTED_SPORTS = frozenset({Sport.RUNNING.value, Sport.TRAIL_RUNNING.value})
 
@@ -45,7 +43,7 @@ class Performance:
         return len({effort.elapsed_s for effort in self.fitted}) < 2
 
 
-def _recent_runs(rows: Iterable[ActivityRow], timezone: str, today: dt.date) -> list[ActivityRow]:
+def _recent_runs(rows: Iterable[LoadActivity], timezone: str, today: dt.date) -> list[LoadActivity]:
     first = today - dt.timedelta(days=FITNESS_DAYS - 1)
     return [
         row
@@ -55,7 +53,7 @@ def _recent_runs(rows: Iterable[ActivityRow], timezone: str, today: dt.date) -> 
 
 
 def current_performance(
-    rows: Sequence[ActivityRow],
+    rows: Sequence[LoadActivity],
     timezone: str,
     today: dt.date,
 ) -> Performance | None:
@@ -66,14 +64,14 @@ def current_performance(
     efforts = [
         Effort(
             activity_id=row.id,
-            activity_name=row.name or row.filename,
+            activity_name=row.name,
             start_time=row.start_time,
             date=local_date(row.start_time, timezone),
             distance_m=distance_m,
             elapsed_s=elapsed_s,
         )
         for row in counted
-        for distance_m, elapsed_s in effort_times(row)
+        for distance_m, elapsed_s in row.efforts
     ]
     scored = [
         (score, effort)
