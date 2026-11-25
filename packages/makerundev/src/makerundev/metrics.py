@@ -340,12 +340,22 @@ def zone_boundaries_bpm(
     return [floor + span * threshold / 100 for threshold in thresholds_percent]
 
 
-def time_in_zones(activity: Activity, boundaries_bpm: Sequence[float]) -> list[float]:
+def _heart_rate_intervals(activity: Activity) -> tuple[FloatArray, FloatArray] | None:
     steps = _intervals(activity)
     heart_rate = _column(activity, "heart_rate")[:-1]
-    mask = steps.recording & ~np.isnan(heart_rate)
-    zones = np.searchsorted(np.asarray(boundaries_bpm, dtype=np.float64), heart_rate[mask], "right")
-    totals = np.bincount(zones, weights=steps.seconds[mask], minlength=len(boundaries_bpm) + 1)
+    mask = steps.recording & ~np.isnan(heart_rate) & (steps.seconds > 0)
+    if not mask.any():
+        return None
+    return steps.seconds[mask], heart_rate[mask]
+
+
+def time_in_zones(activity: Activity, boundaries_bpm: Sequence[float]) -> list[float] | None:
+    intervals = _heart_rate_intervals(activity)
+    if intervals is None:
+        return None
+    seconds, heart_rate = intervals
+    zones = np.searchsorted(np.asarray(boundaries_bpm, dtype=np.float64), heart_rate, "right")
+    totals = np.bincount(zones, weights=seconds, minlength=len(boundaries_bpm) + 1)
     return [float(total) for total in totals]
 
 
@@ -354,14 +364,14 @@ def trimp(
     resting_hr: float,
     max_hr: float,
     coefficients: tuple[float, float] = BANISTER_MALE,
-) -> float:
-    steps = _intervals(activity)
-    heart_rate = _column(activity, "heart_rate")[:-1]
-    mask = steps.recording & ~np.isnan(heart_rate)
-    reserve = np.clip((heart_rate[mask] - resting_hr) / (max_hr - resting_hr), 0.0, 1.0)
+) -> float | None:
+    intervals = _heart_rate_intervals(activity)
+    if intervals is None:
+        return None
+    seconds, heart_rate = intervals
+    reserve = np.clip((heart_rate - resting_hr) / (max_hr - resting_hr), 0.0, 1.0)
     factor, exponent = coefficients
-    minutes = steps.seconds[mask] / 60
-    return float(np.sum(minutes * reserve * factor * np.exp(exponent * reserve)))
+    return float(np.sum(seconds / 60 * reserve * factor * np.exp(exponent * reserve)))
 
 
 def aerobic_decoupling(activity: Activity) -> float | None:

@@ -7,14 +7,8 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from makerundev import ActivityFileError, Sport, format
-from makerundev.metrics import (
-    aerobic_decoupling,
-    best_efforts,
-    estimated_power,
-    splits,
-    summarize,
-    time_in_zones,
-)
+from makerundev.analysis import ZoneTime, analyse
+from makerundev.metrics import best_efforts, splits
 from makerundev.model import Activity, SourceFormat
 from makerundev.model import Lap as RecordedLap
 from pydantic import BaseModel
@@ -315,24 +309,19 @@ def _per_kg(watts: float | None, body_mass_kg: float | None) -> float | None:
     return watts / body_mass_kg if watts is not None and body_mass_kg is not None else None
 
 
-def _zones(activity: Activity, settings: AthleteSettings | None) -> list[Zone]:
-    if settings is None:
-        return []
-    boundaries = settings.zone_boundaries_bpm()
-    seconds = time_in_zones(activity, boundaries)
-    total = sum(seconds)
-    if not total:
+def _zones(zone_times: Sequence[ZoneTime] | None, boundaries: Sequence[float]) -> list[Zone]:
+    if zone_times is None:
         return []
     starts = format.zone_starts(boundaries)
     return [
         Zone(
-            name=f"Zone {zone + 1}",
-            low_bpm=starts[zone - 1] if zone else None,
-            high_bpm=starts[zone] - 1 if zone < len(starts) else None,
-            elapsed_s=zone_seconds,
-            share=zone_seconds / total,
+            name=f"Zone {zone.number}",
+            low_bpm=starts[index - 1] if index else None,
+            high_bpm=starts[index] - 1 if index < len(starts) else None,
+            elapsed_s=zone.seconds,
+            share=zone.share,
         )
-        for zone, zone_seconds in enumerate(seconds)
+        for index, zone in enumerate(zone_times)
     ]
 
 
@@ -350,9 +339,11 @@ def _detail(
     laps: Sequence[RecordedLap],
     settings: AthleteSettings | None,
 ) -> ActivityDetail:
-    summary = summarize(activity)
     body_mass_kg = settings.body_mass_kg if settings else None
-    estimated = estimated_power(activity, body_mass_kg) if body_mass_kg is not None else None
+    boundaries = settings.zone_boundaries_bpm() if settings else []
+    analysis = analyse(activity, body_mass_kg=body_mass_kg, zone_boundaries_bpm=boundaries)
+    summary = analysis.summary
+    estimated = analysis.estimated_power_w
     records = activity.records
     route = charts.route_points(records)
     bounds = charts.series_bounds(records)
@@ -367,7 +358,7 @@ def _detail(
         counts_for_performance=row.sport in COUNTED_SPORTS,
         excluded_from_performance=row.excluded_from_performance,
         grade_adjusted_pace_s_per_km=summary.grade_adjusted_pace_s_per_km,
-        aerobic_decoupling_percent=aerobic_decoupling(activity),
+        aerobic_decoupling_percent=analysis.aerobic_decoupling_percent,
         avg_power_w=summary.avg_power,
         avg_power_w_per_kg=_per_kg(summary.avg_power, body_mass_kg),
         estimated_power_w=estimated,
@@ -394,7 +385,7 @@ def _detail(
             BestEffort(distance_m=distance, elapsed_s=seconds)
             for distance, seconds in best_efforts(activity).items()
         ],
-        zones=_zones(activity, settings),
+        zones=_zones(analysis.zones, boundaries),
         series=[
             SeriesRow.model_validate(point, from_attributes=True)
             for point in charts.chart_series(records)

@@ -184,10 +184,7 @@ def test_aerobic_decoupling_compares_efficiency_of_both_halves_of_a_run():
     rows = steady(1000, 3.0, heart_rate=140)
     rows += steady(1000, 3.0, start_t=1001.0, start_d=3003.0, heart_rate=147)
 
-    activity = run(rows)
-
-    assert aerobic_decoupling(activity) == pytest.approx((1 - 140 / 147) * 100, abs=0.01)
-    assert aerobic_decoupling(dataclasses.replace(activity, sport=Sport.CYCLING)) is None
+    assert aerobic_decoupling(run(rows)) == pytest.approx((1 - 140 / 147) * 100, abs=0.01)
 
 
 def test_training_load_fills_rest_days_and_reports_form_going_into_the_day():

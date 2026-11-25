@@ -488,7 +488,4 @@ def _settings(session: Session) -> AthleteSettings | None:
 
 
 def _trimp(activity: Activity, settings: AthleteSettings) -> float | None:
-    heart_rate = activity.records["heart_rate"]
-    if heart_rate.is_nan().fill_null(True).all():
-        return None
     return trimp(activity, settings.resting_hr, settings.max_hr, settings.coefficients)

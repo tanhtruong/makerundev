@@ -91,7 +91,9 @@ VDOT is the VO2max that would produce the effort at average running economy. A r
 
 **Athlete settings** - The runner's max and resting heart rate, TRIMP coefficients, zone model and thresholds, timezone and body mass, kept by the app. The timezone decides which local day an activity counts toward in training load. Body mass, in kilograms, is optional and feeds estimated power; like heart rate it is one current value, so changing it changes estimated power for every past run.
 
-**TRIMP** - Banister's training impulse: minutes weighted by heart-rate reserve, a single number for how hard a session was.
+**TRIMP** - Banister's training impulse: minutes weighted by heart-rate reserve, a single number for how hard a session was. An activity with no heart rate on any recording interval has none.
+
+**Activity analysis** - The numbers for one activity that depend on the runner: its summary, aerobic decoupling, estimated power, time in each heart-rate zone and TRIMP, from `makerundev.analysis.analyse`. It takes the runner's body mass, max and resting heart rate, zone boundaries in bpm and TRIMP coefficients, each optional. A number is absent when its input is missing (no body mass, no heart rate, no zone boundaries), when the stream has no heart rate on any recording interval, or when it is not defined for the sport. Zones come as numbers only: zone number, seconds and share of the total. Splits, best efforts and laps need no runner input and stay separate calls.
 
 **Aerobic decoupling** - How much efficiency (speed per heartbeat) fell from the first half of the moving time to the second, as a percentage. Under 5 % on a long steady run is read as good aerobic endurance. Running activities only, like grade-adjusted pace.
 
