@@ -14,6 +14,7 @@ from defusedxml.common import DefusedXmlException
 
 from makerundev.errors import ActivityFileError
 from makerundev.io.anonymize import Anonymized, Identifying, shift_positions
+from makerundev.io.anonymize_fit import shift_fit_positions
 from makerundev.io.fit import read_fit
 from makerundev.io.gpx import read_gpx
 from makerundev.io.tcx import read_tcx
@@ -72,13 +73,14 @@ def load(source: str | os.PathLike[str] | bytes) -> Activity:
 
 def anonymize(data: bytes, *, rng: random.Random | None = None) -> Anonymized:
     data = _unwrap(data)
+    rng = rng or random.SystemRandom()
     if _is_fit(data):
-        raise ActivityFileError("FIT files are not supported yet; export a GPX or TCX instead")
+        return shift_fit_positions(data, rng)
     if data[:2] in (b"\xff\xfe", b"\xfe\xff") or b"\x00" in data[:4]:
         raise ActivityFileError("UTF-16 and UTF-32 files are not supported; save it as UTF-8")
     if _xml_root(data) not in _XML_READERS:
-        raise ActivityFileError("unsupported file: expected GPX or TCX")
-    return shift_positions(data, rng or random.SystemRandom())
+        raise ActivityFileError("unsupported file: expected FIT, GPX or TCX")
+    return shift_positions(data, rng)
 
 
 def _unwrap(data: bytes) -> bytes:

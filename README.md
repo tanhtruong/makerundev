@@ -102,13 +102,13 @@ And get the whole normalised record stream out as Parquet or CSV:
 uvx makerundev export race.fit race.parquet
 ```
 
-Before you attach a GPX or TCX file to a bug report, move it far from home. Every position is shifted by one random turn of the globe, so distances, times, heart rate and everything else in the file stay as they were:
+Before you attach a FIT, GPX or TCX file to a bug report, move it far from home. Every position is shifted by one random turn of the globe, so distances, times, heart rate and everything else in the file stay as they were:
 
 ```bash
-uvx makerundev anonymize run.gpx shifted.gpx
+uvx makerundev anonymize run.fit shifted.fit
 ```
 
-It lists what else in the file could identify you, such as names, an author or a device serial, so you can check those by hand. Comments and coordinates under other names are left as they are. FIT files are not supported yet.
+It lists what else in the file could identify you, such as names, an author or a device serial, so you can check those by hand. Comments and coordinates under other names are left as they are. In a FIT file that means messages and fields the FIT profile does not know, and developer fields; the command says when the file has them.
 
 Prefer pip? `pip install makerundev` gives you the same `makerundev` command and the library.
 

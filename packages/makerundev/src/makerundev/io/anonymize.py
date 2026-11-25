@@ -36,6 +36,9 @@ class Identifying(StrEnum):
     AUTHOR = "author and links"
     SERIAL = "device serial"
     TIME_ZONE = "time zone"
+    ATHLETE = "athlete profile"
+    UNKNOWN = "unknown messages and fields"
+    DEVELOPER = "developer fields"
 
 
 _IDENTIFYING_ELEMENTS = {
@@ -82,7 +85,7 @@ def shift_positions(data: bytes, rng: random.Random) -> Anonymized:
     scan = _Scan(data)
     if not scan.positions:
         raise ActivityFileError("the file has no positions to shift")
-    points = _rotate_far(
+    points = rotate_far(
         [(position.latitude.value, position.longitude.value) for position in scan.positions], rng
     )
     replacements = [
@@ -233,7 +236,7 @@ def _float(value: str | None) -> float | None:
         return None
 
 
-def _rotate_far(points: list[Point], rng: random.Random) -> list[Point]:
+def rotate_far(points: list[Point], rng: random.Random) -> list[Point]:
     confine_latitude = _largest(points, 0) < MAX_LANDING_LATITUDE
     confine_longitude = not _crosses_antimeridian(points)
     start = _vector(points[0])

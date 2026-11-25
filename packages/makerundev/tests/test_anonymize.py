@@ -1,17 +1,44 @@
+import datetime as dt
+import io
 import math
 import random
 import re
+import struct
+from collections.abc import Sequence
+from typing import Any
 from xml.etree.ElementTree import Element
 
+import fitdecode
 import pytest
 from defusedxml import ElementTree
+from fit_tool.base_type import BaseType
+from fit_tool.data_message import DataMessage
+from fit_tool.developer_field import DeveloperField
+from fit_tool.endian import Endian
+from fit_tool.field import Field
+from fit_tool.fit_file_builder import FitFileBuilder
+from fit_tool.profile.messages.activity_message import ActivityMessage
+from fit_tool.profile.messages.developer_data_id_message import DeveloperDataIdMessage
+from fit_tool.profile.messages.field_description_message import FieldDescriptionMessage
+from fit_tool.profile.messages.file_id_message import FileIdMessage
+from fit_tool.profile.messages.lap_message import LapMessage
+from fit_tool.profile.messages.record_message import RecordMessage
+from fit_tool.profile.messages.session_message import SessionMessage
+from fit_tool.profile.messages.user_profile_message import UserProfileMessage
+from fit_tool.profile.profile_type import FileType, Sport
+from fitdecode.utils import compute_crc
 from makerundev import ActivityFileError, load
-from makerundev.io import anonymize
+from makerundev.io import Identifying, anonymize
 
 START_LAT = 55.6761234
 START_LON = 12.5683371
 POINTS = 50
 EARTH_RADIUS_KM = 6371.0088
+FIT_START_MS = round(dt.datetime(2026, 3, 1, 7, tzinfo=dt.UTC).timestamp() * 1000)
+FIT_POSITIONS = POINTS + 3
+FIT_BOX_CORNERS = 2
+FIT_RECORD, FIT_SINT16, FIT_SINT32, FIT_UINT32 = 20, 0x83, 0x85, 0x86
+FIT_HOME = (664_190_000, 149_950_000)
 
 
 def _coordinates(index: int, start_lat: float = START_LAT) -> tuple[str, str]:
@@ -76,6 +103,115 @@ def _tcx(start_lat: float = START_LAT) -> bytes:
   </t:Position></t:CoursePoint></t:Course></t:Courses>
 </t:TrainingCenterDatabase>
 """.encode()
+
+
+def _fit(endian: Endian = Endian.LITTLE, extra: Sequence[Any] = ()) -> bytes:
+    track = [tuple(map(float, _coordinates(index))) for index in range(POINTS)]
+    file_id = FileIdMessage()
+    file_id.type = FileType.ACTIVITY
+    file_id.serial_number = 3412345678
+    messages: list[Any] = [file_id]
+    for index, (lat, lon) in enumerate(track):
+        record = RecordMessage()
+        record.timestamp = FIT_START_MS + index * 10_000
+        record.position_lat, record.position_long = lat, lon
+        record.heart_rate = 120 + index
+        messages.append(record)
+    lap = LapMessage()
+    session = SessionMessage()
+    for summary in (lap, session):
+        summary.timestamp = FIT_START_MS + POINTS * 10_000
+        summary.start_time = FIT_START_MS
+        summary.start_position_lat, summary.start_position_long = track[0]
+    lap.end_position_lat, lap.end_position_long = track[-1]
+    session.sport = Sport.RUNNING
+    session.nec_lat, session.nec_long = track[-1]
+    session.swc_lat, session.swc_long = track[0]
+    builder = FitFileBuilder(auto_define=True, min_string_size=20)
+    for message in [*messages, lap, session, *extra]:
+        message.endian = endian
+        builder.add(message)
+    return bytes(builder.build().to_bytes())
+
+
+def _fit_messages(data: bytes) -> list[Any]:
+    with fitdecode.FitReader(io.BytesIO(data), check_crc=fitdecode.CrcCheck.RAISE) as reader:
+        return [frame for frame in reader if isinstance(frame, fitdecode.FitDataMessage)]
+
+
+def _fit_pairs(data: bytes, box: bool = False) -> list[tuple[float, float]]:
+    pairs = []
+    for message in _fit_messages(data):
+        values = {field.name: field.raw_value for field in message.fields}
+        for name, value in values.items():
+            stem = name.removesuffix("_lat")
+            if stem != name and (stem in ("nec", "swc")) == box:
+                pairs.append((value * 180 / 2**31, values[f"{stem}_long"] * 180 / 2**31))
+    return pairs
+
+
+def _fit_everything_else(data: bytes) -> list[tuple[str, str, Any]]:
+    return [
+        (message.name, field.name, field.raw_value)
+        for message in _fit_messages(data)
+        for field in message.fields
+        if field.units != "semicircles"
+    ]
+
+
+def _fit_extras() -> list[Any]:
+    unknown_field = Field(field_id=0, base_type=BaseType.UINT8, size=1)
+    unknown_field.set_value(0, 7)
+    developer = DeveloperDataIdMessage()
+    developer.developer_data_index = 0
+    developer.application_id = bytes(range(16))
+    description = FieldDescriptionMessage()
+    description.developer_data_index = 0
+    description.field_definition_number = 0
+    description.fit_base_type_id = BaseType.UINT8.value
+    description.field_name = "home"
+    developer_field = DeveloperField(
+        field_id=0, name="home", base_type=BaseType.UINT8, size=1, developer_data_index=0
+    )
+    developer_field.set_value(0, 3)
+    record = RecordMessage()
+    record.timestamp = FIT_START_MS + POINTS * 10_000
+    record.developer_fields = [developer_field]
+    profile = UserProfileMessage()
+    profile.friendly_name = "Runner"
+    activity = ActivityMessage()
+    activity.timestamp = FIT_START_MS + POINTS * 10_000
+    activity.local_timestamp = 1_141_200_000
+    return [
+        DataMessage(global_id=65290, name="unknown", fields=[unknown_field]),
+        developer,
+        description,
+        record,
+        profile,
+        activity,
+    ]
+
+
+def _half_position() -> Any:
+    record = RecordMessage()
+    record.timestamp = FIT_START_MS + POINTS * 10_000
+    record.position_lat = START_LAT
+    return record
+
+
+def _half_box() -> Any:
+    session = SessionMessage()
+    session.timestamp = FIT_START_MS + POINTS * 10_000
+    session.nec_lat, session.nec_long = START_LAT, START_LON
+    return session
+
+
+def _raw_fit(fields: Sequence[tuple[int, int, int]], values: bytes) -> bytes:
+    definition = struct.pack("<BBBHB", 0x40, 0, 0, FIT_RECORD, len(fields))
+    definition += b"".join(bytes(field) for field in fields)
+    body = definition + b"\x00" + values
+    data = struct.pack("<BBHI4s", 12, 0x20, 2100, len(body), b".FIT") + body
+    return data + struct.pack("<H", compute_crc(data))
 
 
 class _NearlyStillFirst(random.Random):
@@ -149,6 +285,105 @@ def test_anonymize_moves_every_position_and_keeps_everything_else(source):
     assert len(_bounds(result.data)) == len(_bounds(source))
     for bounds in _bounds(result.data):
         assert bounds == pytest.approx(extremes, abs=1e-7)
+
+
+@pytest.mark.parametrize("endian", [Endian.LITTLE, Endian.BIG], ids=["little", "big"])
+def test_anonymize_moves_every_fit_position_and_keeps_every_other_byte(endian):
+    source = _fit(endian, _fit_extras())
+
+    result = anonymize(source, rng=random.Random(7))
+
+    before, after = load(source).records, load(result.data).records
+    assert after["distance"].to_list() == pytest.approx(before["distance"].to_list(), abs=0.5)
+    assert after["timestamp"].to_list() == before["timestamp"].to_list()
+    assert after["heart_rate"].to_list() == before["heart_rate"].to_list()
+    original, shifted = _fit_pairs(source), _fit_pairs(result.data)
+    assert len(shifted) == len(original) == result.positions == FIT_POSITIONS
+    assert not set(original) & set(shifted)
+    assert _kilometres(original[0], shifted[0]) >= 1000
+    assert all(abs(lat) < 60 and abs(lon) < 150 for lat, lon in shifted)
+    assert _fit_everything_else(result.data) == _fit_everything_else(source)
+    assert len(result.data) == len(source)
+    changed = sum(a != b for a, b in zip(source, result.data, strict=True))
+    assert changed <= 8 * (FIT_POSITIONS + FIT_BOX_CORNERS) + 2
+
+
+def test_anonymize_leaves_a_wrong_fit_crc_as_it_was():
+    source = _fit()
+    wrong = bytes(byte ^ 0xFF for byte in source[-2:])
+
+    result = anonymize(source[:-2] + wrong, rng=random.Random(7))
+
+    assert result.data[-2:] == wrong
+    assert result.data[:-2] != source[:-2]
+
+
+def test_anonymize_turns_a_fit_bounding_box_into_a_box_around_the_shifted_track():
+    source = _fit()
+    ((north, east), (south, west)) = _fit_pairs(source, box=True)
+    diagonal = _kilometres((north, east), (south, west))
+
+    for seed in range(40):
+        shifted = anonymize(source, rng=random.Random(seed)).data
+        ((north, east), (south, west)) = _fit_pairs(shifted, box=True)
+        assert all(
+            south - 1e-6 <= lat <= north + 1e-6 and west - 1e-6 <= lon <= east + 1e-6
+            for lat, lon in _fit_pairs(shifted)
+        )
+        assert diagonal * 0.999 <= _kilometres((north, east), (south, west)) <= diagonal * 1.415
+
+
+def test_anonymize_names_what_a_fit_file_still_holds():
+    assert anonymize(_fit(), rng=random.Random(7)).identifying == (Identifying.SERIAL,)
+    assert anonymize(_fit(extra=_fit_extras()), rng=random.Random(7)).identifying == (
+        Identifying.NAMES,
+        Identifying.SERIAL,
+        Identifying.TIME_ZONE,
+        Identifying.ATHLETE,
+        Identifying.UNKNOWN,
+        Identifying.DEVELOPER,
+    )
+
+
+@pytest.mark.parametrize(
+    ("source", "reason"),
+    [
+        (_fit()[:-20], "unreadable FIT file"),
+        (_fit() + b"junk" * 4, "unreadable FIT file"),
+        (_fit(extra=[_half_position()]), "only one coordinate"),
+        (_fit(extra=[_half_box()]), "only one corner"),
+        (_raw_fit([(253, 4, FIT_UINT32)], struct.pack("<I", 1000)), "no positions"),
+        (
+            _raw_fit([(0, 2, FIT_SINT16), (1, 4, FIT_SINT32)], struct.pack("<hi", 5, FIT_HOME[1])),
+            "2 bytes, not 4",
+        ),
+        (
+            _raw_fit(
+                [(0, 4, FIT_SINT32), (1, 4, FIT_SINT32)] * 2, struct.pack("<4i", *FIT_HOME * 2)
+            ),
+            "could not be shifted",
+        ),
+        (
+            _raw_fit(
+                [(0, 4, FIT_SINT32), (1, 4, FIT_SINT32), (3, 0, 2)], struct.pack("<2i", *FIT_HOME)
+            ),
+            "unreadable FIT file",
+        ),
+    ],
+    ids=[
+        "truncated",
+        "trailing bytes",
+        "half a position",
+        "half a bounding box",
+        "no positions",
+        "two-byte latitude",
+        "position defined twice",
+        "zero-size field",
+    ],
+)
+def test_anonymize_refuses_a_fit_file_it_cannot_shift_completely(source, reason):
+    with pytest.raises(ActivityFileError, match=reason):
+        anonymize(source, rng=random.Random(7))
 
 
 def test_anonymize_refuses_a_position_with_a_second_latitude():
