@@ -21,7 +21,7 @@ Python-only work needs none of this. `make sync` and `make check` never touch No
 | Command | What it does |
 | --- | --- |
 | `make sync-web` | Install the locked dependencies |
-| `make dev-web` | Vite on http://localhost:5173, with `/api`, `/static` and the Strava OAuth routes proxied to `make serve` on port 8000 |
+| `make dev-web` | Vite on http://localhost:5173, with `/api`, `/static`, `/tiles` and the Strava OAuth routes proxied to `make serve` on port 8000 |
 | `make build-web` | Typecheck and build into `apps/server/src/makerundev_server/web/`, which the server serves |
 | `make check-web` | ESLint, Prettier, `tsc`, Vitest, a check that the generated files are fresh, a build, and Playwright |
 
@@ -29,7 +29,7 @@ Inside `apps/web`, `pnpm generate` regenerates the API client and `pnpm format` 
 
 ## How the server serves it
 
-`/api` routes and the server's own routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links between pages are router links. `src/lib/server-pages.ts` lists the paths the server answers itself, for `make dev-web`'s proxy: `/api`, `/static` (the favicons) and the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
+`/api` routes and the server's own routes win. Every other `GET` path returns `index.html`, so the router handles deep links, and `/assets/*` serves the hashed build files. A path ending in `/` redirects to the same path without it. Links between pages are router links. `src/lib/server-pages.ts` lists the paths the server answers itself, for `make dev-web`'s proxy: `/api`, `/static` (the favicons), `/tiles` (a local map tile file) and the server routes a React page reaches by a full page load, such as `/strava/connect`, which the Connect form posts to, and `/strava/callback`, which lands back on the React page.
 
 ## Structure
 
@@ -49,7 +49,7 @@ The client only draws. Every derived number comes from the API. The client forma
 
 ## Components and theme
 
-shadcn components live in `src/components/ui` as our own code. Add one only when a page uses it, and strip its comments. The theme's tokens are in `src/styles/globals.css`, and `DESIGN.md` at the repository root describes the visual system. Light and dark follow the system setting. Fonts are bundled from `@fontsource`. The app makes no request to any other host, except for map tiles from the source the owner picks in Settings ([docs/map.md](map.md)).
+shadcn components live in `src/components/ui` as our own code. Add one only when a page uses it, and strip its comments. The theme's tokens are in `src/styles/globals.css`, and `DESIGN.md` at the repository root describes the visual system. Light and dark follow the system setting. Fonts are bundled from `@fontsource`. The map's glyphs and icons for a local tile file are committed under `public/assets/map`, pinned to commit `028c18f713baecad011301ff7a69acc39bcc2ae7` of [`protomaps/basemaps-assets`](https://github.com/protomaps/basemaps-assets), and Vite copies them into the build as they are. The app makes no request to any other host, except for map tiles from the source the owner picks in Settings ([docs/map.md](map.md)).
 
 ## Tests
 

@@ -1,1 +1,1 @@
-export const SERVER_PATHS = ["/api", "/static", "/strava/connect", "/strava/callback"];
+export const SERVER_PATHS = ["/api", "/static", "/tiles", "/strava/connect", "/strava/callback"];

@@ -179,7 +179,7 @@ Each activity comes in as the original file your watch recorded, as if you had u
 
 ### Show the route on a map
 
-The activity page draws the route as a shape and asks no other host for anything. To draw it over a map, pick a tile source under **Settings → Map**: OpenStreetMap, OpenFreeMap, or your own raster tiles or MapLibre style. Your browser then loads tiles straight from that provider, which sees your IP address and roughly where you ran; the settings page says so before you save. [docs/map.md](docs/map.md) has the details.
+The activity page draws the route as a shape and asks no other host for anything. To draw it over a map, pick a tile source under **Settings → Map**: OpenStreetMap, OpenFreeMap, your own raster tiles or MapLibre style, or a local `.pmtiles` file in the data directory. With a hosted source your browser loads tiles straight from that provider, which sees your IP address and roughly where you ran; the settings page says so before you save. A local tile file keeps everything on your server. [docs/map.md](docs/map.md) has the details.
 
 ## What it measures
 

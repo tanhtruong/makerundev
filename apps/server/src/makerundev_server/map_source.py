@@ -1,11 +1,12 @@
 import ipaddress
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
-MapKind = Literal["openstreetmap", "openfreemap", "custom_raster", "custom_style"]
-Rendering = Literal["raster", "style"]
-Field = Literal["url", "attribution"]
+MapKind = Literal["openstreetmap", "openfreemap", "custom_raster", "custom_style", "pmtiles"]
+Rendering = Literal["raster", "style", "pmtiles"]
+Field = Literal["url", "attribution", "file"]
 
 MAX_URL_LENGTH = 2000
 MAX_ATTRIBUTION_LENGTH = 200
@@ -24,6 +25,14 @@ PRIVATE_NETWORKS = tuple(
     )
 )
 PRIVATE_SUFFIXES = (".local", ".lan", ".home.arpa", ".internal")
+TILE_FILE_SUFFIX = ".pmtiles"
+OSM_CREDIT = "© OpenStreetMap contributors"
+
+
+@dataclass(frozen=True, slots=True)
+class TileFile:
+    name: str
+    size_bytes: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +45,7 @@ class ResolvedSource:
     provider: str
     terms_url: str | None
     privacy_url: str | None
+    file: str | None = None
 
 
 PRESETS: dict[MapKind, ResolvedSource] = {
@@ -44,7 +54,7 @@ PRESETS: dict[MapKind, ResolvedSource] = {
         rendering="raster",
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
         dark_url=None,
-        attribution="© OpenStreetMap contributors",
+        attribution=OSM_CREDIT,
         provider="OpenStreetMap",
         terms_url="https://operations.osmfoundation.org/policies/tiles/",
         privacy_url="https://wiki.osmfoundation.org/wiki/Privacy_Policy",
@@ -64,10 +74,39 @@ PRESETS: dict[MapKind, ResolvedSource] = {
 CUSTOM_RENDERING: dict[MapKind, Rendering] = {"custom_raster": "raster", "custom_style": "style"}
 
 
+def tile_files(directory: Path) -> list[TileFile]:
+    return sorted(
+        (
+            TileFile(name=path.name, size_bytes=path.stat().st_size)
+            for path in directory.iterdir()
+            if path.name.lower().endswith(TILE_FILE_SUFFIX) and path.is_file()
+        ),
+        key=lambda file: file.name,
+    )
+
+
+def local_source(file: str) -> ResolvedSource:
+    return ResolvedSource(
+        kind="pmtiles",
+        rendering="pmtiles",
+        url=f"/tiles/{quote(file)}",
+        dark_url=None,
+        attribution=OSM_CREDIT,
+        provider="this instance",
+        terms_url=None,
+        privacy_url=None,
+        file=file,
+    )
+
+
 def resolve(kind: MapKind, url: str | None, attribution: str | None) -> ResolvedSource:
     preset = PRESETS.get(kind)
     if preset is not None:
         return preset
+    if kind == "pmtiles":
+        if url is None:
+            raise ValueError("local map source is missing its file name")
+        return local_source(url)
     if url is None or attribution is None:
         raise ValueError(f"custom map source {kind} is missing its url or attribution")
     return ResolvedSource(
@@ -82,8 +121,24 @@ def resolve(kind: MapKind, url: str | None, attribution: str | None) -> Resolved
     )
 
 
-def rule_errors(kind: MapKind, url: str | None, attribution: str | None) -> dict[Field, str]:
+def rule_errors(
+    kind: MapKind,
+    url: str | None,
+    attribution: str | None,
+    file: str | None,
+    files: list[TileFile],
+) -> dict[Field, str]:
     errors: dict[Field, str] = {}
+    if kind == "pmtiles":
+        if url is not None:
+            errors["url"] = "A local tile file comes with its own address."
+        if attribution is not None:
+            errors["attribution"] = "A local tile file comes with its own attribution."
+        if file not in {listed.name for listed in files}:
+            errors["file"] = "Pick a .pmtiles file from the data directory."
+        return errors
+    if file is not None:
+        errors["file"] = "Only a local tile file takes a file name."
     if kind in PRESETS:
         if url is not None:
             errors["url"] = "OpenStreetMap and OpenFreeMap come with their own address."

@@ -12,4 +12,5 @@ export const MapSourceChoiceKind = {
   openfreemap: "openfreemap",
   custom_raster: "custom_raster",
   custom_style: "custom_style",
+  pmtiles: "pmtiles",
 } as const;

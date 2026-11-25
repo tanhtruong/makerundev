@@ -50,6 +50,7 @@ The data directory holds:
 - `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings and map tile source, and your Strava tokens, Garmin key and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round. After an upgrade that changes how a stored fact is worked out, the first start reads every activity's stream once before it serves.
 - `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's summary, laps and streams as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
+- any `.pmtiles` map tile file you put there yourself, which **Settings → Map** offers as a local tile file ([docs/map.md](https://github.com/tanhtruong/makerundev/blob/main/docs/map.md))
 
 Importing the same file twice is detected by its hash and skipped. Uploads are capped at 64 MB per file. To back up, copy the whole directory; with Docker, `docker cp makerundev:/data ./makerundev-backup` (`docker compose cp` from a clone).
 
@@ -102,8 +103,8 @@ Create a Personal API key in Garmin Connect on the web under **Settings → Pers
 | `PUT /api/garmin/key` | Check a Personal API key with Garmin and save it; a key Garmin refuses is a 422, and Garmin out of reach a 502 |
 | `POST /api/garmin/sync` | Start a sync in the background (202), or keep the one running |
 | `DELETE /api/garmin/key` | Delete the key and sync progress; imported activities stay |
-| `GET /api/map-source` | The map tile source the owner picked (or `null`) with its address, attribution and provider, and the presets the settings page offers |
-| `PUT /api/map-source` | Pick OpenStreetMap, OpenFreeMap, or a custom raster template or style address with its attribution; an address or attribution the server refuses is a 422 naming the field ([docs/map.md](https://github.com/tanhtruong/makerundev/blob/main/docs/map.md)) |
+| `GET /api/map-source` | The map tile source the owner picked (or `null`) with its address, attribution and provider, the presets the settings page offers, and the `.pmtiles` files in the data directory |
+| `PUT /api/map-source` | Pick OpenStreetMap, OpenFreeMap, a custom raster template or style address with its attribution, or a local tile file by name; an address, attribution or file the server refuses is a 422 naming the field ([docs/map.md](https://github.com/tanhtruong/makerundev/blob/main/docs/map.md)) |
 | `DELETE /api/map-source` | Turn the map off |
 | `GET /openapi.json` | The JSON API's OpenAPI schema |
 

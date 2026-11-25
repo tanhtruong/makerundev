@@ -16,4 +16,6 @@ export interface MapSource {
   provider: string;
   terms_url: string | null;
   privacy_url: string | null;
+  file: string | null;
+  file_missing: boolean;
 }

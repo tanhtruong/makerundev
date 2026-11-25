@@ -5,16 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MapNotice } from "@/features/map/components/map-notice";
+import { checkLocalFile } from "@/features/map/utils/check-local-file";
 import { checkSource } from "@/features/map/utils/check-source";
 import { getGetMapSourceQueryKey, useRemoveMapSource, useSaveMapSource } from "@/lib/api/endpoints/map/map.gen";
 import type { HTTPValidationError } from "@/lib/api/model/httpvalidation-error.gen";
 import type { MapSourceView } from "@/lib/api/model/map-source-view.gen";
+import type { MapTileFile } from "@/lib/api/model/map-tile-file.gen";
 import { MapSourceKind } from "@/lib/api/model/map-source-kind.gen";
 import { ApiError } from "@/lib/api-client";
 
 type Choice = MapSourceKind | "none";
 type CustomKind = typeof MapSourceKind.custom_raster | typeof MapSourceKind.custom_style;
-type Errors = { url?: string; attribution?: string };
+type Errors = { url?: string; attribution?: string; file?: string };
+
+const SELECT = "h-8 justify-self-start border border-rule bg-background px-2 text-[15px]";
+const MAP_DOCS = "https://github.com/tanhtruong/makerundev/blob/main/docs/map.md";
 
 const OPTIONS: { value: Choice; label: string }[] = [
   { value: "none", label: "No map" },
@@ -22,6 +27,7 @@ const OPTIONS: { value: Choice; label: string }[] = [
   { value: MapSourceKind.openfreemap, label: "OpenFreeMap" },
   { value: MapSourceKind.custom_raster, label: "Custom raster tiles" },
   { value: MapSourceKind.custom_style, label: "Custom map style" },
+  { value: MapSourceKind.pmtiles, label: "Local tile file" },
 ];
 
 function isCustom(choice: Choice): choice is CustomKind {
@@ -33,9 +39,18 @@ function refused(error: unknown): Errors | null {
   const errors: Errors = {};
   for (const { loc, msg } of (error.body as HTTPValidationError | null)?.detail ?? []) {
     const field = loc[1];
-    if (field === "url" || field === "attribution") errors[field] = msg;
+    if (field === "url" || field === "attribution" || field === "file") errors[field] = msg;
   }
   return Object.keys(errors).length > 0 ? errors : null;
+}
+
+function fileSize(bytes: number): string {
+  if (bytes < 1_000_000) return `${String(Math.max(1, Math.round(bytes / 1000)))} KB`;
+  return `${(bytes / 1_000_000).toLocaleString("en", { maximumFractionDigits: 1 })} MB`;
+}
+
+function tilesUrl(file: string): string {
+  return `/tiles/${encodeURIComponent(file)}`;
 }
 
 export function MapSourceForm({ view }: { view: MapSourceView }) {
@@ -45,6 +60,9 @@ export function MapSourceForm({ view }: { view: MapSourceView }) {
   const [choice, setChoice] = useState<Choice>(saved?.kind ?? "none");
   const [url, setUrl] = useState(saved && isCustom(saved.kind) ? saved.url : "");
   const [attribution, setAttribution] = useState(saved && isCustom(saved.kind) ? saved.attribution : "");
+  const [file, setFile] = useState(
+    view.files.find((listed) => listed.name === saved?.file)?.name ?? view.files[0]?.name ?? "",
+  );
   const [errors, setErrors] = useState<Errors>({});
   const [warning, setWarning] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
@@ -79,6 +97,10 @@ export function MapSourceForm({ view }: { view: MapSourceView }) {
       remove.mutate();
       return;
     }
+    if (choice === MapSourceKind.pmtiles) {
+      save.mutate({ data: { kind: choice, url: null, attribution: null, file } });
+      return;
+    }
     const custom = isCustom(choice);
     save.mutate({
       data: { kind: choice, url: custom ? url.trim() : null, attribution: custom ? attribution : null },
@@ -89,9 +111,12 @@ export function MapSourceForm({ view }: { view: MapSourceView }) {
     event.preventDefault();
     setNotice(null);
     setWarning(null);
-    if (isCustom(choice)) {
+    const local = choice === MapSourceKind.pmtiles && file !== "";
+    if (isCustom(choice) || local) {
       setChecking(true);
-      const problem = await checkSource({ kind: choice, url: url.trim() });
+      const problem = isCustom(choice)
+        ? await checkSource({ kind: choice, url: url.trim() })
+        : await checkLocalFile(tilesUrl(file));
       setChecking(false);
       if (problem !== null) {
         setWarning(problem);
@@ -140,7 +165,17 @@ export function MapSourceForm({ view }: { view: MapSourceView }) {
             </label>
           ))}
         </div>
-        <MapNotice id={`${id}-notice`} preset={preset} custom={custom} />
+        <MapNotice id={`${id}-notice`} local={choice === MapSourceKind.pmtiles} preset={preset} custom={custom} />
+        {choice === MapSourceKind.pmtiles && (
+          <LocalFileField
+            id={`${id}-file`}
+            files={view.files}
+            missing={saved?.kind === MapSourceKind.pmtiles && saved.file_missing ? saved.file : null}
+            error={errors.file}
+            value={file}
+            onChange={setFile}
+          />
+        )}
         {custom && (
           <div className="grid gap-5">
             <TextField
@@ -178,6 +213,61 @@ export function MapSourceForm({ view }: { view: MapSourceView }) {
         </div>
       </fieldset>
     </form>
+  );
+}
+
+function LocalFileField({
+  id,
+  files,
+  missing,
+  error,
+  value,
+  onChange,
+}: {
+  id: string;
+  files: MapTileFile[];
+  missing: string | null;
+  error: string | undefined;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="grid content-start gap-1.5">
+      {missing !== null && <p className="font-semibold">The tile file {missing} is not in the data directory.</p>}
+      {files.length === 0 ? (
+        <p className="max-w-[65ch] text-sm">
+          No .pmtiles file found in the data directory. See the{" "}
+          <a href={MAP_DOCS} rel="noopener noreferrer" target="_blank" className="underline">
+            map docs
+          </a>{" "}
+          for how to make one.
+        </p>
+      ) : (
+        <>
+          <Label htmlFor={id}>Tile file</Label>
+          <select
+            id={id}
+            className={SELECT}
+            value={value}
+            aria-invalid={error !== undefined}
+            aria-describedby={`${id}-note`}
+            onChange={(event) => {
+              onChange(event.target.value);
+            }}
+          >
+            {files.map((listed) => (
+              <option key={listed.name} value={listed.name}>
+                {listed.name} ({fileSize(listed.size_bytes)})
+              </option>
+            ))}
+          </select>
+          <span id={`${id}-note`} className={error ? "text-sm font-semibold" : "text-sm text-muted-foreground"}>
+            {error ?? "A .pmtiles file in the top level of the data directory."}
+          </span>
+        </>
+      )}
+      {files.length === 0 && error !== undefined && <span className="text-sm font-semibold">{error}</span>}
+    </div>
   );
 }
 

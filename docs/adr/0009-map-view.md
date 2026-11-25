@@ -34,7 +34,7 @@ Facts checked on 2026-11-21:
   - **Custom**: an `https://` raster template containing `{z}`, `{x}` and `{y}`, or a MapLibre style URL, plus an attribution text the owner must fill in. This covers keyed providers without the app knowing them, and an API key sits in the URL in the instance's database. Plain `http://` is accepted only for a private network address. The browser checks the URL on save, because the app proxies nothing.
   - **A local PMTiles file** in the data directory.
 - **The browser fetches tiles straight from the provider.** The app proxies and caches nothing: three providers forbid it, and a proxy hides little on a home server, where the browser and the server usually share one public IP. The browser's default Referer is kept for every source, because OSM blocks requests without one. It carries the instance's origin, never the page path.
-- **The local file is served as-is.** The app serves the `.pmtiles` file with range requests, and the browser reads it with the `pmtiles` protocol, so the server has no tile code. The app ships the Protomaps basemap style, its sprites and one Latin font, so the owner only drops in the file. Labels in other scripts may be missing.
+- **The local file is served as-is.** The app serves the `.pmtiles` file with range requests, and the browser reads it with the `pmtiles` protocol, so the server has no tile code. The app ships the Protomaps basemap style, its sprites and one Latin font, so the owner only drops in the file. Labels in other scripts are drawn with the device's own font.
 - **MapLibre GL JS, from npm.** It is the reference renderer for the MapLibre styles the vector sources use, and it reads raster sources too. Vite puts it in its own chunk, loaded only when a tile source is set, and it ships inside the wheel with the rest of the bundle.
 - **Attribution is on the map.** MapLibre's attribution control shows each source's credit:
   - OpenStreetMap: "© OpenStreetMap contributors", linked to its copyright page.
@@ -68,3 +68,11 @@ Settled while building the hosted sources (#70):
 - **Custom is two explicit kinds.** The owner picks "Custom raster tiles" (a template with `{z}`, `{x}` and `{y}`) or "Custom map style" (a MapLibre style URL, which must not contain them), rather than the app guessing from the URL. The API's `kind` is `custom_raster` or `custom_style`.
 - **A failed style URL falls back to the route shape**, with the note that tiles could not be loaded. Tiles that fail on a loaded style still draw the route over a blank background, as decided above.
 - **The check on save warns but does not block.** The browser loads the zero-zoom tile or fetches the style; if that fails, the settings page names the reason (mixed content included) and offers "Save anyway", since a server the browser cannot reach now may still be right.
+
+### 2026-11-25 (local tile file)
+
+Settled while building the local tile file (#88):
+
+- **The file is picked from a listing.** The server lists the `.pmtiles` files in the top level of the data directory, and the owner picks one by name. A name is saved, and a tile file served, only if it is in that listing at that moment, so no path a client sends reaches the file system. A saved file that disappears stays chosen and is reported missing, and the activity page shows the route shape.
+- **Only the Protomaps basemap schema is supported.** The bundled style is written for it; the browser warns on save when a file's metadata does not name it.
+- **One font stack.** Every label uses Noto Sans Regular in six Latin and Greek ranges (about 575 KB). A glyph range the app does not ship fails quietly, and MapLibre draws those labels with the device's own font.

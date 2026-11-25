@@ -11,6 +11,7 @@ The activity page can draw the route over an interactive map. It is off until yo
 | OpenFreeMap | Vector tiles and styles from `tiles.openfreemap.org`, with a dark style when your system is in dark mode. |
 | Custom raster tiles | Any XYZ tile template with `{z}`, `{x}` and `{y}`, such as a keyed provider or your own tile server. Tiles are 256 px, up to zoom 19. |
 | Custom map style | The address of a MapLibre `style.json`. |
+| Local tile file | A `.pmtiles` file of the Protomaps basemap in the data directory, served by this instance. Nothing is sent to another host. |
 
 A custom source needs an attribution, shown on the map as plain text: write the credit your provider asks for. The server knows the preset addresses and credits, so a preset that moves is fixed by updating makerundev, and a custom source is the way out in the meantime.
 
@@ -22,7 +23,27 @@ The settings page shows this notice under the source you pick, before you save:
 
 > Map tiles are loaded by your browser straight from {provider}. Each time you open an activity, {provider} receives your IP address, your browser's details, this instance's address, and which tiles you view, which shows where the route is to within a few hundred metres. Their terms and privacy policy apply. To keep everything on your server, use a local tile file instead.
 
-For a custom source, `{provider}` is the host in the address and the terms sentence is left out. A style can also load tiles, fonts and icons from other hosts than its own, and each of them sees the same. The local tile file is not available yet ([#88](https://github.com/tanhtruong/makerundev/issues/88)).
+For a custom source, `{provider}` is the host in the address and the terms sentence is left out. A style can also load tiles, fonts and icons from other hosts than its own, and each of them sees the same.
+
+## A local tile file
+
+The fully private source: tiles come from one [PMTiles](https://docs.protomaps.com/pmtiles/) file in the data directory, which this instance serves as it is, and your browser reads with range requests. The app ships the [Protomaps basemap](https://docs.protomaps.com/basemaps/maplibre) style with its icons and the Noto Sans font, so nothing else is needed and no request leaves the instance. It draws the light style, or the dark one when your system is in dark mode, with English labels where the map data has them.
+
+Put a file whose name ends in `.pmtiles` in the top level of the data directory (`/data` in the Docker image), then pick it under **Settings → Map → Local tile file**. The list is read each time the settings page opens, so no restart is needed. If the file is later removed or renamed, the choice is kept, and the activity page shows the route shape with a line saying the file is missing until it is back or you pick another.
+
+Only vector files built to the Protomaps basemap schema are supported, such as the extracts below. When you save, your browser reads the file's header and warns, with **Save anyway**, if it cannot be read, holds raster tiles, or does not say it is a Protomaps basemap. The bundled font covers the Latin and Greek alphabets; place names in other scripts are drawn with your device's own font.
+
+### Making a regional extract
+
+Install the [`pmtiles` command-line tool](https://docs.protomaps.com/pmtiles/cli), find the latest daily build on [maps.protomaps.com/builds](https://maps.protomaps.com/builds/), and cut out the area you run in with a bounding box of west, south, east and north in degrees. Check the size first with `--dry-run`:
+
+```bash
+pmtiles extract https://build.protomaps.com/20261124.pmtiles copenhagen.pmtiles --bbox=12.50,55.64,12.62,55.71 --maxzoom=15 --dry-run
+```
+
+Then run the same command without `--dry-run`. That box around central Copenhagen, about 8 by 8 km, makes an 8.4 MB file; a whole city or region with its surroundings runs to tens or hundreds of megabytes. Keep `--maxzoom=15`, the highest zoom in the daily builds, so streets and paths show when you zoom into a route; the map zooms further by enlarging the last level.
+
+This download runs on your machine against Protomaps' servers, once, and is the only moment anything about the region leaves it. To pick up newer map data, make a new extract and replace the file.
 
 ## Keys in tile addresses
 

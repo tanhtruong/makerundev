@@ -10,4 +10,5 @@ export interface MapSourceChoice {
   kind: MapSourceChoiceKind;
   url: string | null;
   attribution: string | null;
+  file?: string | null;
 }
