@@ -1,5 +1,5 @@
 import datetime as dt
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from makerundev import Sport
@@ -58,12 +58,11 @@ def current_performance(
     rows: Sequence[ActivityRow],
     timezone: str,
     today: dt.date,
-    fill: Callable[[list[ActivityRow]], list[ActivityRow]],
 ) -> Performance | None:
     if not rows:
         return None
     recent = _recent_runs(rows, timezone, today)
-    counted = fill([row for row in recent if not row.excluded_from_performance])
+    counted = [row for row in recent if not row.excluded_from_performance]
     efforts = [
         Effort(
             activity_id=row.id,

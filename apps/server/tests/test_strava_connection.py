@@ -116,7 +116,9 @@ def test_a_sync_still_running_after_disconnect_stores_nothing(tmp_path):
     client.delete("/api/strava")
 
     with pytest.raises(Unauthorized):
-        store.add_strava(held, streams(), activity, "backfill")
+        store.import_strava(held, streams(), activity)
+    with pytest.raises(Unauthorized):
+        store.record_strava_import(activity.start_time, "backfill")
     with pytest.raises(Unauthorized):
         store.claim_strava(held, activity.start_time, "backfill")
     with pytest.raises(Unauthorized):

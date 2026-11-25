@@ -93,7 +93,7 @@ def router(store: Store) -> APIRouter:
         today = today_in(timezone)
         rows = store.list()
         view = load_view(rows, timezone, today, RANGES[days]) if settings else None
-        found = current_performance(rows, timezone, today, store.performance.fill)
+        found = current_performance(rows, timezone, today)
         return TrainingLoad(
             settings_set=settings is not None,
             load=_load(view) if view else None,

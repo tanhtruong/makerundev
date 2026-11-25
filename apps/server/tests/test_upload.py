@@ -1,3 +1,4 @@
+import datetime as dt
 import hashlib
 import json
 import sqlite3
@@ -101,19 +102,6 @@ def test_uploaded_activity_keeps_its_laps_with_their_pace(tmp_path, make_fit):
         {"start_time": "2026-03-01T07:00:00+00:00", "elapsed_s": 330.0, "distance_m": 1000.0},
         {"start_time": "2026-03-01T07:05:30+00:00", "elapsed_s": 270.0, "distance_m": 800.0},
     ]
-    assert detail(client, activity_id)["laps"] == DETAIL_LAPS
-
-
-def test_activity_imported_before_laps_were_stored_gets_them_on_first_view(tmp_path, make_fit):
-    client = TestClient(create_app(data_dir=tmp_path))
-    fit = make_fit(LAP_ROWS, laps=LAPS)
-    client.post("/api/activities", files=[("files", ("laps.fit", fit, "application/octet-stream"))])
-    activity_id = client.get("/api/activities").json()["items"][0]["id"]
-    with sqlite3.connect(tmp_path / "makerundev.db") as db:
-        db.execute("UPDATE activities SET laps = NULL")
-
-    assert detail(client, activity_id)["laps"] == DETAIL_LAPS
-    (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).unlink()
     assert detail(client, activity_id)["laps"] == DETAIL_LAPS
 
 
@@ -222,34 +210,127 @@ def strip_dynamics(tmp_path, data: bytes) -> Path:
     return stream
 
 
-def test_activity_imported_before_running_dynamics_gets_them_on_first_view(tmp_path, make_fit):
-    client = TestClient(create_app(data_dir=tmp_path))
-    fit = make_fit(DYNAMICS_ROWS)
-    activity_id = upload(client, "dynamics.fit", fit)
-    stream = strip_dynamics(tmp_path, fit)
+def age(tmp_path, data: bytes) -> None:
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(
+            "UPDATE activities SET facts_version = 0, laps = NULL, best_efforts = NULL,"
+            " distance_m = 0"
+        )
+    strip_dynamics(tmp_path, data)
 
-    assert detail(client, activity_id)["running_dynamics"] == DYNAMICS
-    stored = pl.read_parquet(stream)
-    assert stored["ground_contact_time"].to_list() == [250.0] * 601
-    assert stored["step_length"].to_list() == pytest.approx([1.1] * 601)
-    assert list(tmp_path.joinpath("streams").iterdir()) == [stream]
-    first = client.get(f"/api/activities/{activity_id}/records").json()[0]
+
+def stored(tmp_path) -> tuple[list[tuple[Any, ...]], dict[str, bytes]]:
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        rows = db.execute("SELECT * FROM activities ORDER BY id").fetchall()
+    files = {
+        str(path.relative_to(tmp_path)): path.read_bytes()
+        for folder in ("originals", "streams")
+        for path in sorted((tmp_path / folder).iterdir())
+    }
+    return rows, files
+
+
+def test_activity_stored_before_its_facts_were_kept_shows_them_after_start_up(tmp_path, make_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(DYNAMICS_ROWS, laps=LAPS)
+    activity_id = upload(client, "old.fit", fit)
+    efforts = detail(client, activity_id)["best_efforts"]
+    age(tmp_path, fit)
+
+    restarted = TestClient(create_app(data_dir=tmp_path))
+    before = stored(tmp_path)
+    shown = detail(restarted, activity_id)
+
+    assert stored(tmp_path) == before
+    assert shown["laps"] == DETAIL_LAPS
+    assert shown["running_dynamics"] == DYNAMICS
+    assert shown["best_efforts"] == efforts
+    assert len(efforts) >= 2
+    assert shown["distance_m"] == 1800.0
+    first = restarted.get(f"/api/activities/{activity_id}/records").json()[0]
     assert first["vertical_oscillation"] == 85.0
+
+
+def test_reading_an_activity_writes_nothing_even_when_a_stored_fact_is_missing(
+    tmp_path, make_fit, monkeypatch
+):
+    monkeypatch.setattr(
+        "makerundev_server.training_api.today_in", lambda _timezone: dt.date(2026, 3, 10)
+    )
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(DYNAMICS_ROWS, laps=LAPS)
+    activity_id = upload(client, "run.fit", fit)
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute("UPDATE activities SET laps = NULL, best_efforts = NULL")
+    strip_dynamics(tmp_path, fit)
+    before = stored(tmp_path)
+
+    shown = detail(client, activity_id)
+    client.get(f"/api/activities/{activity_id}/records")
+    client.get("/api/training-load")
+
+    assert stored(tmp_path) == before
+    assert (shown["laps"], shown["best_efforts"]) == ([], [])
+    assert shown["running_dynamics"] == NO_DYNAMICS
+
+
+def test_activity_detail_serves_the_stored_best_efforts(tmp_path, steady_run_fit):
+    client = TestClient(create_app(data_dir=tmp_path))
+    activity_id = upload(client, "run.fit", steady_run_fit)
+    with sqlite3.connect(tmp_path / "makerundev.db") as db:
+        db.execute(
+            """UPDATE activities SET best_efforts = '[{"distance_m": 1000.0, "elapsed_s": 1.5}]'"""
+        )
+
+    assert detail(client, activity_id)["best_efforts"] == [{"distance_m": 1000.0, "elapsed_s": 1.5}]
+
+
+def test_a_row_that_cannot_catch_up_leaves_start_up_running_and_is_not_retried(
+    tmp_path, make_fit, steady_run_fit
+):
+    client = TestClient(create_app(data_dir=tmp_path))
+    fit = make_fit(DYNAMICS_ROWS, laps=LAPS)
+    activity_id = upload(client, "old.fit", fit)
+    lost_id = upload(client, "lost.fit", steady_run_fit)
+    age(tmp_path, fit)
+    original = tmp_path / "originals" / hashlib.sha256(fit).hexdigest()
+    kept = original.read_bytes()
+    original.unlink()
+    stream = tmp_path / "streams" / f"{hashlib.sha256(steady_run_fit).hexdigest()}.parquet"
+    lost_stream = stream.read_bytes()
+    stream.unlink()
+
+    restarted = TestClient(create_app(data_dir=tmp_path))
+    shown = detail(restarted, activity_id)
+    listed = restarted.get("/api/activities").json()["items"]
+    original.write_bytes(kept)
+    stream.write_bytes(lost_stream)
+    again = TestClient(create_app(data_dir=tmp_path))
+    shown_again = detail(again, activity_id)
+
+    assert (shown["laps"], shown["running_dynamics"]) == ([], NO_DYNAMICS)
+    assert (shown_again["laps"], shown_again["running_dynamics"]) == ([], NO_DYNAMICS)
+    assert shown_again["best_efforts"] == shown["best_efforts"] != []
+    assert {row["id"] for row in listed} == {activity_id, lost_id}
+    assert detail(again, lost_id)["distance_m"] == 0.0
 
 
 def test_activity_whose_original_no_longer_matches_gets_empty_running_dynamics(tmp_path, make_fit):
     client = TestClient(create_app(data_dir=tmp_path))
     fit = make_fit(DYNAMICS_ROWS)
     activity_id = upload(client, "dynamics.fit", fit)
-    stream = strip_dynamics(tmp_path, fit)
+    age(tmp_path, fit)
     (tmp_path / "originals" / hashlib.sha256(fit).hexdigest()).write_bytes(
         make_fit(DYNAMICS_ROWS[:-1])
     )
 
-    assert detail(client, activity_id)["running_dynamics"] == NO_DYNAMICS
-    stored = pl.read_parquet(stream)
+    restarted = TestClient(create_app(data_dir=tmp_path))
+
+    assert detail(restarted, activity_id)["running_dynamics"] == NO_DYNAMICS
+    stream = pl.read_parquet(tmp_path / "streams" / f"{hashlib.sha256(fit).hexdigest()}.parquet")
+    assert set(DYNAMICS_COLUMNS) <= set(stream.columns)
     for column in DYNAMICS_COLUMNS:
-        assert stored[column].null_count() == stored.height
+        assert stream[column].null_count() == stream.height
 
 
 GPX = b"""<?xml version="1.0"?>

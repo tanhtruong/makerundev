@@ -7,6 +7,7 @@ import httpx2
 from fastapi.testclient import TestClient
 from makerundev_server import create_app
 from makerundev_server.settings import AthleteSettings
+from settings_payload import SETTINGS
 from strava_fake import FakeStrava, connected, lap, summary, sync, upload
 
 
@@ -45,6 +46,61 @@ def test_first_sync_brings_in_every_activity_with_its_stream(tmp_path):
     assert [item["distance"] for item in original["activity"]["laps"]] == [1000.0, 2000.0]
     connection = store.strava_connection()
     assert (connection.imported, connection.matched, connection.backfill_done) == (3, 0, True)
+
+
+FACTS = (
+    "distance_m, elapsed_s, moving_s, pace_s_per_km, avg_heart_rate, max_heart_rate,"
+    " elevation_gain_m, trimp, laps, best_efforts, facts_version"
+)
+
+
+def stored_facts(data_dir) -> list[tuple]:
+    with sqlite3.connect(data_dir / "makerundev.db") as db:
+        return db.execute(f"SELECT {FACTS} FROM activities").fetchall()
+
+
+def test_a_strava_activity_and_the_same_run_as_a_file_store_the_same_facts(tmp_path, make_fit):
+    fake = FakeStrava([summary(1, 1)])
+    _client, store = connected(tmp_path / "strava", fake)
+    store.save_athlete_settings(AthleteSettings(max_hr=190, resting_hr=50))
+    sync(store, fake)
+    rows = [
+        {"t": float(i), "lat": 55.67 + i * 0.00003, "lon": 12.56, "distance": i * 3.0, "hr": 140}
+        for i in range(1001)
+    ]
+    client = TestClient(create_app(data_dir=tmp_path / "file"))
+    client.put("/api/settings", json=SETTINGS)
+    upload(client, "run.fit", make_fit(rows))
+
+    [synced] = stored_facts(tmp_path / "strava")
+    assert stored_facts(tmp_path / "file") == [synced]
+    assert synced[7] > 0
+    assert len(json.loads(synced[9])) >= 2
+
+
+def test_a_sync_stopped_between_import_and_progress_neither_duplicates_nor_skips(
+    tmp_path, monkeypatch
+):
+    fake = FakeStrava([summary(1, 1), summary(2, 2), summary(3, 3)])
+    client, store = connected(tmp_path, fake)
+    record = store.record_strava_import
+    calls = []
+
+    def stop_once(*args):
+        calls.append(args)
+        if len(calls) == 1:
+            raise RuntimeError("stopped")
+        record(*args)
+
+    monkeypatch.setattr(store, "record_strava_import", stop_once)
+
+    assert sync(store, fake) == "failed"
+    assert sync(store, fake) == "up_to_date"
+
+    assert fake.stream_requests() == ["3", "2", "1"]
+    activities = client.get("/api/activities").json()["items"]
+    assert [a["external_id"] for a in activities] == ["3", "2", "1"]
+    assert store.strava_connection().backfill_done is True
 
 
 TWO_LAPS = [
@@ -212,7 +268,8 @@ def test_activities_synced_before_laps_get_them_once_on_a_later_sync(tmp_path, s
     upload(client, "77.fit.gz", gzip.compress(steady_run_fit))
     sync(store, fake)
     with sqlite3.connect(tmp_path / "makerundev.db") as db:
-        db.execute("UPDATE activities SET laps = NULL")
+        db.execute("UPDATE activities SET laps = NULL, facts_version = 0")
+    client = TestClient(create_app(data_dir=tmp_path, strava_transport=httpx2.MockTransport(fake)))
     fake.laps["1"] = [
         lap("2026-03-01T07:05:00Z", 700, 2000.0),
         lap("2026-03-01T07:00:00Z", 300, 1000.0),

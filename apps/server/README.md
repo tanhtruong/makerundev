@@ -47,7 +47,7 @@ So that another website cannot make your browser change anything here, every req
 
 The data directory holds:
 
-- `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens, Garmin key and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round.
+- `makerundev.db` - a SQLite database with one row per activity and its summary, your athlete settings, and your Strava tokens, Garmin key and sync progress once connected. A data directory created under the old name keeps its `pacelab.db`, which is used as it is. The app upgrades it to the latest schema on startup, so a newer version can open an older data directory, but not the other way round. After an upgrade that changes how a stored fact is worked out, the first start reads every activity's stream once before it serves.
 - `originals/` - each imported file as uploaded (for a ZIP, the file inside), named by its SHA-256, and each synced Strava activity's summary, laps and streams as gzipped JSON, named `strava-<id>`
 - `streams/` - the normalised record stream of each activity as Parquet
 

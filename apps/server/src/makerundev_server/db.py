@@ -94,6 +94,7 @@ class ActivityRow(Base):
     imported_at: Mapped[dt.datetime] = mapped_column(
         UtcDateTime, default=lambda: dt.datetime.now(dt.UTC)
     )
+    facts_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class AthleteSettingsRow(Base):

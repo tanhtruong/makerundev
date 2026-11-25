@@ -8,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from makerundev import ActivityFileError, Sport, format
 from makerundev.analysis import ZoneTime, analyse
-from makerundev.metrics import best_efforts, splits
+from makerundev.metrics import splits
 from makerundev.model import Activity, SourceFormat
 from makerundev.model import Lap as RecordedLap
 from pydantic import BaseModel
@@ -18,6 +18,7 @@ from makerundev_server.db import ActivityRow
 from makerundev_server.listing import ActivityFilter, ActivitySort
 from makerundev_server.lookups import activity_or_404
 from makerundev_server.performance import COUNTED_SPORTS
+from makerundev_server.performance_store import effort_times
 from makerundev_server.settings import AthleteSettings
 from makerundev_server.store import Store
 from makerundev_server.strava import ACTIVITY_URL
@@ -231,7 +232,8 @@ def router(store: Store) -> APIRouter:
     @api.get("/activities/{activity_id}", tags=["activities"], responses=not_found)
     def get_activity(activity_id: int) -> ActivityDetail:
         row = activity_or_404(store, activity_id)
-        return _detail(row, store.activity(row), store.laps(row), store.athlete_settings())
+        activity = store.facts.read(row)
+        return _detail(row, activity, activity.laps, store.athlete_settings())
 
     @api.put(
         "/activities/{activity_id}/exclusion",
@@ -252,7 +254,7 @@ def router(store: Store) -> APIRouter:
 
     @api.get("/activities/{activity_id}/records", tags=["activities"], responses=not_found)
     def list_activity_records(activity_id: int) -> list[dict[str, Any]]:
-        return store.records(activity_or_404(store, activity_id)).to_dicts()
+        return store.facts.records(activity_or_404(store, activity_id)).to_dicts()
 
     return api
 
@@ -383,7 +385,7 @@ def _detail(
         ],
         best_efforts=[
             BestEffort(distance_m=distance, elapsed_s=seconds)
-            for distance, seconds in best_efforts(activity).items()
+            for distance, seconds in effort_times(row)
         ],
         zones=_zones(analysis.zones, boundaries),
         series=[
