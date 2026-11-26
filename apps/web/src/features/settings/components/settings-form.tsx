@@ -221,7 +221,7 @@ export function SettingsForm({ view }: { view: SettingsView }) {
           id="timezone"
           label="Timezone"
           errors={errors}
-          hint="Decides which day an activity counts toward in daily training load."
+          hint="Sets the timezone for shown times and decides which day an activity counts toward in daily training load."
         >
           {(props) => (
             <>
