@@ -65,7 +65,7 @@ Guidelines:
 
 - One concern per pull request.
 - Pull request titles and commit messages follow [Conventional Commits](https://www.conventionalcommits.org/): `feat(metrics): add grade-adjusted pace`.
-- UI changes include before and after screenshots.
+- UI changes include before and after screenshots, taken from `make demo` data so they never show your own runs and can be taken again.
 - A change a user, a CLI caller, a library caller or a JSON API client can see adds its entry under `[Unreleased]` in `CHANGELOG.md` in the same pull request, and corrects the entries it makes false. A breaking change starts with `**Breaking:**` and says what to do instead.
 - The decisions in `docs/adr/` are settled; pull requests that go against one will be closed. To propose revisiting one, start a Discussion that says what has changed since it was made.
 - New decisions that are hard to reverse get an ADR in `docs/adr/`.

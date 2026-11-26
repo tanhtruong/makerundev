@@ -24,6 +24,7 @@ Python-only work needs none of this. `make sync` and `make check` never touch No
 | `make dev-web` | Vite on http://localhost:5173, with `/api`, `/static`, `/tiles` and the Strava OAuth routes proxied to `make serve` on port 8000 |
 | `make build-web` | Typecheck and build into `apps/server/src/makerundev_server/web/`, which the server serves |
 | `make check-web` | ESLint, Prettier, `tsc`, Vitest, a check that the generated files are fresh, a build, and Playwright |
+| `make demo DATA_DIR=<empty dir>` | Generated runs to look at and screenshot: a year of training plus the awkward recordings (a GPS jump, a heart-rate dropout, pauses, a treadmill run, a ride), with `demo/manifest.json` holding the figures each should show. Serve them with `MAKERUNDEV_DATA_DIR=<dir> make serve` |
 
 Inside `apps/web`, `pnpm generate` regenerates the API client and `pnpm format` applies Prettier and ESLint fixes.
 
