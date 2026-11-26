@@ -17,11 +17,11 @@ makerundev-server = { workspace = true }
 dev = [
     "makerundev",
     "makerundev-server",
-    "fit-tool>=0.9.17",
+    "fit-tool>=0.10.0",
     "httpx2>=2.16",
     "mypy>=2.4",
     "pytest>=9.2",
-    "ruff>=0.17",
+    "ruff>=0.17.6",
     "pmtiles>=3.8.1",
 ]
 
