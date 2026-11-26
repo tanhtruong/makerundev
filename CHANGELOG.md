@@ -6,6 +6,10 @@ A change to a metric definition is always listed, with how results shift for exi
 
 ## [Unreleased]
 
+### Changed
+
+- The Timezone setting now explains that it also controls the times shown in the app.
+
 ## [0.9.0] - 2026-11-26
 
 ### Added
