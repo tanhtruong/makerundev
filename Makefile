@@ -1,4 +1,4 @@
-.PHONY: sync check lint format types test openapi serve release publish sync-web build-web check-web dev-web
+.PHONY: sync check lint format types test openapi serve demo release publish sync-web build-web check-web dev-web
 
 sync:
 	uv sync --locked
@@ -40,6 +40,10 @@ dev-web:
 
 serve:
 	uv run makerundev-server
+
+demo:
+	@test -n "$(DATA_DIR)" || { echo "usage: make demo DATA_DIR=<empty dir> [SEED=n] [END=yyyy-mm-dd]" >&2; exit 1; }
+	uv run python scripts/demo.py "$(DATA_DIR)" $(if $(SEED),--seed $(SEED)) $(if $(END),--end $(END))
 
 release:
 	@test -n "$(VERSION)" || { echo "usage: make release VERSION=x.y.z" >&2; exit 1; }
