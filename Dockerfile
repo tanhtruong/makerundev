@@ -1,4 +1,4 @@
-FROM node:24.19.0-slim AS web
+FROM node:26.13.0-slim AS web
 
 WORKDIR /src/apps/web
 RUN corepack enable
